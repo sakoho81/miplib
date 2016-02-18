@@ -4,7 +4,7 @@ setup(
     name='supertomo',
     version='0.1',
     packages=find_packages(),
-    install_requires=['numpy', 'scipy'],
+    install_requires=['numpy', 'scipy', 'h5py'],
     entry_points={
         'console_scripts': [
             'supertomo.main = supertomo.bin.main:main',
