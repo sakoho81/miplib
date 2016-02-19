@@ -19,6 +19,8 @@ import sys
 import time
 from numpy.testing import utils as numpy_utils
 
+from supertomo.reconstruction import ops_ext
+from supertomo.cli import utils
 import supertomo.io.image_data as image_data
 
 class MultiViewFusionRL():
@@ -50,9 +52,9 @@ class MultiViewFusionRL():
         self.data_type = images[0].get_data_type()
         self.float_type = utils.float2dtype(options.float_type)
 
-        self.psfs = []
-        self.data = []
         self.options = options
+
+
 
         for i in range(len(images)):
             psfs[i].images, images[i].images = deconvolution.get_coherent_images(
