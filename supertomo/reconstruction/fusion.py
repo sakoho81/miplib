@@ -18,12 +18,10 @@ import tempfile
 import sys
 import time
 from numpy.testing import utils as numpy_utils
-from iocbio.microscope import deconvolution, ops_ext, plots
-from iocbio import utils
-from iocbio.io import image_stack, RowFile
 
+import supertomo.io.image_data as image_data
 
-class MultiViewFusionRL(deconvolution.Deconvolve):
+class MultiViewFusionRL():
     """
     The Richardson-Lucy fusion process is based on the Deconvolve
     superclass, implemented in iocbio.microscope.deconvolution
@@ -37,7 +35,7 @@ class MultiViewFusionRL(deconvolution.Deconvolve):
     The fusion result will be returned as an ImageStack object as
     well.
     """
-    def __init__(self, psfs, images, options):
+    def __init__(self, data, options):
         """
         :param psfs:    a list of 3D PSFs (each of which should match
                         their corresponding projection), as ImageStack
@@ -47,11 +45,7 @@ class MultiViewFusionRL(deconvolution.Deconvolve):
         :param options: command line options that control the behavior
                         of the fusion algorithm
         """
-        assert (len(images) >= 2 or len(psfs) >= 2)
-        assert len(images) == len(psfs)
-
-        assert isinstance(images, list)
-        assert isinstance(images[0], image_stack.ImageStack)
+        assert isinstance(data, image_data.ImageData)
 
         self.data_type = images[0].get_data_type()
         self.float_type = utils.float2dtype(options.float_type)

@@ -8,7 +8,8 @@ setup(
     entry_points={
         'console_scripts': [
             'supertomo.main = supertomo.bin.main:main',
-            'supertomo.blurseq = supertomo.bin.convert_files:main'
+            'supertomo.blurseq = supertomo.bin.convert_files:main',
+            'supertomo.test.hdf5 = supertomo.bin.test.test_hdf5.py:main'
         ]
     },
     platforms=["any"],

@@ -2,7 +2,7 @@ import os
 import h5py
 import numpy
 
-image_types = ("original", "registered", "fused")
+image_types = ("original", "registered", "fused", "psf")
 
 
 class ImageData():
@@ -112,6 +112,28 @@ class ImageData():
             else:
                 image_group.create_dataset("0", data=data, chunks=chunk_size)
 
+    def add_psf(self, data, spacing):
+        assert isinstance(data, numpy.ndarray), "Invalid data format."
+
+        group_name = "registered/" + str(self.active_image)
+        image_group = self.data.create_group(group_name)
+
+        image_group["spacing"] = spacing
+        image_group["transform"] = transform
+
+        if len(data.shape) == 4:
+            for channel in range(0, data.shape[0]):
+                if chunk_size is None:
+                    image_group.create_dataset(str(channel), data=data[channel])
+                else:
+                    image_group.create_dataset(str(channel), data=data[channel], chunks=chunk_size)
+        else:
+            if chunk_size is None:
+                image_group.create_dataset("0", data=data)
+            else:
+                image_group.create_dataset("0", data=data, chunks=chunk_size)
+
+
     def add_fused_image(self, data, spacing):
         """
         Add a fused image.
@@ -161,6 +183,20 @@ class ImageData():
             return
         else:
             self.active_image = type + "/" + str(index) + "/" + str(channel)
+
+    def set_fused_block(self, block, start_index):
+        assert isinstance(block, numpy.ndarray) and isinstance(start_index, numpy.ndarray)
+        stop_index = start_index + block.shape
+        self.data["fused"][start_index:stop_index] = block
+
+    def get_registered_block(self, block_size, start_index):
+        assert isinstance(block_size, numpy.ndarray)
+        assert isinstance(start_index, numpy.ndarray)
+
+        assert "registered" in self.active_image, "You must specify a registered image"
+
+        return self.data[self.active_image][start_index, start_index + block_size]
+
 
     def close(self):
         """
