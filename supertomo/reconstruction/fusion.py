@@ -23,6 +23,7 @@ from supertomo.reconstruction import ops_ext
 from supertomo.cli import utils
 import supertomo.io.image_data as image_data
 
+
 class MultiViewFusionRL():
     """
     The Richardson-Lucy fusion process is based on the Deconvolve

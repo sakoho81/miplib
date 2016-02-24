@@ -1,4 +1,5 @@
 from setuptools import setup, find_packages, Extension
+import numpy
 
 setup(
     name='supertomo',
@@ -19,5 +20,7 @@ setup(
     author_email='sami.koho@gmail.com',
     description='supertomo software was created for Tomographic reconstruction '
                 'of STED super-resolution microscopy images.',
-    ext_modules=[Extension('supertomo.reconstruction.ops_ext', ['supertomo/reconstruction/src/ops_ext.c'])]
+    ext_modules=[Extension('supertomo.reconstruction.ops_ext',
+                           ['supertomo/reconstruction/src/ops_ext.c'],
+                           include_dirs=[numpy.get_include()])]
 )
