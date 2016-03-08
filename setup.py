@@ -9,7 +9,7 @@ setup(
     entry_points={
         'console_scripts': [
             'supertomo.main = supertomo.bin.main:main',
-            'supertomo.blurseq = supertomo.bin.convert_files:main',
+            'supertomo.convert = supertomo.bin.convert_files:main',
             'supertomo.test.hdf5 = supertomo.bin.test.test_hdf5.py:main'
         ]
     },
@@ -20,7 +20,14 @@ setup(
     author_email='sami.koho@gmail.com',
     description='supertomo software was created for Tomographic reconstruction '
                 'of STED super-resolution microscopy images.',
-    ext_modules=[Extension('supertomo.reconstruction.ops_ext',
-                           ['supertomo/reconstruction/src/ops_ext.c'],
-                           include_dirs=[numpy.get_include()])]
+    ext_modules=[
+        Extension(
+            'supertomo.reconstruction.ops_ext',
+            ['supertomo/reconstruction/src/ops_ext.c'],
+            include_dirs=[numpy.get_include()]),
+        Extension(
+            'supertomo.io._tifffile',
+            ['supertomo/io/src/tifffile.c'],
+            include_dirs=[numpy.get_include()])
+    ]
 )
