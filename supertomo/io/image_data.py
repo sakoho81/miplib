@@ -27,8 +27,10 @@ class ImageData():
             self.channel_count = 1
 
         self.active_image = None
+        self.active_channel = 0
+        self.data.attrs["series_count"] = 0
 
-    def add_original_image(self, data, rotation_angle, spacing, chunk_size=None):
+    def add_original_image(self, data, rotation_angle, spacing, name, chunk_size=None):
         """
         Add a source image to the HDF5 file. This function is typically used
         when the HDF5 file is created from source image files.
@@ -53,8 +55,9 @@ class ImageData():
         group_name = "original/" + str(self.series_count)
         image_group = self.data.create_group(group_name)
 
-        image_group["spacing"] = spacing
-        image_group["rotation_angle"] = rotation_angle
+        image_group.attrs["spacing"] = spacing
+        image_group.attrs["rotation_angle"] = rotation_angle
+        image_group.attrs["name"] = name
 
         if len(data.shape) == 4:
             self.channel_count = data.shape[0]
@@ -70,7 +73,7 @@ class ImageData():
                 image_group.create_dataset("0", data=data, chunks=chunk_size)
 
         self.series_count += 1
-        self.data["series_count"] = self.series_count
+        self.data.attrs["series_count"] = self.series_count
 
     def add_registered_image(self, data, transform, spacing, chunk_size=None):
         """
@@ -97,8 +100,8 @@ class ImageData():
         group_name = "registered/" + str(self.active_image)
         image_group = self.data.create_group(group_name)
 
-        image_group["spacing"] = spacing
-        image_group["transform"] = transform
+        image_group.attrs["spacing"] = spacing
+        image_group.attrs["transform"] = transform
 
         if len(data.shape) == 4:
             for channel in range(0, data.shape[0]):
@@ -112,14 +115,14 @@ class ImageData():
             else:
                 image_group.create_dataset("0", data=data, chunks=chunk_size)
 
-    def add_psf(self, data, spacing):
+    def add_psf(self, data, rotation_angle, spacing, chunk_size=None):
         assert isinstance(data, numpy.ndarray), "Invalid data format."
 
         group_name = "registered/" + str(self.active_image)
         image_group = self.data.create_group(group_name)
 
-        image_group["spacing"] = spacing
-        image_group["transform"] = transform
+        image_group.attrs["spacing"] = spacing
+        image_group.attrs["rotation_angle"] = rotation_angle
 
         if len(data.shape) == 4:
             for channel in range(0, data.shape[0]):
@@ -164,12 +167,12 @@ class ImageData():
             image_group.create_dataset("0", data=data)
 
     def get_rotation_angle(self):
-        return self.data[self.active_image]["rotation_angle"]
+        return self.data[self.active_image].attrs["rotation_angle"]
 
     def get_voxel_size(self):
-        return self.data[self.active_image]["spacing"]
+        return self.data[self.active_image].attrs["spacing"]
 
-    def set_active_image(self, index, type, channel):
+    def set_active_image(self, index, type):
         """
         Select which view is currently active.
 
@@ -182,7 +185,11 @@ class ImageData():
             print "Unkown image type."
             return
         else:
-            self.active_image = type + "/" + str(index) + "/" + str(channel)
+            self.active_image = type + "/" + str(index)
+
+    def set_active_channel(self, index):
+        assert index < len(self.data[self.active_image])
+        self.active_channel = index
 
     def set_fused_block(self, block, start_index):
         assert isinstance(block, numpy.ndarray) and isinstance(start_index, numpy.ndarray)
@@ -196,7 +203,6 @@ class ImageData():
         assert "registered" in self.active_image, "You must specify a registered image"
 
         return self.data[self.active_image][start_index, start_index + block_size]
-
 
     def close(self):
         """
