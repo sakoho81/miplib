@@ -1,5 +1,6 @@
 import numpy
-
+from ..io import image_data as id
+from ..utils import itkutils
 def get_coherent_images(psf, stack, dtype):
     """
     Return PSF and stack images so that they have
@@ -39,3 +40,25 @@ def get_coherent_images(psf, stack, dtype):
     psf_images /= psf_images.sum()
 
     return psf_images, stack_images
+
+
+def get_psfs(data):
+    assert isinstance(data, id.ImageData)
+
+    n_views = data.get_number_of_images("registered")
+    n_psfs = data.get_number_of_images("psf")
+    if n_psfs < n_views and n_psfs == 1:
+        data.set_active_image(0, "psf")
+        psfs = [data[:]]
+        for i in range(1, n_views):
+            data.set_active_image(i, "registered")
+            psfs.append(
+                itkutils.rotate_psf(
+                    psfs[0],
+                    data.get_transform(),
+                    image_type,
+                    return_numpy=True,
+                    convert_to_itk=True
+                )
+            )
+

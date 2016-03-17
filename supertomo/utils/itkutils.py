@@ -31,6 +31,15 @@ def convert_from_numpy(array):
     assert isinstance(array, numpy.ndarray)
     return sitk.GetImageFromArray(array)
 
+def make_itk_transform(type, parameters, fixed_parameters):
+    transform = getattr(sitk, type)
+    assert issubclass(transform, sitk.Transform)
+
+    transform.SetParameters(parameters)
+    transform.SetFixedParameters(fixed_parameters)
+
+    return transform
+
 def resample_image(image, transform, reference=None):
     """
     Resampling filter for manipulating data volumes. This function can be
@@ -63,61 +72,50 @@ def resample_image(image, transform, reference=None):
     return resampler.Execute()
 
 
-def rotate_psf(psf, transform, image_type, convert_to_itk=False,
-               return_image_stack=False, center_of_mass=False):
+def rotate_psf(psf, transform, return_numpy=False):
     """
     In case, only one point-spread-function (PSF) is to be used in the image
     fusion, it needs to be rotated with the transform of the moving_image.
     The transform is generated during the registration process.
 
-    psf             = SuperTomo:ImageStack object, containing PSF data
-    transform       = itk::Transform object
-    image_type      = pixel type of the image
-    convert_to_itk  = tells the function that the input image (psf) is a
-                      ImageStack object, which must be converted to an
-                      itk:Image object
+    psf             = A Numpy array, containing PSF data
+    transform       = itk::VersorRigid3DTransform object
     return_numpy    = it is possible to either return the result as an
                       itk:Image, or a ImageStack.
 
     """
+    assert isinstance(transform, sitk.VersorRigid3DTransform)
 
-    if convert_to_itk:
+    if isinstance(psf, numpy.ndarray):
         image = convert_from_numpy(psf)
     else:
         image = psf
 
-    transform_type = transform.GetNameOfClass()
+    assert isinstance(image, sitk.Image)
 
-    if 'VersorRigid3DTransform' in transform_type:
-        # Set translation to zero
-        itk_params = transform.GetParameters()
+    # We don't want to translate, but only rotate
+    parameters = transform.GetParameters()
+    for i in range(3, 6):
+        parameters[i] = 0.0
+    transform.SetParameters(parameters)
 
-        for i in range(3, 6):
-            itk_params[i] = 0.0
+    # Find  and set center of rotation This assumes that the PSF is in
+    # the centre of the volume, which should be expected, as otherwise it
+    # will cause translation of details in the final image.
+    imdims = image.GetDimension()
+    imspacing = image.GetSpacing()
 
-        transform.SetParameters(itk_params)
+    center = map(
+        lambda size, spacing: spacing * size / 2, imdims, imspacing
+    )
 
-        # Find  and set center of rotation
-        center = calculate_center_of_image(image, image_type,
-                                           center_of_mass=center_of_mass)
-
-        fixed_params = transform.GetFixedParameters()
-
-        for i in range(len(fixed_params)):
-            fixed_params[i] = center[i]
-
-        transform.SetFixedParameters(fixed_params)
-    else:
-        print 'The PSF rotation function has currently been implemented for' \
-              'VersorRigi3DTransform only. The provided transform type' \
-              '%s could not be used' % transform_type
-        return psf
+    transform.SetFixedParameters(center)
 
     # Rotate
-    image = resample_image(image, transform, image_type)
+    image = resample_image(image, transform)
 
-    if return_image_stack:
-        return image_stack.ImageStack.import_from_itk(image, image_type)
+    if return_numpy:
+        return convert_to_numpy(image)
     else:
         return image
 
@@ -338,31 +336,31 @@ def type_cast(image, input_type, output_type):
 
     return filter.GetOutput()
 
-
-def calculate_center_of_image(image, image_type, center_of_mass=False):
-    """
-    Center of an image can be defined either geometrically or statistically,
-    as a Center-of-Gravity measure.
-
-    Based on itk::ImageMomentsCalculator
-    http://www.itk.org/Doxygen/html/classitk_1_1ImageMomentsCalculator.html
-    """
-    if center_of_mass:
-        calculator = getattr(itk.ImageMomentsCalculator, image_type).New()
-        calculator.SetImage(image)
-        calculator.Compute()
-
-        center = tuple(calculator.GetCenterOfGravity())
-    else:
-        imdims = itkio.get_dimensions(image)
-        imspacing = tuple(image.GetSpacing())
-
-        center = map(
-            lambda size, spacing: spacing * size / 2,
-            imdims, imspacing
-        )
-
-    return center
+# THIS ONE DOES NOT WORK WITH SITK YET
+# def calculate_center_of_image(image, center_of_mass=False):
+#     """
+#     Center of an image can be defined either geometrically or statistically,
+#     as a Center-of-Gravity measure.
+#
+#     Based on itk::ImageMomentsCalculator
+#     http://www.itk.org/Doxygen/html/classitk_1_1ImageMomentsCalculator.html
+#     """
+#     if center_of_mass:
+#         calculator = getattr(itk.ImageMomentsCalculator, image_type).New()
+#         calculator.SetImage(image)
+#         calculator.Compute()
+#
+#         center = tuple(calculator.GetCenterOfGravity())
+#     else:
+#         imdims = itkio.get_dimensions(image)
+#         imspacing = tuple(image.GetSpacing())
+#
+#         center = map(
+#             lambda size, spacing: spacing * size / 2,
+#             imdims, imspacing
+#         )
+#
+#     return center
 
 
 def get_image_subset(image, image_type, multiplier):
