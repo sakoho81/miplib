@@ -172,6 +172,14 @@ class ImageData():
     def get_voxel_size(self):
         return self.data[self.active_image].attrs["spacing"]
 
+    def get_number_of_images(self, type):
+        assert type in image_types
+        return len(self.data[type])
+
+    def get_transform(self):
+        assert "registered" in self.active_image, "Please specify a registered image"
+        return self.data[self.active_image].attrs["transform"]
+
     def set_active_image(self, index, type):
         """
         Select which view is currently active.

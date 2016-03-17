@@ -50,52 +50,23 @@ class MultiViewFusionRL():
         """
         assert isinstance(data, image_data.ImageData)
 
-        self.data_type = images[0].get_data_type()
-        self.float_type = utils.float2dtype(options.float_type)
-
+        self.data = data
         self.options = options
 
+        # Setup blocks
+        data.set_active_image(0, "registered")
+        self.num_blocks = options.num_blocks
+        self.block_size = numpy.ceil(numpy.data[:].shape / self.num_blocks)
 
-
-        for i in range(len(images)):
-            psfs[i].images, images[i].images = deconvolution.get_coherent_images(
-                psfs[i],
-                images[i],
-                self.float_type
-            )
-            self.data.append(utils.rescale_to_min_max(
-                images[i].images.astype(options.float_type), 0, 1)
-            )
-            self.psfs.append(utils.rescale_to_min_max(
-                psfs[i].images.astype(options.float_type), 0, 1)
-            )
-
-        # A 3D shape needs to be passed for the Deconvolution
-        deconvolution.Deconvolve.__init__(self, self.data[0].shape, options=options)
-
-        self.voxel_sizes = [s * 1000 for s in images[0].get_voxel_sizes()]
-        self.pathinfo = images[0].get_pathinfo()
-        self.final_shape = images[0].get_shape()
-
-        self.alpha = options.rltv_alpha
-
-        self.psf_adj_psf_f = None
-        self.psf_adj_data = None
-        self.lambda_lsq = None
-        self.lambda_lsq_coeff = None
-
-        self.set_cache_dir(tempfile.mkdtemp('-iocbio.fuse'))
-        self.set_save_data(self.pathinfo, self.shape, self.data_type)
-        self.set_test_data()
-
-        self.estimate = None
-
-        self.virtual_psfs = []
+        self.psfs = fusion_utils.get_psfs(data)
 
         if "opt" in self.options.fusion_method:
+            self.virtual_psfs = []
             self._compute_virtual_psfs()
         else:
             pass
+
+        self.estimate = None
 
     def compute_estimate(self):
         """
