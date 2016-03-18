@@ -1,6 +1,6 @@
 import numpy
 from ..io import image_data as id
-from ..utils import itkutils
+from ..utils import image_filters
 def get_coherent_images(psf, stack, dtype):
     """
     Return PSF and stack images so that they have
@@ -49,16 +49,23 @@ def get_psfs(data):
     n_psfs = data.get_number_of_images("psf")
     if n_psfs < n_views and n_psfs == 1:
         data.set_active_image(0, "psf")
+        spacing = data.get_voxel_size()
         psfs = [data[:]]
         for i in range(1, n_views):
+            data.set_active_image(i, "psf")
+            psf = data[:]
+            psf_spacing = data.get_voxel_size()
             data.set_active_image(i, "registered")
+            # TODO: from here image_spacing =
+            transform = data.get_transform()
             psfs.append(
-                itkutils.rotate_psf(
-                    psfs[0],
+                image_filters.rotate_psf(
+                    data[:],
                     data.get_transform(),
-                    image_type,
-                    return_numpy=True,
-                    convert_to_itk=True
+                    spacing=spacing,
+                    return_numpy=True
                 )
             )
+
+
 

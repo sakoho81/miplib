@@ -26,7 +26,7 @@ import os
 from numpy import float64 as double
 from numpy import pi
 
-from supertomo.utils import itkutils
+from supertomo.utils import image_filters
 
 
 def itk_registration_rigid_3d(fixed_image, moving_image, options,
@@ -74,22 +74,22 @@ def itk_registration_rigid_3d(fixed_image, moving_image, options,
         # Cast to floating point. Can be single or double precision, depending
         # on the setting
         image_type = options.internal_type+'3'
-        fixed_image = itkutils.type_cast(
+        fixed_image = image_filters.type_cast(
             fixed_image,
             options.image_type,
             image_type
         )
-        moving_image = itkutils.type_cast(
+        moving_image = image_filters.type_cast(
             moving_image,
             options.image_type,
             image_type
         )
         # Normalize images
-        fixed_image = itkutils.normalize_image_filter(
+        fixed_image = image_filters.normalize_image_filter(
             fixed_image,
             image_type
         )
-        moving_image = itkutils.normalize_image_filter(
+        moving_image = image_filters.normalize_image_filter(
             moving_image,
             image_type
         )
@@ -350,22 +350,22 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options,
         # Cast to floating point. Can be single or double precision, depending
         # on the setting
         image_type = options.internal_type+'2'
-        fixed_image = itkutils.type_cast(
+        fixed_image = image_filters.type_cast(
             fixed_image,
             options.image_type,
             image_type
         )
-        moving_image = itkutils.type_cast(
+        moving_image = image_filters.type_cast(
             moving_image,
             options.image_type,
             image_type
         )
         # Normalize images
-        fixed_image = itkutils.normalize_image_filter(
+        fixed_image = image_filters.normalize_image_filter(
             fixed_image,
             image_type
         )
-        moving_image = itkutils.normalize_image_filter(
+        moving_image = image_filters.normalize_image_filter(
             moving_image,
             image_type
         )
@@ -592,22 +592,22 @@ def itk_registration_similarity_2d(fixed_image, moving_image, options,
         # Cast to floating point. Can be single or double precision, depending
         # on the setting
         image_type = options.internal_type+'2'
-        fixed_image = itkutils.type_cast(
+        fixed_image = image_filters.type_cast(
             fixed_image,
             options.image_type,
             image_type
         )
-        moving_image = itkutils.type_cast(
+        moving_image = image_filters.type_cast(
             moving_image,
             options.image_type,
             image_type
         )
         # Normalize images
-        fixed_image = itkutils.normalize_image_filter(
+        fixed_image = image_filters.normalize_image_filter(
             fixed_image,
             image_type
         )
-        moving_image = itkutils.normalize_image_filter(
+        moving_image = image_filters.normalize_image_filter(
             moving_image,
             image_type
         )
