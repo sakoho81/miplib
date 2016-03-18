@@ -16,8 +16,8 @@ import numpy
 
 file_extensions = ['.tif', '.lsm', 'tiff', '.raw', '.data']
 
-
 VERBOSE = False
+
 
 def argument_string(obj):
     if isinstance(obj, (str, )):
@@ -25,17 +25,18 @@ def argument_string(obj):
     if isinstance(obj, (int, float, complex)):
         return str(obj)
     if isinstance(obj, tuple):
-        if len(obj)<2: return '(%s,)' % (', '.join(map(argument_string, obj)))
-        if len(obj)<5: return '(%s)' % (', '.join(map(argument_string, obj)))
+        if len(obj) < 2: return '(%s,)' % (', '.join(map(argument_string, obj)))
+        if len(obj) < 5: return '(%s)' % (', '.join(map(argument_string, obj)))
         return '<%s-tuple>' % (len(obj))
     if isinstance(obj, list):
-        if len(obj)<5: return '[%s]' % (', '.join(map(argument_string, obj)))
+        if len(obj) < 5: return '[%s]' % (', '.join(map(argument_string, obj)))
         return '<%s-list>' % (len(obj))
     if isinstance(obj, numpy.ndarray):
         return '<%s %s-array>' % (obj.dtype, obj.shape)
     if obj is None:
         return str(obj)
-    return '<'+str(type(obj))[8:-2]+'>'
+    return '<' + str(type(obj))[8:-2] + '>'
+
 
 def time_it(func):
     """Decorator: print how long calling given function took.
@@ -47,14 +48,17 @@ def time_it(func):
     """
     if not VERBOSE:
         return func
+
     def new_func(*args, **kws):
         t = time.time()
-        r = func (*args, **kws)
+        r = func(*args, **kws)
         dt = time.time() - t
         print 'Calling %s(%s) -> %s took %s seconds' % \
-            (func.__name__, ', '.join(map(argument_string, args)), argument_string(r), dt)
+              (func.__name__, ', '.join(map(argument_string, args)), argument_string(r), dt)
         return r
+
     return new_func
+
 
 class ProgressBar:
     """Creates a text-based progress bar. 
@@ -81,15 +85,15 @@ class ProgressBar:
     __init__, updateComment
     """
 
-    def __init__(self, minValue = 0, maxValue = 100, totalWidth=80, prefix='',
-                 show_percentage = True):
+    def __init__(self, minValue=0, maxValue=100, totalWidth=80, prefix='',
+                 show_percentage=True):
         self.show_percentage = show_percentage
-        self.progBar = self.progBar_last = "[]"   # This holds the progress bar string
+        self.progBar = self.progBar_last = "[]"  # This holds the progress bar string
         self.min = minValue
         self.max = maxValue
         self.span = maxValue - minValue or 1
         self.width = totalWidth
-        self.amount = 0       # When amount == max, we are 100% done
+        self.amount = 0  # When amount == max, we are 100% done
         self.start_time = self.current_time = self.prev_time = time.time()
         self.starting_amount = None
         self.updateAmount(0)  # Build progress bar string
@@ -100,7 +104,7 @@ class ProgressBar:
     def updateComment(self, comment):
         self.comment = comment
 
-    def updateAmount(self, newAmount = 0):
+    def updateAmount(self, newAmount=0):
         """ Update the progress bar with the new amount (with min and max
             values set at initialization; if it is over or under, it takes the
             min or max value as a default. """
@@ -126,13 +130,13 @@ class ProgressBar:
         # empty and full
 
         if numHashes == 0:
-            self.progBar = "[>%s]" % (' '*(allFull-1))
+            self.progBar = "[>%s]" % (' ' * (allFull - 1))
         elif numHashes == allFull:
-            self.progBar = "[%s]" % ('='*allFull)
+            self.progBar = "[%s]" % ('=' * allFull)
         else:
-            self.progBar = "[%s>%s]" % ('='*(numHashes-1),
-                                        ' '*(allFull-numHashes))
-        
+            self.progBar = "[%s>%s]" % ('=' * (numHashes - 1),
+                                        ' ' * (allFull - numHashes))
+
         if self.show_percentage:
             # figure out where to put the percentage, roughly centered
             percentPlace = (len(self.progBar) / 2) - len(str(percentDone))
@@ -142,16 +146,15 @@ class ProgressBar:
             percentString = '%s/%s' % (self.amount, self.span)
         # slice the percentage into the bar
         self.progBar = ''.join([self.progBar[0:percentPlace], percentString,
-                                self.progBar[percentPlace+len(percentString):]
-                                ])
+                                self.progBar[percentPlace + len(percentString):]])
         if self.starting_amount is not None:
             amount_diff = self.amount - self.starting_amount
             if amount_diff:
                 self.prev_time = self.current_time
                 self.current_time = time.time()
                 elapsed = self.current_time - self.starting_time
-                eta = elapsed * (self.max - self.amount)/float(amount_diff)
-                self.progBar += ' ETA:'+time_to_str(eta)
+                eta = elapsed * (self.max - self.amount) / float(amount_diff)
+                self.progBar += ' ETA:' + time_to_str(eta)
 
     def __str__(self):
         return str(self.progBar)
@@ -160,13 +163,14 @@ class ProgressBar:
         """ Updates the amount, and writes to stdout. Prints a carriage return
             first, so it will overwrite the current line in stdout."""
         self.updateAmount(value)
-        if self.progBar_last == self.progBar and self.comment==self.comment_last:
+        if self.progBar_last == self.progBar and self.comment == self.comment_last:
             return
         print '\r',
         sys.stdout.write(self.prefix + str(self) + str(self.comment) + ' ')
         sys.stdout.flush()
         self.progBar_last = self.progBar
         self.comment_last = self.comment
+
 
 class Holder:
     """ Holds pairs ``(name, value)`` as instance attributes.
@@ -183,6 +187,7 @@ class Holder:
 
       value = <Holder instance>.<name>
     """
+
     def __init__(self, descr):
         self._descr = descr
         self._counter = 0
@@ -195,33 +200,37 @@ class Holder:
 
     def __getattr__(self, name):
         raise AttributeError('%r instance has no attribute %r' % (self, name))
-    
+
     def __setattr__(self, name, obj):
         if not self.__dict__.has_key(name) and self.__dict__.has_key('_counter'):
             self._counter += 1
         self.__dict__[name] = obj
 
     def iterNameValue(self):
-        for k,v in self.__dict__.iteritems():
+        for k, v in self.__dict__.iteritems():
             if k.startswith('_'):
                 continue
-            yield k,v
+            yield k, v
 
     def copy(self, **kws):
-        r = self.__class__(self._descr+' - a copy')
+        r = self.__class__(self._descr + ' - a copy')
         for name, value in self.iterNameValue():
             setattr(r, name, value)
         for name, value in kws.items():
             setattr(r, name, value)
         return r
 
+
 options = Holder('Options')
 
-alphabet='0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+alphabet = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+
 def getalpha(r):
-    if r>=len(alphabet):
-        return '_'+nary(r-len(alphabet),len(alphabet))
+    if r >= len(alphabet):
+        return '_' + nary(r - len(alphabet), len(alphabet))
     return alphabet[r]
+
 
 def nary(number, base=64):
     if isinstance(number, str):
@@ -230,42 +239,46 @@ def nary(number, base=64):
     s = ''
     while n:
         n1 = n // base
-        r = n - n1*base
+        r = n - n1 * base
         n = n1
         s = getalpha(r) + s
     return s
 
+
 def encode(string):
     """ Return encoded string.
     """
-    return nary('0x'+hashlib.md5(string).hexdigest())
+    return nary('0x' + hashlib.md5(string).hexdigest())
 
 
 def fix_exp_str(s):
-    return s.replace ('e+00','').replace('e+0','E').replace ('e+','E').replace ('e-0','E-').replace ('e-','E-')
+    return s.replace('e+00', '').replace('e+0', 'E').replace('e+', 'E').replace('e-0', 'E-').replace('e-', 'E-')
+
 
 def float_to_str(x):
-    if abs(x)>=1000: return fix_exp_str('%.1e' % x)
-    if abs(x)>=100: return '%.0f' % x
-    if abs(x)>=10: return '%.1f' % x
-    if abs(x)>=1: return '%.2f' % x
-    if abs(x)>=.1: return '%.3f' % x
-    if abs(x)<=1e-6: return fix_exp_str ('%.1e' % x)
+    if abs(x) >= 1000: return fix_exp_str('%.1e' % x)
+    if abs(x) >= 100: return '%.0f' % x
+    if abs(x) >= 10: return '%.1f' % x
+    if abs(x) >= 1: return '%.2f' % x
+    if abs(x) >= .1: return '%.3f' % x
+    if abs(x) <= 1e-6: return fix_exp_str('%.1e' % x)
     if not x: return '0'
     return fix_exp_str('%.2e' % x)
 
-def tostr (x):
+
+def tostr(x):
     """ Return pretty string representation of x.
 
     Parameters
     ----------
     x : {tuple, float, :numpy:.float32, :numpy:.float64}
     """
-    if isinstance (x, tuple):
-        return tuple ( map (tostr, x))
-    if isinstance(x, (float, numpy.float32,numpy.float64)):
+    if isinstance(x, tuple):
+        return tuple(map(tostr, x))
+    if isinstance(x, (float, numpy.float32, numpy.float64)):
         return float_to_str(x)
     return str(x)
+
 
 def time_to_str(s):
     """ Return human readable time string from seconds.
@@ -287,51 +300,52 @@ def time_to_str(s):
     123ns
 
     """
-    seconds_in_year = 31556925.9747 # a standard SI year
+    seconds_in_year = 31556925.9747  # a standard SI year
     orig_s = s
     years = int(s / (seconds_in_year))
     r = []
     if years:
-        r.append ('%sY' % (years))
+        r.append('%sY' % (years))
         s -= years * (seconds_in_year)
-    months = int(s / (seconds_in_year/12.0))
+    months = int(s / (seconds_in_year / 12.0))
     if months:
-        r.append ('%sM' % (months))
-        s -= months * (seconds_in_year/12.0)
-    days = int(s / (60*60*24))
+        r.append('%sM' % (months))
+        s -= months * (seconds_in_year / 12.0)
+    days = int(s / (60 * 60 * 24))
     if days:
-        r.append ('%sd' % (days))
-        s -= days * 60*60*24
-    hours = int(s / (60*60))
+        r.append('%sd' % (days))
+        s -= days * 60 * 60 * 24
+    hours = int(s / (60 * 60))
     if hours:
-        r.append ('%sh' % (hours))
-        s -= hours * 60*60
+        r.append('%sh' % (hours))
+        s -= hours * 60 * 60
     minutes = int(s / 60)
     if minutes:
-        r.append ('%sm' % (minutes))
+        r.append('%sm' % (minutes))
         s -= minutes * 60
     seconds = int(s)
     if seconds:
-        r.append ('%.1fs' % (s))
+        r.append('%.1fs' % (s))
         s -= seconds
     elif not r:
-        mseconds = int(s*1000)
+        mseconds = int(s * 1000)
         if mseconds:
-            r.append ('%sms' % (mseconds))
+            r.append('%sms' % (mseconds))
             s -= mseconds / 1000
         elif not r:
-            useconds = int(s*1000000)
+            useconds = int(s * 1000000)
             if useconds:
-                r.append ('%sus' % (useconds))
+                r.append('%sus' % (useconds))
                 s -= useconds / 1000000
             elif not r:
-                nseconds = int(s*1000000000)
+                nseconds = int(s * 1000000000)
                 if nseconds:
-                    r.append ('%sns' % (nseconds))
+                    r.append('%sns' % (nseconds))
                     s -= nseconds / 1000000000
     if not r:
         return '0'
     return ''.join(r)
+
 
 time2str = time_to_str
 
@@ -401,9 +415,10 @@ def rescale_to_min_max(data, data_min, data_max):
     # Return array with max value in the original image scaled to correct
     # range
     if abs(data.max()) > abs(data.min()) or data_min == 0:
-        return data_max / data.max()*data
+        return data_max / data.max() * data
     else:
-        return data_min / data.min()*data
+        return data_min / data.min() * data
+
 
 def get_coherent_images(psf, stack, dtype):
     """
@@ -434,7 +449,6 @@ def get_coherent_images(psf, stack, dtype):
         psf_images = numpy.ndimage.zoom(psf_images, zoom_factors)
         print 'PSF was zoomed by', zoom_factors
 
-
     max_shape = [max(a, b) for a, b in zip(psf_images.shape, stack_images.shape)]
     optimal_shape = tuple(map(FFTTasks.get_optimal_fft_size, max_shape))
     psf_images = expand_to_shape(psf_images, optimal_shape, dtype)
@@ -462,10 +476,10 @@ def expand_to_shape(data, shape, dtype=None, background=None):
         expanded_data = numpy.zeros(shape, dtype=dtype) + background
         slices = []
         rhs_slices = []
-        for s1, s2 in zip (shape, data.shape):
-            a, b = (s1-s2+1)//2, (s1+s2+1)//2
+        for s1, s2 in zip(shape, data.shape):
+            a, b = (s1 - s2 + 1) // 2, (s1 + s2 + 1) // 2
             c, d = 0, s2
-            while a<0:
+            while a < 0:
                 a += 1
                 b -= 1
                 c += 1
@@ -491,7 +505,7 @@ def contract_to_shape(data, shape):
     if shape != data.shape:
         slices = []
         for s1, s2 in zip(data.shape, shape):
-            slices.append(slice((s1-s2)//2, (s1+s2)//2))
+            slices.append(slice((s1 - s2) // 2, (s1 + s2) // 2))
 
         image = data[tuple(slices)]
     else:
@@ -501,7 +515,8 @@ def contract_to_shape(data, shape):
 
 
 def mul_seq(seq):
-    return reduce(lambda x, y: x*y, seq, 1)
+    return reduce(lambda x, y: x * y, seq, 1)
+
 
 def float2dtype(float_type):
     """Return numpy float dtype object from float type label.
@@ -510,7 +525,7 @@ def float2dtype(float_type):
         return numpy.float32
     if float_type == 'double':
         return numpy.float64
-    raise NotImplementedError (`float_type`)
+    raise NotImplementedError(`float_type`)
 
 
 def check_path(path, prefix):
@@ -525,8 +540,8 @@ def check_path(path, prefix):
     if not os.path.isfile(path):
         path = os.path.join(prefix, path)
         if not os.path.isfile(path):
-                print 'Not a valid file %s' % path
-                return None
+            print 'Not a valid file %s' % path
+            return None
         return path
 
 
@@ -535,15 +550,15 @@ def get_path_dir(path, suffix):
     related to given path.
     """
     if os.path.isfile(path):
-        path_dir = path+'.'+suffix
+        path_dir = path + '.' + suffix
     elif os.path.isdir(path):
         path_dir = os.path.join(path, suffix)
     elif os.path.exists(path):
-        raise ValueError ('Not a file or directory: %r' % path)
+        raise ValueError('Not a file or directory: %r' % path)
     else:
         base, ext = os.path.splitext(path)
         if ext in file_extensions:
-            path_dir = path +'.'+suffix
+            path_dir = path + '.' + suffix
         else:
             path_dir = os.path.join(path, suffix)
     return path_dir
@@ -557,7 +572,8 @@ def nroot(array, n):
     :param n:       The root - a number
     :return:
     """
-    return array**(1.0/n)
+    return array ** (1.0 / n)
+
 
 def normalize(array):
     return array / array.sum()

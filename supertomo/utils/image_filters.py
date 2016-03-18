@@ -15,6 +15,7 @@ easy to include additional filters.
 """
 import SimpleITK as sitk
 import numpy
+import scipy
 
 def convert_to_numpy(itk_image):
     """
@@ -24,21 +25,35 @@ def convert_to_numpy(itk_image):
     iocbio.io.image_stack module
     """
     assert isinstance(itk_image, sitk.Image)
-    return sitk.GetArrayFromImage(itk_image)
+    return sitk.GetArrayFromImage(itk_image), itk_image.GetSpacing()
 
 
-def convert_from_numpy(array):
+def convert_from_numpy(array, spacing):
     assert isinstance(array, numpy.ndarray)
-    return sitk.GetImageFromArray(array)
+    image = sitk.GetImageFromArray(array)
+    image.SetSpacing(spacing)
 
-def make_itk_transform(type, parameters, fixed_parameters):
-    transform = getattr(sitk, type)
+    return image
+
+
+def make_itk_transform(transform_type, parameters, fixed_parameters):
+    """
+    A function that can be used to construct a ITK spatial transform from
+    known transform parameters.
+    :param transform_type:      A string that exactly matches the ITK transform
+                                type, eg "VerorRigid3DTransform"
+    :param parameters:          The transform parameters tuple
+    :param fixed_parameters:    The transform fixed parameters tuple
+    :return:                    Returns an initialized ITK spatial transform.
+    """
+    transform = getattr(sitk, transform_type)
     assert issubclass(transform, sitk.Transform)
 
     transform.SetParameters(parameters)
     transform.SetFixedParameters(fixed_parameters)
 
     return transform
+
 
 def resample_image(image, transform, reference=None):
     """
@@ -58,7 +73,6 @@ def resample_image(image, transform, reference=None):
         reference = image
     resampler = sitk.ResampleImageFilter()
     resampler.SetTransform(transform)
-    resampler.SetInput(image)
     region = reference.GetLargestPossibleRegion()
 
     resampler.SetInterpolator(sitk.sitkLinear)
@@ -69,10 +83,10 @@ def resample_image(image, transform, reference=None):
     resampler.SetOutputDirection(reference.GetDirection())
     resampler.SetDefaultPixelValue(0)
 
-    return resampler.Execute()
+    return resampler.Execute(image)
 
 
-def rotate_psf(psf, transform, return_numpy=False):
+def rotate_psf(psf, transform, spacing=None, return_numpy=False):
     """
     In case, only one point-spread-function (PSF) is to be used in the image
     fusion, it needs to be rotated with the transform of the moving_image.
@@ -87,7 +101,7 @@ def rotate_psf(psf, transform, return_numpy=False):
     assert isinstance(transform, sitk.VersorRigid3DTransform)
 
     if isinstance(psf, numpy.ndarray):
-        image = convert_from_numpy(psf)
+        image = convert_from_numpy(psf, spacing)
     else:
         image = psf
 
@@ -102,7 +116,7 @@ def rotate_psf(psf, transform, return_numpy=False):
     # Find  and set center of rotation This assumes that the PSF is in
     # the centre of the volume, which should be expected, as otherwise it
     # will cause translation of details in the final image.
-    imdims = image.GetDimension()
+    imdims = image.GetSize()
     imspacing = image.GetSpacing()
 
     center = map(
@@ -132,12 +146,12 @@ def resample_to_isotropic(itk_image):
     """
     assert isinstance(itk_image, sitk.Image)
 
-    filter = sitk.ResampleImageFilter()
+    method = sitk.ResampleImageFilter()
     transform = sitk.Transform()
     transform.SetIdentity()
 
-    filter.SetInterpolator(sitk.sitkBSpline)
-    filter.SetDefaultPixelValue(0)
+    method.SetInterpolator(sitk.sitkBSpline)
+    method.SetDefaultPixelValue(0)
 
     # Set output spacing
     spacing = itk_image.GetSpacing()
@@ -152,24 +166,23 @@ def resample_to_isotropic(itk_image):
 
     spacing[:] = spacing[0]
         
-    filter.SetOutputSpacing(spacing)
-    filter.SetOutputDirection(itk_image.GetDirection())
-    filter.SetOutputOrigin(itk_image.GetOrigin())
+    method.SetOutputSpacing(spacing)
+    method.SetOutputDirection(itk_image.GetDirection())
+    method.SetOutputOrigin(itk_image.GetOrigin())
 
     # Set Output Image Size
     region = itk_image.GetLargestPossibleRegion()
     size = region.GetSize()
     size[2] = int(size[2]*scaling)
-    filter.SetSize(size)
+    method.SetSize(size)
 
     transform.SetIdentity()
-    filter.SetTransform(transform)
-    filter.SetInput(itk_image)
+    method.SetTransform(transform)
 
-    return filter.Execute()
+    return method.Execute(itk_image)
 
 
-def rescale_intensity(image, input_type, output_type='IUC3'):
+def rescale_intensity(image):
     """
     A filter to scale the intensities of the input image to the full range
     allowed by the pixel type
@@ -180,65 +193,56 @@ def rescale_intensity(image, input_type, output_type='IUC3'):
                       recognized pixel type
         output_type = same as above, for the output image
     """
-    rescaling = getattr(
-        itk.RescaleIntensityImageFilter, input_type+output_type).New()
-    rescaling.SetInput(image)
-    rescaling.Update()
+    assert isinstance(image, sitk.Image)
+    method = sitk.RescaleIntensityImageFilter()
+    image_type = image.GetPixelIDTypeAsString()
+    if image_type == '8-bit unsigned integer':
+        method.SetOutputMinimum(0)
+        method.SetOutputMaximum(255)
+    else:    
+        print "The rescale intensity filter has not been implemented for ", image_type
+        return image
+    
+    # TODO: Add pixel type check that is needed to check the bounds of re-scaling
+    return method.Execute(image)
 
-    return rescaling.GetOutput()
 
-
-def gaussian_blurring_filter(image, image_type, variance):
+def gaussian_blurring_filter(image, variance):
     """
     Gaussian blur filter
     """
 
-    filter = getattr(
-        itk.DiscreteGaussianImageFilter, image_type+image_type).New()
-    filter.SetInput(image)
+    filter = sitk.DiscreteGaussianImageFilter()
     filter.SetVariance(variance)
-    filter.Update()
 
-    return filter.GetOutput()
+    return filter.Execute(image)
 
 
-def grayscale_dilate_filter(image, image_type, kernel_radius):
+def grayscale_dilate_filter(image, kernel_radius):
     """
-    Grayscale dilation filter for 2D/3D datasets
+    Grayscale dilation filter
     """
 
-    if '2' in image_type:
-        image_type = image_type + image_type + 'SE2'
-    else:
-        image_type = image_type + image_type + 'SE3'
-
-    filter = getattr(itk.GrayscaleDilateImageFilter, image_type).New()
-
-    kernel = filter.GetKernel()
-    kernel.SetRadius(kernel_radius)
+    method = sitk.GrayscaleDilateImageFilter()
+    kernel = method.GetKernel()
+    kernel.SetKernelRadius(kernel_radius)
     kernel = kernel.Ball(kernel.GetRadius())
+    method.SetKernel(kernel)
 
-    filter.SetKernel(kernel)
-    filter.SetInput(image)
+    return method.Execute(image)
 
-    filter.Update()
 
-    return filter.GetOutput()
-
-def mean_filter(image, image_type, kernel_radius):
+def mean_filter(image, kernel_radius):
     """
     Uniform Mean filter for itk.Image objects
     """
-    filter = getattr(itk.MeanImageFilter, image_type+image_type).New()
+    method = sitk.MeanImageFilter()
+    method.SetRadius(kernel_radius)
 
-    filter.SetRadius(kernel_radius)
-    filter.SetInput(image)
+    return method.Execute(image)
 
-    filter.Update()
 
-    return filter.GetOutput()
-
-def median_filter(image, image_type, kernel_radius):
+def median_filter(image, kernel_radius):
     """
     Median filter for itk.Image objects
 
@@ -247,32 +251,24 @@ def median_filter(image, image_type, kernel_radius):
     :param kernel_radius:   median kernel radius
     :return:                filtered image
     """
-    filter = getattr(itk.MedianImageFilter, image_type+image_type).New()
-    #radius = filter.GetRadius()
-    #radius.Fill(kernel_radius)
-    filter.SetRadius(kernel_radius)
-    filter.SetInput(image)
+    method = sitk.MedianImageFilter
+    method.SetRadius(kernel_radius)
 
-    filter.Update()
-
-    return filter.GetOutput()
+    return method.Execute(image)
 
 
-
-def normalize_image_filter(image, image_type):
+def normalize_image_filter(image):
     """
     Normalizes the pixel values in an image to Mean of zero and Variance
     of one. A floating point image_type is expected. For integer pixel
     type, casting to a float is recommended before using this.
     """
 
-    filter = getattr(itk.NormalizeImageFilter, image_type+image_type).New()
-    filter.SetInput(image)
-    filter.Update()
+    method = sitk.NormalizeImageFilter()
+    return method.Execute(image)
 
-    return filter.GetOutput()
 
-def threshold_image_filter(image, threshold, image_type, th_value=0,
+def threshold_image_filter(image, threshold, th_value=0,
                            th_method="below"):
     """
     Thresholds an image by setting pixel values above or below "threshold"
@@ -280,22 +276,18 @@ def threshold_image_filter(image, threshold, image_type, th_value=0,
     grayscale image.
     """
 
-    filter = getattr(itk.ThresholdImageFilter, image_type).New()
-    filter.SetInput(image)
-
+    method = sitk.ThresholdImageFilter()
     if th_method is "above":
-        filter.ThresholdAbove(threshold)
+        method.SetLower(threshold)
     elif th_method is "below":
-        filter.ThresholdBelow(threshold)
+        method.SetUpper(threshold)
 
-    filter.SetOutsideValue(th_value)
+    method.SetOutsideValue(th_value)
 
-    filter.Update()
-
-    return filter.GetOutput()
+    return method.Execute(image)
 
 
-def get_image_statistics(image, image_type, verbal=True):
+def get_image_statistics(image):
     """
     A utility to calculate basic image statistics (Mean and Variance here)
 
@@ -305,100 +297,59 @@ def get_image_statistics(image, image_type, verbal=True):
     :param verbal:      print results on screen (ON/OFF)
     :return:            returns the image mean and variance in a tuple
     """
-    filter = getattr(itk.StatisticsImageFilter, image_type).New()
-    filter.SetInput(image)
-    filter.Update()
+    method = sitk.StatisticsImageFilter()
+    method.Execute(image)
+    mean = method.GetMean()
+    variance = method.GetVariance()
+    max = method.GetMaximum()
+    min = method.GetMinimum()
 
-    mean = filter.GetMean()
-    variance = filter.GetVariance()
-
-    if verbal is True:
-        print "Mean: %s" % mean
-        print "Variance: %s" % variance
+    return mean, variance, min, max
 
 
-
-    return mean, variance
-
-
-def type_cast(image, input_type, output_type):
+def type_cast(image, output_type):
     """
     A utility for changing the image pixel container type
 
     :param image:       An ITK:Image
-    :param input_type:  input image type as a string (e.g. IUC3)
-    :param output_type: output image type as a string (e.g. IF2)
+    :param output_type: output image type as ITK PixelID
     :return:            returns the image with new pixel type
     """
-    filter = getattr(itk.CastImageFilter, input_type+output_type).New()
-    filter.SetInput(image)
-    filter.Update()
+    assert isinstance(image, sitk.Image)
 
-    return filter.GetOutput()
+    method = sitk.CastImageFilter()
+    method.SetOutputPixelType(output_type)
 
-# THIS ONE DOES NOT WORK WITH SITK YET
-# def calculate_center_of_image(image, center_of_mass=False):
-#     """
-#     Center of an image can be defined either geometrically or statistically,
-#     as a Center-of-Gravity measure.
-#
-#     Based on itk::ImageMomentsCalculator
-#     http://www.itk.org/Doxygen/html/classitk_1_1ImageMomentsCalculator.html
-#     """
-#     if center_of_mass:
-#         calculator = getattr(itk.ImageMomentsCalculator, image_type).New()
-#         calculator.SetImage(image)
-#         calculator.Compute()
-#
-#         center = tuple(calculator.GetCenterOfGravity())
-#     else:
-#         imdims = itkio.get_dimensions(image)
-#         imspacing = tuple(image.GetSpacing())
-#
-#         center = map(
-#             lambda size, spacing: spacing * size / 2,
-#             imdims, imspacing
-#         )
-#
-#     return center
+    return method.Execute(image)
 
 
-def get_image_subset(image, image_type, multiplier):
+def calculate_center_of_image(image, center_of_mass=False):
     """
+    Center of an image can be defined either geometrically or statistically,
+    as a Center-of-Gravity measure.
 
-    A simple utility for extracting a subset of an ItkImage, based
-    on a single floating point multiplier.
+    This was originally Based on itk::ImageMomentsCalculator
+    http://www.itk.org/Doxygen/html/classitk_1_1ImageMomentsCalculator.html
 
-    Based on itk::ExtractImageFilter
-    http://www.itk.org/Doxygen/html/classitk_1_1ExtractImageFilter.html
-
-    Two parameters: output_size and output_origin define the subset.
-    Here the parameters are calculated with a single multiplier.
-
+    However that filter is not currently implemented in SimpleITK and therefore
+    a Numpy approach is used.
     """
+    assert isinstance(image, sitk.Image)
 
-    filter = getattr(itk.ExtractImageFilter, image_type+image_type).New()
+    imdims = image.GetSize()
+    imspacing = image.GetSpacing()
 
-    input_region = image.GetLargestPossibleRegion()
-    input_origin = input_region.GetIndex()
-    input_size = input_region.GetSize()
+    if center_of_mass:
+        np_image, spacing = convert_to_numpy(image)
+        center = scipy.ndimage.measurements.center_of_mass(np_image)
+        center *= spacing
+    else:
+        center = map(
+            lambda size, spacing: spacing * size / 2,
+            imdims, imspacing
+        )
+    return center
 
-    output_region = input_region
-    output_size = input_size
-    output_origin = input_origin
-
-    for i in range(len(output_size)):
-        output_size[i] = int(multiplier*input_size[i])
-        output_origin[i] = int(0.5*(input_size[i]-output_size[i]))
-
-    output_region.SetSize(output_size)
-    output_region.SetIndex(output_origin)
-
-    filter.SetInput(image)
-    filter.SetExtractionRegion(output_region)
-    filter.Update()
-
-    return filter.GetOutput()
 
 
 

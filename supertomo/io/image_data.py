@@ -2,6 +2,8 @@ import os
 import h5py
 import numpy
 
+from ..utils import image_filters
+
 image_types = ("original", "registered", "fused", "psf")
 
 
@@ -136,7 +138,6 @@ class ImageData():
             else:
                 image_group.create_dataset("0", data=data, chunks=chunk_size)
 
-
     def add_fused_image(self, data, spacing):
         """
         Add a fused image.
@@ -176,9 +177,21 @@ class ImageData():
         assert type in image_types
         return len(self.data[type])
 
-    def get_transform(self):
-        assert "registered" in self.active_image, "Please specify a registered image"
-        return self.data[self.active_image].attrs["transform"]
+    def get_transform(self, init_itk=True):
+        assert "registered" in self.active_image
+        transform = self.data[self.active_image].attrs["transform"]
+
+        if init_itk:
+            transform_type = transform[0]
+            parameters = transform[1]
+            fixed_parameters = transform[2]
+            return image_filters.make_itk_transform(
+                transform_type,
+                parameters,
+                fixed_parameters
+            )
+        else:
+            return transform
 
     def set_active_image(self, index, type):
         """
