@@ -577,3 +577,4 @@ def nroot(array, n):
 
 def normalize(array):
     return array / array.sum()
+
