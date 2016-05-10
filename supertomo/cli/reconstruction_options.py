@@ -126,6 +126,7 @@ def get_fusion_options_group(parser):
     )
     group.add_argument(
         '--convergence-epsilon',
+        dest='convergence_epsilon',
         type='float',
         default=0.05,
         help='Specify small positive number that determines '

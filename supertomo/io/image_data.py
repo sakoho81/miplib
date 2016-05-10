@@ -2,7 +2,7 @@ import os
 import h5py
 import numpy
 
-from ..utils import image_filters
+from ..utils import itkutils
 
 image_types = ("original", "registered", "fused", "psf")
 
@@ -104,6 +104,8 @@ class ImageData():
 
         image_group.attrs["spacing"] = spacing
         image_group.attrs["transform"] = transform
+        image_group.attrs["size"] = data.shape
+
 
         if len(data.shape) == 4:
             for channel in range(0, data.shape[0]):
@@ -155,11 +157,10 @@ class ImageData():
         """
         assert isinstance(data, numpy.ndarray), "Invalid data format."
 
-        # Group images by rotation angle
         image_group = self.data.create_group("fused")
 
-        image_group["spacing"] = spacing
-        image_group["transform"] = transform
+        image_group.attrs["spacing"] = spacing
+        image_group.attrs["size"] = data.shape
 
         if len(data.shape) == 4:
             for channel in range(0, data.shape[0]):
@@ -173,6 +174,12 @@ class ImageData():
     def get_voxel_size(self):
         return self.data[self.active_image].attrs["spacing"]
 
+    def get_image_size(self):
+        return self.data[self.active_image].attrs["size"]
+
+    def get_dtype(self):
+        return self.data[self.active_image].dtype
+
     def get_number_of_images(self, type):
         assert type in image_types
         return len(self.data[type])
@@ -185,7 +192,7 @@ class ImageData():
             transform_type = transform[0]
             parameters = transform[1]
             fixed_parameters = transform[2]
-            return image_filters.make_itk_transform(
+            return itkutils.make_itk_transform(
                 transform_type,
                 parameters,
                 fixed_parameters
@@ -223,7 +230,29 @@ class ImageData():
 
         assert "registered" in self.active_image, "You must specify a registered image"
 
-        return self.data[self.active_image][start_index, start_index + block_size]
+        image_size = self.get_image_size()
+        end_index= start_index + block_size
+
+        if (image_size > end_index).all():
+            block = self.data[self.active_image][
+                    start_index[0]:end_index[0],
+                    start_index[1]:end_index[1],
+                    start_index[2]:end_index[2]
+                    ]
+            return block, block_size
+        else:
+            block = numpy.zeros(block_size)
+            block_crop = end_index - image_size
+            block_crop[block_crop < 0] = 0
+            block_size -= block_crop
+            end_index = start_index + block_size
+
+            block[0:block_size[0], 0:block_size[1], 0:block_size[2]] = self.data[
+                                                                      start_index[0]:end_index[0],
+                                                                      start_index[1]:end_index[1],
+                                                                      start_index[2]:end_index[2]
+                                                                      ]
+            return block, block_size
 
     def close(self):
         """
