@@ -9,7 +9,7 @@ setup(
     entry_points={
         'console_scripts': [
             'supertomo.main = supertomo.bin.main:main',
-            'supertomo.convert = supertomo.bin.convert_files:main',
+            'supertomo.import = supertomo.bin.import:main',
             'supertomo.test.hdf5 = supertomo.bin.test.test_hdf5.py:main'
         ]
     },

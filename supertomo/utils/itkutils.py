@@ -25,18 +25,25 @@ def convert_to_numpy(itk_image):
     iocbio.io.image_stack module
     """
     assert isinstance(itk_image, sitk.Image)
-    return sitk.GetArrayFromImage(itk_image), itk_image.GetSpacing()
+    array = sitk.GetArrayFromImage(image)
+    # In ITK the order of the dimensions differs from Numpy. The array conversion
+    # re-orders the dimensions, but of course the same has to be done to the spacing
+    # information.
+    spacing_orig = image.GetSpacing()[::-1]
+    spacing = tuple(dim / scale_c for dim in spacing_orig)
+
+    return array, spacing
 
 
 def convert_from_numpy(array, spacing):
     assert isinstance(array, numpy.ndarray)
     image = sitk.GetImageFromArray(array)
-    image.SetSpacing(spacing)
+    image.SetSpacing(spacing[::-1])
 
     return image
 
 
-def make_itk_transform(transform_type, parameters, fixed_parameters):
+def make_itk_transform(type, dims, parameters, fixed_parameters):
     """
     A function that can be used to construct a ITK spatial transform from
     known transform parameters.
@@ -46,13 +53,13 @@ def make_itk_transform(transform_type, parameters, fixed_parameters):
     :param fixed_parameters:    The transform fixed parameters tuple
     :return:                    Returns an initialized ITK spatial transform.
     """
-    transform = getattr(sitk, transform_type)
-    assert issubclass(transform, sitk.Transform)
+    transform = sitk.Transform(dims, type)
 
     transform.SetParameters(parameters)
     transform.SetFixedParameters(fixed_parameters)
 
     return transform
+
 
 
 def resample_image(image, transform, reference=None):

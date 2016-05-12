@@ -19,34 +19,23 @@ import time
 import numpy
 from numpy.testing import utils as numpy_utils
 from scipy.signal import fftconvolve
+from scipy.ndimage.interpolation import zoom
 
-from supertomo.io import image_data, temp_data
+from supertomo.io import image_data, temp_data, tiffile
 from supertomo.reconstruction import ops_ext
 from supertomo.utils import itkutils, generic_utils as genutils
 
 
 class MultiViewFusionRL:
     """
-    The Richardson-Lucy fusion process is based on the Deconvolve
-    superclass, implemented in iocbio.microscope.deconvolution
-    module. The difference is that the fusion
-    is a result of simultaneous deblurring of several 3D volumes.
-    Also, as a difference to the deconvolution functions in IOCBIO,
-    the whole fusion process is contained in this class
-
-    The projections and their corresponding point-spread-functions
-    (PSF) should be input as a list of IOCBIO ImageStack objects.
-    The fusion result will be returned as an ImageStack object as
-    well.
+    The Richardson-Lucy fusion is a result of simultaneous deblurring of
+    several 3D volumes.
     """
 
     def __init__(self, data, options):
         """
-        :param psfs:    a list of 3D PSFs (each of which should match
-                        their corresponding projection), as ImageStack
-                        objects
-        :param images:  a list of ImageStack objects of the 3D projections
-                        to be fused
+        :param data:    a ImageData object
+
         :param options: command line options that control the behavior
                         of the fusion algorithm
         """
@@ -78,7 +67,7 @@ class MultiViewFusionRL:
         self.data_to_save = ('count', 't', 'mn', 'mx', 'tau1', 'tau2', 'leak', 'e',
                              's', 'u', 'n', 'u_esu', 'mem')
         self.temp_data = temp_data.TempData()
-        self.temp_data.create_data_file(self.data_to_save)
+        self.temp_data.create_data_file("fusion_data.csv", self.data_to_save)
         self.temp_data.write_comment('Fusion Command: %s' % (' '.join(map(str, sys.argv))))
 
     def compute_estimate(self):
@@ -209,20 +198,18 @@ class MultiViewFusionRL:
                 self.data.set_active_image(i, "registered")
                 self.estimate += (self.data[:] / self.n_views)
         else:
-            raise NotImplementedError(`first_estimate`)
-
-
-
-        bar = genutils.ProgressBar(0,
-                                   max_count,
-                                   totalWidth=40,
-                                   show_percentage=False)
+            raise NotImplementedError(repr(first_estimate))
 
         stop = False
         stop_message = ''
         self.iteration_count = 0
         max_count = self.options.max_nof_iterations
         initial_photon_count = self.data[:].sum()
+
+        bar = genutils.ProgressBar(0,
+                                   max_count,
+                                   totalWidth=40,
+                                   show_percentage=False)
 
         # The Fusion calculation starts here
         # ====================================================================
@@ -292,7 +279,7 @@ class MultiViewFusionRL:
 
         """
 
-        self.self.n_views = self.data.get_number_of_images("registered")
+        self.n_views = self.data.get_number_of_images("registered")
         n_psfs = self.data.get_number_of_images("psf")
 
         assert n_psfs == 1 or n_psfs == self.n_views, "Wrong amount of PSFs in the data file"
@@ -335,3 +322,11 @@ class MultiViewFusionRL:
             # Save the zoomed and rotated PSF, as well as its mirrored version
             self.psfs.append(psf_new)
             self.adj_psfs.append(psf_new[::-1, ::-1, ::-1])
+
+    def save_to_hdf(self):
+        self.data.set_active_image(0, "registered")
+        spacing = self.data.get_voxel_size()
+        self.data.add_fused_image(self.estimate, spacing)
+
+    def save_to_tiff(self, filename):
+        tiffile.imsave(filename, self.estimate)
