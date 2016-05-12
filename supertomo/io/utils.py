@@ -1,5 +1,10 @@
+import os
+
 import SimpleITK as sitk
+
+from supertomo.definitions import *
 from .tiffile import TiffFile
+from ..utils import itkutils
 
 scale_c = 1e6
 
@@ -54,22 +59,40 @@ def get_itk_image(filename):
     :return:                Image data as a Numpy array, voxel spacing tuple
     """
     assert filename.endswith((".mha", ".mhd"))
-    return get_array_from_itk_image(sitk.ReadImage(filename))
+    return itkutils.convert_to_numpy(sitk.ReadImage(filename))
 
 
-def get_itk_image_from_array(array, spacing):
-    image = sitk.GetImageFromArray(array)
-    image.SetSpacing(spacing[::-1])
+def read_itk_transform(path):
+    """
+    Prior to starting to use the HDF5 format data storage images and spatial
+    transforms were saved as separate image files on the hard drive. This
+    function can be used to read a spatial transform saved from ITK. It is
+    to transfer old files into the HDF5 format storage.
 
-    return image
+    Parameters
+    ----------
+    path        Path to the transform file (usually txt ended)
 
+    Returns     Returns the transform type integer, parameters and fixed
+                parameters.
+    -------
 
-def get_array_from_itk_image(image):
-    array = sitk.GetArrayFromImage(image)
-    # In ITK the order of the dimensions differs from Numpy. The array conversion
-    # re-orders the dimensions, but of course the same has to be done to the spacing
-    # information.
-    spacing_orig = image.GetSpacing()[::-1]
-    spacing = tuple(dim/scale_c for dim in spacing_orig)
+    """
 
-    return array, spacing
+    if not os.path.isfile(path):
+        raise ValueError("Not a valid path: %s" % path)
+
+    with open(path, 'r') as f:
+        for line in f:
+            if line.startswith('Transform:'):
+                type_string = line.split(': ')[1].split('_')[0]
+                if "VersorRigid" in type_string:
+                    transform_type = itk_transforms_c['sitkVersorRigid']
+                    break
+                else:
+                    raise NotImplementedError("Unknown transform type: %s" % type_string)
+
+    transform = sitk.ReadTransform(path)
+    params = transform.GetParameters()
+    fixed_params = transform.GetFixedParameters()
+    return transform_type, params, fixed_params

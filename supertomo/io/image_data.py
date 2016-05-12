@@ -1,10 +1,10 @@
 import os
 import h5py
 import numpy
+import SimpleITK as sitk
 
 from ..utils import itkutils
-
-image_types = ("original", "registered", "fused", "psf")
+from ..definitions import *
 
 
 class ImageData():
@@ -15,24 +15,25 @@ class ImageData():
 
     def __init__(self, path):
 
-        if os.path.isfile(path) and path.endswith(".hdf5"):
+        if not os.path.exists(os.path.dirname(path)):
+            os.mkdir(os.path.dirname(path))
+        assert path.endswith(".hdf5")
+
+        if os.path.exists(path):
             self.data = h5py.File(path, mode="r+")
+            self.series_count = self.data.attrs["series_count"]
+            self.channel_count = self.data.attrs["channel_count"]
         else:
-            if not os.path.exists(os.path.dirname(path)):
-                os.mkdir(os.path.dirname(path))
-            assert path.endswith(".hdf5")
-
             self.data = h5py.File(path, mode="w")
-            self.data.create_group("info")
-
             self.series_count = 0
             self.channel_count = 1
 
-        self.active_image = None
-        self.active_channel = 0
-        self.data.attrs["series_count"] = 0
+            self.data.attrs["series_count"] = 0
+            self.data.attrs["channel_count"] = 0
 
-    def add_original_image(self, data, rotation_angle, spacing, name, chunk_size=None):
+        self.active_image = None
+
+    def add_original_image(self, data, angle, spacing, index, scale, channel, chunk_size=None):
         """
         Add a source image to the HDF5 file. This function is typically used
         when the HDF5 file is created from source image files.
@@ -43,9 +44,12 @@ class ImageData():
                                 in which the color channel is the first
                                 dimension.
 
-        :param rotation_angle:  Estimated rotation angle of the view, in
+        :param angle:  Estimated rotation angle of the view, in
                                 respect to the regular STED angle
         :param spacing:         Voxel size
+        :param index            The image ordering index
+        :param scale            Percentage from full size. It is possible to save
+                                multiple versions of an image in different sizes.
         :param chunk_size:      A specific chunk size can be defined here in
                                 order to optimize the data access, when
                                 working with partial images.
@@ -53,31 +57,37 @@ class ImageData():
         """
         assert isinstance(data, numpy.ndarray), "Invalid data format."
 
-        # Group images by rotation angle
-        group_name = "original/" + str(self.series_count)
-        image_group = self.data.create_group(group_name)
+        if channel > self.channel_count + 1:
+            raise ValueError("Add the color channels in the correct order")
 
-        image_group.attrs["spacing"] = spacing
-        image_group.attrs["rotation_angle"] = rotation_angle
-        image_group.attrs["name"] = name
-
-        if len(data.shape) == 4:
-            self.channel_count = data.shape[0]
-            for channel in range(0, data.shape[0]):
-                if chunk_size is None:
-                    image_group.create_dataset(str(channel), data=data[channel])
-                else:
-                    image_group.create_dataset(str(channel), data=data[channel], chunks=chunk_size)
+        # Create a new image group, based on the ordering index. If the
+        # group exists, an attempt is made to add a new dataset.
+        group_name = "original/" + index
+        if group_name not in self.data:
+            image_group = self.data.create_group(group_name)
+            self.series_count += 1
+            self.data.attrs["series_count"] = self.series_count
         else:
-            if chunk_size is None:
-                image_group.create_dataset("0", data=data)
-            else:
-                image_group.create_dataset("0", data=data, chunks=chunk_size)
+            image_group = self.data[group_name]
 
-        self.series_count += 1
-        self.data.attrs["series_count"] = self.series_count
+        name = "channel_" + str(channel) + "_scale_" + str(scale)
 
-    def add_registered_image(self, data, transform, spacing, chunk_size=None):
+        # Don't overwrite an existing image.
+        if name in image_group:
+            return
+
+        # Activate chunked storage of requested
+        if chunk_size is None:
+            image_group.create_dataset(name, data=data[channel])
+        else:
+            image_group.create_dataset(name, data=data[channel], chunks=chunk_size)
+
+        image_group[name].attrs["angle"] = angle
+        image_group[name].attrs["spacing"] = spacing
+        image_group[name].attrs["size"] = data.shape
+
+    def add_registered_image(self, data, transform, transform_type, channel,
+                             index, scale, spacing, chunk_size=None):
         """
         Add a resampled, registered image.
 
@@ -90,6 +100,9 @@ class ImageData():
         :param transform:       The spatial transform that was used to generate
                                 the resampled image.
 
+        :param transform_type   An integer of the transform type. Is based on the
+                                sitk TransformEnum type (see .utils.py)
+
         :param spacing:         Voxel size
         :param chunk_size:      A specific chunk size can be defined here in
                                 order to optimize the data access, when
@@ -98,49 +111,70 @@ class ImageData():
         """
         assert isinstance(data, numpy.ndarray), "Invalid data format."
 
-        # Group images by rotation angle
-        group_name = "registered/" + str(self.active_image)
-        image_group = self.data.create_group(group_name)
-
-        image_group.attrs["spacing"] = spacing
-        image_group.attrs["transform"] = transform
-        image_group.attrs["size"] = data.shape
-
-
-        if len(data.shape) == 4:
-            for channel in range(0, data.shape[0]):
-                if chunk_size is None:
-                    image_group.create_dataset(str(channel), data=data[channel])
-                else:
-                    image_group.create_dataset(str(channel), data=data[channel], chunks=chunk_size)
+        group_name = "registered/" + index
+        if group_name not in self.data:
+            image_group = self.data.create_group(group_name)
         else:
-            if chunk_size is None:
-                image_group.create_dataset("0", data=data)
-            else:
-                image_group.create_dataset("0", data=data, chunks=chunk_size)
+            image_group = self.data[group_name]
 
-    def add_psf(self, data, rotation_angle, spacing, chunk_size=None):
+        if channel > 0:
+            if self.channel_count == 1:
+                raise ValueError("Invalid channel count")
+
+        name = "channel_" + str(channel) + "_scale_" + str(scale)
+        if name in image_group:
+            return
+
+        if chunk_size is None:
+            image_group.create_dataset(name, data=data)
+        else:
+            image_group.create_dataset(name, data=data, chunks=chunk_size)
+
+        # Each image has its own attributes
+        image_group[name].attrs["spacing"] = spacing
+        image_group[name].attrs["size"] = data.shape
+
+        if transform is not None:
+            assert issubclass(transform, sitk.Transform)
+            image_group[name].attrs["tfm_type"] = transform_type
+            image_group[name].attrs["tfm_params"] = transform.GetParameters()
+            image_group[name].attrs["tfm_fixed_params"] = transform.GetFixedParameters()
+
+    def add_psf(self, data, angle, channel, index, scale, spacing, chunk_size=None):
         assert isinstance(data, numpy.ndarray), "Invalid data format."
 
-        group_name = "registered/" + str(self.active_image)
-        image_group = self.data.create_group(group_name)
-
-        image_group.attrs["spacing"] = spacing
-        image_group.attrs["rotation_angle"] = rotation_angle
-
-        if len(data.shape) == 4:
-            for channel in range(0, data.shape[0]):
-                if chunk_size is None:
-                    image_group.create_dataset(str(channel), data=data[channel])
-                else:
-                    image_group.create_dataset(str(channel), data=data[channel], chunks=chunk_size)
+        group_name = "psf/" + index
+        if group_name not in self.data:
+            image_group = self.data.create_group(group_name)
         else:
-            if chunk_size is None:
-                image_group.create_dataset("0", data=data)
-            else:
-                image_group.create_dataset("0", data=data, chunks=chunk_size)
+            image_group = self.data[group_name]
 
-    def add_fused_image(self, data, spacing):
+        if channel > 0:
+            if self.channel_count == 1:
+                raise ValueError("Invalid channel count")
+
+        name = "channel_" + str(channel) + "_scale_" + str(scale)
+        if name in image_group:
+            return
+
+        if chunk_size is None:
+            image_group.create_dataset(name, data=data)
+        else:
+            image_group.create_dataset(name, data=data, chunks=chunk_size)
+
+        image_group[name].attrs["angle"] = angle
+        image_group[name].attrs["spacing"] = spacing
+        image_group[name].attrs["size"] = data.shape
+
+    def add_transform(self, scale, index, channel, params, fixed_params, transform_type):
+        name = "registered/" + index + "/channel_" + channel + "_scale_" + scale
+        if name not in self.data:
+            raise ValueError("Dataset %s does not exist" % name)
+        self.data[name].attrs["tfm_type"] = transform_type
+        self.data[name].attrs["tfm_params"] = params
+        self.data[name].attrs["tfm_fixed_params"] = fixed_params
+
+    def add_fused_image(self, data, channel, scale, spacing):
         """
         Add a fused image.
 
@@ -157,19 +191,23 @@ class ImageData():
         """
         assert isinstance(data, numpy.ndarray), "Invalid data format."
 
-        image_group = self.data.create_group("fused")
-
-        image_group.attrs["spacing"] = spacing
-        image_group.attrs["size"] = data.shape
-
-        if len(data.shape) == 4:
-            for channel in range(0, data.shape[0]):
-                image_group.create_dataset(str(channel), data=data[channel])
+        if "fused" not in self.data:
+            image_group = self.data.create_group("fused")
         else:
-            image_group.create_dataset("0", data=data)
+            image_group = self.data["fused"]
+
+        if channel > 0 and self.channel_count == 1:
+                raise ValueError("Invalid channel count")
+
+        name = "channel" + str(channel) + "scale" + str(scale)
+        if name in image_group:
+            return
+
+        image_group.create_dataset(name, data=data)
+        image_group[name].attrs["spacing"] = "spacing"
 
     def get_rotation_angle(self):
-        return self.data[self.active_image].attrs["rotation_angle"]
+        return self.data[self.active_image].attrs["angle"]
 
     def get_voxel_size(self):
         return self.data[self.active_image].attrs["spacing"]
@@ -181,43 +219,38 @@ class ImageData():
         return self.data[self.active_image].dtype
 
     def get_number_of_images(self, type):
-        assert type in image_types
+        assert type in image_types_c
         return len(self.data[type])
 
-    def get_transform(self, init_itk=True):
+    def get_transform(self):
         assert "registered" in self.active_image
-        transform = self.data[self.active_image].attrs["transform"]
+        tfm_type = self.data[self.active_image].attrs["tfm_type"]
+        tfm_params = self.data[self.active_image].attrs["tfm_params"]
+        tfm_fixed_params = self.data[self.active_image].attrs["tfm_fixed_params"]
 
-        if init_itk:
-            transform_type = transform[0]
-            parameters = transform[1]
-            fixed_parameters = transform[2]
-            return itkutils.make_itk_transform(
-                transform_type,
-                parameters,
-                fixed_parameters
-            )
-        else:
-            return transform
+        return itkutils.make_itk_transform(tfm_type,
+                                           3,
+                                           tfm_params,
+                                           tfm_fixed_params)
 
-    def set_active_image(self, index, type):
+    def set_active_image(self, index, channel, scale, image_type):
         """
         Select which view is currently active.
 
-        :param index:   View index, goes from 0 to number of views - 1
+        :param index:      View index, goes from 0 to number of views - 1
+        :param image_type  Image type as a string, listed in image_types
         """
         if index >= self.series_count:
             print "Invalid index. There are only %i images in the file" % self.series_count
             return
-        elif type not in image_types:
+        elif image_type not in image_types_c:
             print "Unkown image type."
             return
         else:
-            self.active_image = type + "/" + str(index)
+            self.active_image = image_type + "/" + str(index) + "/channel_" + str(channel) + "_scale_" + str(scale)
+            if self.active_image not in self.data:
+                raise ValueError("No such image: %s" % self.active_image)
 
-    def set_active_channel(self, index):
-        assert index < len(self.data[self.active_image])
-        self.active_channel = index
 
     def set_fused_block(self, block, start_index):
         assert isinstance(block, numpy.ndarray) and isinstance(start_index, numpy.ndarray)
@@ -259,6 +292,10 @@ class ImageData():
         Close the file object.
         """
         self.data.close()
+
+    def check_if_exists(self, type, index, channel, scale):
+        name = type + "/" + str(index) + "/channel_" + str(channel) + "_scale_" + str(scale)
+        return name in self.data
 
     def __getitem__(self, item):
         return self.data[self.active_image][item]
