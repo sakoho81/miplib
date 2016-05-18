@@ -1,6 +1,7 @@
 import os
 import h5py
 import numpy
+import scipy.ndimage as ndimage
 import SimpleITK as sitk
 
 from ..utils import itkutils
@@ -28,8 +29,8 @@ class ImageData():
             self.series_count = 0
             self.channel_count = 1
 
-            self.data.attrs["series_count"] = 0
-            self.data.attrs["channel_count"] = 0
+            self.data.attrs["series_count"] = self.series_count
+            self.data.attrs["channel_count"] = self.channel_count
 
         self.active_image = None
 
@@ -75,6 +76,14 @@ class ImageData():
         # Don't overwrite an existing image.
         if name in image_group:
             return
+
+        # Zoom axial dimension for isotropic pixel size.
+        if spacing[0] != spacing[1]:
+            print "Image %s needs to be resampled for isotropic spacing." \
+                  "This will take a minute" % name
+            z_zoom = spacing[0] / spacing[1]
+            data = ndimage.zoom(data, (z_zoom, 1, 1), order=3)
+            spacing = tuple(spacing[x] if x != 0 else z_zoom for x in len(spacing))
 
         # Activate chunked storage of requested
         if chunk_size is None:
@@ -173,6 +182,47 @@ class ImageData():
         self.data[name].attrs["tfm_type"] = transform_type
         self.data[name].attrs["tfm_params"] = params
         self.data[name].attrs["tfm_fixed_params"] = fixed_params
+
+    def create_rescaled_images(self, scale, chunk_size):
+        """
+        Creates rescaled versions of original images. Typically downscaling would
+        be used to speed up certain image processing tasts. The scaled images
+        are saved directly into the HDF5 file.
+
+        Parameters
+        ----------
+        scale       Scale as a fraction of the original image size, i.e. scale 0.5
+                    will create images 50% from the full size image.
+        chunk_size  The same as with the other images. Can be used to define a
+                    particular chunk size for data storage.
+
+        Returns
+        -------
+
+        """
+        # Iterate over all the images
+        for index in range(self.series_count):
+            group_name = "original/" + str(index)
+            image_group = self.data[group_name]
+            # Iterate over channels
+            for channel in range(self.channel_count):
+                name_new = "channel_" + str(channel) + "_scale_" + str(scale)
+                name_ref = "channel_" + str(channel) + "_scale_100"
+                # Check if exists and create if not.
+                if name_new in image_group:
+                    continue
+                else:
+                    spacing = scale*image_group[name_ref].attrs["spacing"]
+                    zoom = (scale, scale, scale)
+                    data = ndimage.zoom(image_group[name_ref], zoom, order=3)
+                    if chunk_size is None:
+                        image_group.create_dataset(name_new, data=data)
+                    else:
+                        image_group.create_dataset(name_new, data=data, chunks=chunk_size)
+
+                    image_group[name_new].attrs["angle"] = image_group[name_ref].attrs["angle"]
+                    image_group[name_new].attrs["spacing"] = spacing
+                    image_group[name_new].attrs["size"] = data.shape
 
     def add_fused_image(self, data, channel, scale, spacing):
         """
@@ -291,6 +341,9 @@ class ImageData():
         """
         Close the file object.
         """
+        self.data.attrs["series_count"] = self.series_count
+        self.data.attrs["channel_count"] = self.channel_count
+
         self.data.close()
 
     def check_if_exists(self, type, index, channel, scale):
