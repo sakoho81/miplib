@@ -358,6 +358,24 @@ def calculate_center_of_image(image, center_of_mass=False):
     return center
 
 
+def make_composite_rgb_image(images):
+    """
+    A utitity to combine several grayscale images into a single RGB image.
+
+    :param images:      A tuple of itk:Image objects
+    :param image_type:  Image type string, according to the notation in ITK.
+    :return:            Returns a RGB composite image.
+    """
+    assert isinstance(images, tuple)
+    assert len(images) <= 3
+
+    composer = sitk.ComposeImageFilter()
+    for i in range(len(images)):
+        composer.SetInput(i, images[i])
+
+    return composer.Execute()
+
+
 
 
 

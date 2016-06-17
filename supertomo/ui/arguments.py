@@ -12,6 +12,18 @@ def get_register_script_options(arguments):
     return parser.parse_args(arguments)
 
 
+def get_correlate_tem_script_options(arguments):
+    parser = argparse.ArgumentParser(
+        description="Command line arguments for the "
+                    "SuperTomo2 correlative STED-TEM image registration script"
+    )
+    parser = get_common_options(parser)
+    parser = get_tem_correlation_options(parser)
+    parser = get_registration_options(parser)
+
+    return parser.parse_args(arguments)
+
+
 def get_common_options(parser):
     assert isinstance(parser, argparse.ArgumentParser)
     group = parser.add_argument_group("Common", "Common Options for SuperTomo2 scripts")
@@ -323,4 +335,51 @@ def get_registration_options(parser):
              'threshold filter'
     )
 
+    return parser
+
+
+def get_tem_correlation_options (parser):
+
+    assert isinstance(parser, argparse.ArgumentParser)
+
+    group = parser.add_argument_group("TEM Correlation", "Options for STED-TEM correlation")
+
+    # Image file path prefix
+
+    group.add_option(
+        '--emfile', '--em',
+        dest='em_image_path',
+        metavar='PATH',
+        default=None,
+        help='Specify PATH to Electro microscope Image'
+    )
+    # STED image path
+    group.add_option(
+        '--stedfile', '--st',
+        dest='sted_image_path',
+        metavar='PATH',
+        default=None,
+        help='Specify PATH to STED Image'
+    )
+    group.add_option(
+        '--register',
+        action='store_true'
+    )
+    group.add_option(
+        '--transform',
+        action='store_true'
+    )
+    group.add_option(
+        '--transform-path', '-t',
+        dest='transform_path',
+        metavar='PATH',
+        help='Specify PATH to transform file'
+    )
+    group.add_option(
+        '--tfm-type',
+        dest='tfm_type',
+        choices=['rigid', 'similarity'],
+        default='rigid',
+        help='Define the spatial transform type to be used with registration'
+    )
     return parser
