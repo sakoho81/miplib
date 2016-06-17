@@ -49,17 +49,23 @@ def get_imagej_tiff(filename, memmap=False):
     return images, spacing
 
 
-def get_itk_image(filename):
+def get_itk_image(filename, convert_numpy = True):
     """
     A function for reading image file types typical to ITK (mha & mhd). This is mostly
     of a historical significance, because in the original SuperTomo 1 such files were
     used, mostly for convenience.
 
     :param filename:        Path to an ITK image
+    :param convert_numpy    Toggle whether to convert the ITK image into Numpy format
     :return:                Image data as a Numpy array, voxel spacing tuple
     """
     assert filename.endswith((".mha", ".mhd"))
-    return itkutils.convert_to_numpy(sitk.ReadImage(filename))
+    image = sitk.ReadImage(filename)
+    if convert_numpy:
+        return itkutils.convert_to_numpy(image)
+    else:
+        return image
+
 
 
 def read_itk_transform(path):
@@ -96,3 +102,5 @@ def read_itk_transform(path):
     params = transform.GetParameters()
     fixed_params = transform.GetFixedParameters()
     return transform_type, params, fixed_params
+
+
