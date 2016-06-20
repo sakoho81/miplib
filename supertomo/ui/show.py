@@ -92,6 +92,8 @@ def display_2d_images(fixed_npa, moving_npa):
     plt.title('moving image')
     plt.axis('off')
 
+    plt.show()
+
 
 def display_2d_slices_with_alpha(alpha, fixed, moving):
     img = (1.0 - alpha) * fixed + alpha * moving

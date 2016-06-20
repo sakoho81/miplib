@@ -22,6 +22,8 @@ information 3. mattes mutual information are supported implemented
 import SimpleITK as sitk
 import matplotlib.pyplot as plt
 from IPython.display import clear_output
+from ..ui import show
+import sys
 
 # PLOTS
 # =============================================================================
@@ -32,6 +34,8 @@ def start_plot():
     global metric_values
 
     metric_values = []
+    plt.ion()
+
 
 
 def end_plot():
@@ -363,6 +367,10 @@ def itk_registration_2d(fixed_image, moving_image, options, initial_transform=No
     assert isinstance(fixed_image, sitk.Image)
     assert isinstance(moving_image, sitk.Image)
 
+    fixed_image = sitk.Cast(fixed_image, sitk.sitkFloat32)
+    moving_image = sitk.Cast(moving_image, sitk.sitkFloat32)
+
+
     # REGISTRATION COMPONENTS SETUP
     # ========================================================================
 
@@ -375,7 +383,10 @@ def itk_registration_2d(fixed_image, moving_image, options, initial_transform=No
         options.registration_max_iterations,
         relaxationFactor=options.relaxation_factor
     )
-    registration.SetOptimizerScalesFromPhysicalShift()
+    translation_scale = 1.0/options.translation_scale
+
+    registration.SetOptimizerScales([1.0, translation_scale, translation_scale])
+
 
     # INTERPOLATOR
     registration.SetInterpolator(sitk.sitkLinear)
@@ -398,10 +409,13 @@ def itk_registration_2d(fixed_image, moving_image, options, initial_transform=No
 
     if initial_transform is None:
         print 'Calculating initial registration parameters'
+        tx = sitk.Euler2DTransform()
+        tx.SetAngle(options.set_rotation)
+
         transform = sitk.CenteredTransformInitializer(
             fixed_image,
             moving_image,
-            sitk.Euler2DTransform() if options.tfm_type == "rigid" else sitk.Similarity2DTransform(),
+            tx if options.tfm_type == "rigid" else sitk.Similarity2DTransform(),
             sitk.CenteredTransformInitializerFilter.GEOMETRY
         )
         registration.SetInitialTransform(transform)
@@ -418,7 +432,7 @@ def itk_registration_2d(fixed_image, moving_image, options, initial_transform=No
     # ========================================================================
 
     print "Starting registration"
-    final_transform = registration.Execute()
+    final_transform = registration.Execute(fixed_image, moving_image)
 
     print('Final metric value: {0}'.format(registration.GetMetricValue()))
     print('Optimizer\'s stopping condition, {0}'.format(registration.GetOptimizerStopConditionDescription()))

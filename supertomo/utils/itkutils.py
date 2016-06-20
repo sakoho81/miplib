@@ -80,11 +80,10 @@ def resample_image(image, transform, reference=None):
         reference = image
     resampler = sitk.ResampleImageFilter()
     resampler.SetTransform(transform)
-    region = reference.GetLargestPossibleRegion()
 
     resampler.SetInterpolator(sitk.sitkLinear)
 
-    resampler.SetSize(region.GetSize())
+    resampler.SetSize(reference.GetSize())
     resampler.SetOutputOrigin(reference.GetOrigin())
     resampler.SetOutputSpacing(reference.GetSpacing())
     resampler.SetOutputDirection(reference.GetDirection())
