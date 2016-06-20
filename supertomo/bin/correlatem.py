@@ -17,7 +17,7 @@ import SimpleITK as sitk
 from supertomo.reconstruction import registration
 from supertomo.io import utils as ioutils
 from supertomo.utils import itkutils
-from supertomo.ui import arguments
+from supertomo.ui import arguments, show
 
 
 def check_necessary_inputs(options):
@@ -38,7 +38,7 @@ def check_necessary_inputs(options):
 
 
 def main():
-    options = arguments.get_correlate_tem_script_options(sys.argv[2:])
+    options = arguments.get_correlate_tem_script_options(sys.argv[1:])
     
     # SETUP
     ##########################################################################
@@ -69,9 +69,10 @@ def main():
         os.makedirs(output_dir)
         
     # Load input images
-    sted_image = ioutils.get_itk_image(options.sted_image_path, convert_numpy=False)
-    em_image = ioutils.get_itk_image(options.em_image_path, convert_numpy=False)
-    
+    sted_image = sitk.ReadImage(options.sted_image_path)
+    em_image = sitk.ReadImage(options.em_image_path)
+
+
     # PRE-PROCESSING
     ##########################################################################
     # Save originals for possible later use
@@ -138,7 +139,8 @@ def main():
         if options.rescale_to_full_range:
             sted_image = itkutils.rescale_intensity(sted_image)
             em_image = itkutils.rescale_intensity(em_image)
-    
+
+
     # REGISTRATION
     ##########################################################################
     if options.register:
@@ -150,6 +152,7 @@ def main():
             final_transform,
             reference=sted_image
         )
+
 
     # TRANSFORM
     ##########################################################################
@@ -189,8 +192,10 @@ def main():
                     '.tiff'
 
     file_name = os.path.join(output_dir, file_name)
-
-    rgb_image = sitk.Compose((sted_original, em_image))
+    size = sted_original.GetSize()
+    empty = sitk.Image(size[0], size[1], sitk.sitkUInt8)
+    empty.CopyInformation(sted_original)
+    rgb_image = sitk.Compose(sted_original, em_image, empty)
     sitk.WriteImage(rgb_image, file_name)
 
 

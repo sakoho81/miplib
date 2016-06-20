@@ -142,15 +142,15 @@ def get_registration_options(parser):
     """
     assert isinstance(parser, argparse.ArgumentParser)
     group = parser.add_argument_group("Registration", "Options for image registration")
-    group.add_option(
+    group.add_argument(
         '--reg-method',
         dest='registration_method',
         choices=['mattes', 'mean-squared-difference', 'viola-wells',
-                 'normalized-correlation'],
+                 'correlation'],
         default='mattes',
         help='Specify registration method'
     )
-    group.add_option(
+    group.add_argument(
         '--two-step',
         dest='two_step_registration',
         action='store_true',
@@ -158,7 +158,7 @@ def get_registration_options(parser):
              'the first being with a degraded image and the second'
              'with the high-resolution original'
     )
-    group.add_option(
+    group.add_argument(
         '--normalize',
         action='store_true',
         help='Choose this option if you want to normalize the intensity values'
@@ -169,75 +169,75 @@ def get_registration_options(parser):
     # This sometimes helps with the registrations, as differences
     # at pixel level may get the registration stuck at the wrong
     # position
-    group.add_option(
+    group.add_argument(
         '--gaussian',
         dest='gaussian_variance',
-        type='float',
+        type=float,
         default=0.0,
         help='Define variance for Gaussian blur'
     )
-    group.add_option(
+    group.add_argument(
         '--dilation',
         dest='dilation_size',
-        type='int',
+        type=int,
         default=0,
         help='Define size for Grayscale dilation'
     )
-    group.add_option(
+    group.add_argument(
         '--mean',
         dest='mean_kernel',
-        type='int',
+        type=int,
         default=0,
         help='In case you would like to use a mean filter to smoothen the images'
              'before registration, define a kernel here'
     )
-    group.add_option(
+    group.add_argument(
         '--median',
         dest='median_size',
-        type='int',
+        type=int,
         default=0,
         help='Enable median filtering before registering by a non-zero kernel size'
     )
 
     # Mattes mutual information metric specific options
-    group.add_option(
+    group.add_argument(
         '--mattes-histogram-bins',
         dest='mattes_histogram_bins',
-        type='int',
+        type=int,
         default=15,
         help='Specify the number of histogram bins for Mattes '
              'Mutual Information sampling'
     )
-    group.add_option(
-        '--mattes-spatial-samples',
-        dest='mattes_spatial_samples',
-        type='int',
-        default=100000,
+    group.add_argument(
+        '--mattes-sampling-percentage',
+        dest='mattes_sampling_percentage',
+        type=float,
+        default=1.0,
         help='Specify the number of samples to take from each '
              'histogram bin'
     )
 
     # Viola Wells mutual information specific parameters
-    group.add_option(
+    group.add_argument(
         '--vw-fixed-sd',
         dest='vw_fixed_sd',
-        type='float',
+        type=float,
         default=0.4,
         help='Specify the fixed image SD value in Viola-Wells mutual '
              'information registration'
     )
-    group.add_option(
+    group.add_argument(
         '--vw-moving-sd',
         dest='vw_moving_sd',
-        type='float',
+        type=float,
         default=0.4,
         help='Specify the fixed image SD value in Viola-Wells mutual '
              'information registration'
     )
-    group.add_option(
+    group.add_argument(
         '--vw-samples-multiplier',
         dest='vw_samples_multiplier',
-        type='float',
+        type=float,
         default=0.2,
         help='Specify the amount of spatial samples to be used in '
              'mutual information calculations. The amount is given'
@@ -246,90 +246,90 @@ def get_registration_options(parser):
     )
 
     # Initializer options
-    group.add_option(
+    group.add_argument(
         '--set-rot-axis',
         dest='set_rot_axis',
-        type='int',
+        type=int,
         default=0,
         help='Specify the axis for initial rotation of the '
              'moving image'
     )
-    group.add_option(
+    group.add_argument(
         '--set-rotation',
         dest='set_rotation',
-        type='float',
+        type=float,
         default=1.0,
         help='Specify an estimate for initial rotation angle'
     )
-    group.add_option(
+    group.add_argument(
         '--set-scale',
         dest='set_scale',
-        type='float',
+        type=float,
         default=1.0,
         help='Specify the initial scale for similarity transform'
     )
     # Optimizer options
-    group.add_option(
+    group.add_argument(
         '--set-translation-scale',
         dest='translation_scale',
-        type='float',
+        type=float,
         default=1.0,
         help='A scaling parameter to adjust optimizer behavior'
              'effect on rotation and translation. By default'
              'the translation scale is 1000 times that of rotation'
     )
-    group.add_option(
+    group.add_argument(
         '--set-scaling-scale',
         dest='scaling_scale',
-        type='float',
+        type=float,
         default=10.0
     )
-    group.add_option(
+    group.add_argument(
         '--max-step',
         dest='max_step_length',
-        type='float',
+        type=float,
         default=0.2,
         help='Specify an estimate for initial rotation angle'
     )
-    group.add_option(
+    group.add_argument(
         '--min-step',
         dest='min_step_length',
-        type='float',
+        type=float,
         default=0.000001,
         help='Specify an estimate for initial rotation angle'
     )
-    group.add_option(
+    group.add_argument(
         '--reg-max-iterations',
         dest='registration_max_iterations',
-        type='int',
+        type=int,
         default=200,
         help='Specify an estimate for initial rotation angle'
     )
-    group.add_option(
+    group.add_argument(
         '--reg-relax-factor',
         dest='relaxation_factor',
-        type='float',
+        type=float,
         default=0.5,
         help='Defines how quickly optmizer shortens the step size'
     )
-    group.add_option(
+    group.add_argument(
         '--reg-print-prog',
         dest='print_registration_progress',
         action='store_true'
     )
-    group.add_option(
+    group.add_argument(
         '--use-internal-type',
         dest='use_internal_type',
         action='store_true'
     )
-    group.add_option(
+    group.add_argument(
         '--disable-init-moments',
         dest='moments',
         action='store_false'
     )
-    group.add_option(
+    group.add_argument(
         '--threshold',
-        type='int',
+        type=int,
         default=0,
         help='Inserting an integer value larger than zero enables a grayscale'
              'threshold filter'
@@ -346,7 +346,7 @@ def get_tem_correlation_options (parser):
 
     # Image file path prefix
 
-    group.add_option(
+    group.add_argument(
         '--emfile', '--em',
         dest='em_image_path',
         metavar='PATH',
@@ -354,32 +354,33 @@ def get_tem_correlation_options (parser):
         help='Specify PATH to Electro microscope Image'
     )
     # STED image path
-    group.add_option(
+    group.add_argument(
         '--stedfile', '--st',
         dest='sted_image_path',
         metavar='PATH',
         default=None,
         help='Specify PATH to STED Image'
     )
-    group.add_option(
+    group.add_argument(
         '--register',
         action='store_true'
     )
-    group.add_option(
+    group.add_argument(
         '--transform',
         action='store_true'
     )
-    group.add_option(
+    group.add_argument(
         '--transform-path', '-t',
         dest='transform_path',
         metavar='PATH',
         help='Specify PATH to transform file'
     )
-    group.add_option(
+    group.add_argument(
         '--tfm-type',
         dest='tfm_type',
         choices=['rigid', 'similarity'],
         default='rigid',
         help='Define the spatial transform type to be used with registration'
     )
+
     return parser
