@@ -145,7 +145,7 @@ def main():
     ##########################################################################
     if options.register:
 
-        final_transform = registration.itk_registration_2d(sted_image, em_image, options)
+        final_transform = registration.itk_registration_similarity_2d(sted_image, em_image, options)
 
         em_image = itkutils.resample_image(
             em_original,
@@ -192,10 +192,8 @@ def main():
                     '.tiff'
 
     file_name = os.path.join(output_dir, file_name)
-    size = sted_original.GetSize()
-    empty = sitk.Image(size[0], size[1], sitk.sitkUInt8)
-    empty.CopyInformation(sted_original)
-    rgb_image = sitk.Compose(sted_original, em_image, empty)
+
+    rgb_image = itkutils.make_composite_rgb_image(sted_original, em_image)
     sitk.WriteImage(rgb_image, file_name)
 
 
