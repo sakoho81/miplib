@@ -3,13 +3,13 @@ import os
 import SimpleITK as sitk
 
 from supertomo.definitions import *
-from .tiffile import TiffFile
+import tiffile
 from ..utils import itkutils
 
 scale_c = 1e6
 
 
-def get_imagej_tiff(filename, memmap=False):
+def get_imagej_tiff(filename, memmap=False, return_itk=False):
     """
     ImageJ has a bit peculiar way of saving image metadata, especially the tags
     for voxel spacing, which is of main interest in SuperTomo. This function reads
@@ -20,12 +20,16 @@ def get_imagej_tiff(filename, memmap=False):
     :param filename:    Path to a TIFF.
     :param memmap:      Enables Memory mapping in case the TIFF file is too large to
                         be read in memory completely.
-    :return:            Image data as a Numpy array, voxel spacing tuple
+    :param return_itk  Converts the Image data into a sitk.Image. This can be used
+                        when single images are needed, instead of using the HDF5
+                        structure adopted in SuperTomo2.
+    :return:            Image data either as a Numpy array, voxel spacing tuple or a
+                        sitk.Image
     """
     assert filename.endswith((".tif", ".tiff"))
     tags = {}
     # Read images and tags
-    with TiffFile(filename) as image:
+    with tiffile.TiffFile(filename) as image:
         # Get images
         images = image.asarray(memmap=memmap)
         # Get tags
@@ -46,29 +50,53 @@ def get_imagej_tiff(filename, memmap=False):
     # Create a tuple for zxy-spacing. The order of the dimensions follows that of the
     # image data
     spacing = (z_spacing/scale_c, 1.0/tags["x_resolution"][0], 1.0/tags["y_resolution"][0])
-    return images, spacing
+
+    if return_itk:
+        return itkutils.convert_from_numpy(images, spacing)
+    else:
+        return images, spacing
 
 
-def get_itk_image(filename, convert_numpy = True):
+def get_itk_image(filename, return_itk = True):
     """
     A function for reading image file types typical to ITK (mha & mhd). This is mostly
     of a historical significance, because in the original SuperTomo 1 such files were
     used, mostly for convenience.
 
-    :param filename:        Path to an ITK image
-    :param convert_numpy    Toggle whether to convert the ITK image into Numpy format
-    :return:                Image data as a Numpy array, voxel spacing tuple
+    :param filename:     Path to an ITK image
+    :param return_itk    Toggle whether to convert the ITK image into Numpy format
+    :return:             Image data as a Numpy array, voxel spacing tuple
     """
     assert filename.endswith((".mha", ".mhd"))
     image = sitk.ReadImage(filename)
-    if convert_numpy:
-        return itkutils.convert_to_numpy(image)
-    else:
+    if return_itk:
         return image
+    else:
+        return itkutils.convert_to_numpy(image)
 
 
+def get_image(filename, return_itk=False):
+    """
+    A wrapper for the functions above.
+    Parameters
+    ----------
+    filename
+    return_itk
 
-def read_itk_transform(path):
+    Returns
+    -------
+
+    """
+    if filename.endswith((".tif", ".tiff")):
+        return get_imagej_tiff(filename, return_itk)
+    elif filename.endswith((".mha", ".mhd")):
+        return get_itk_image(filename, return_itk)
+    else:
+        raise ValueError("No image reader specified for "
+                         "%s" % filename)
+
+
+def read_itk_transform(path, return_itk=False):
     """
     Prior to starting to use the HDF5 format data storage images and spatial
     transforms were saved as separate image files on the hard drive. This
@@ -88,19 +116,31 @@ def read_itk_transform(path):
     if not os.path.isfile(path):
         raise ValueError("Not a valid path: %s" % path)
 
-    with open(path, 'r') as f:
-        for line in f:
-            if line.startswith('Transform:'):
-                type_string = line.split(': ')[1].split('_')[0]
-                if "VersorRigid" in type_string:
-                    transform_type = itk_transforms_c['sitkVersorRigid']
-                    break
-                else:
-                    raise NotImplementedError("Unknown transform type: %s" % type_string)
-
     transform = sitk.ReadTransform(path)
-    params = transform.GetParameters()
-    fixed_params = transform.GetFixedParameters()
-    return transform_type, params, fixed_params
+
+    if return_itk:
+        return transform
+
+    else:
+        #TODO: Check that this makes any sense. Also consult the ITK HDF implementation for ideas
+        with open(path, 'r') as f:
+            for line in f:
+                if line.startswith('Transform:'):
+                    type_string = line.split(': ')[1].split('_')[0]
+                    if "VersorRigid" in type_string:
+                        transform_type = itk_transforms_c['sitkVersorRigid']
+                        break
+                    else:
+                        raise NotImplementedError("Unknown transform type: "
+                                                  "%s" % type_string)
+
+        params = transform.GetParameters()
+        fixed_params = transform.GetFixedParameters()
+        return transform_type, params, fixed_params
 
 
+def write_imagej_tiff(path, image, spacing):
+    tiffile.imsave(path,
+                   image,
+                   imagej=True,
+                   resolution=list(1.0/x for x in spacing))

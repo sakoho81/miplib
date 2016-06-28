@@ -2,6 +2,7 @@ import subprocess
 import supertomo.io.tiffile as tiffile
 import os
 
+import numpy as np
 import matplotlib.pyplot as plt
 import SimpleITK as sitk
 
@@ -76,20 +77,24 @@ def display_3d_slice_with_alpha(image_z, alpha, fixed, moving):
 
 # callback invoked by the interact ipython method for scrolling through the image stacks of
 # the two images (moving and fixed)
-def display_2d_images(fixed_npa, moving_npa):
+def display_2d_images(image1, image2):
+    if isinstance(image1, sitk.Image):
+        image1 = sitk.GetArrayFromImage(image1)
+    if isinstance(image2, sitk.Image):
+        image2 = sitk.GetArrayFromImage(image2)
     # create a figure with two subplots and the specified size
     plt.subplots(1, 2, figsize=(10, 8))
 
     # draw the fixed image in the first subplot
     plt.subplot(1, 2, 1)
-    plt.imshow(fixed_npa, cmap=plt.cm.Greys_r)
-    plt.title('fixed image')
+    plt.imshow(image1, cmap=plt.cm.Greys_r)
+    plt.title('image1')
     plt.axis('off')
 
     # draw the moving image in the second subplot
     plt.subplot(1, 2, 2)
-    plt.imshow(moving_npa, cmap=plt.cm.Greys_r)
-    plt.title('moving image')
+    plt.imshow(image2, cmap=plt.cm.Greys_r)
+    plt.title('image2')
     plt.axis('off')
 
     plt.show()
@@ -99,4 +104,37 @@ def display_2d_slices_with_alpha(alpha, fixed, moving):
     img = (1.0 - alpha) * fixed + alpha * moving
     plt.imshow(sitk.GetArrayFromImage(img), cmap=plt.cm.Greys_r)
     plt.axis('off')
+
+
+def display_2d_image_overlay(image1, image2, image3=None):
+    '''
+    Overlays 2-3 images into a single RGB plot. This was intended for use in
+    evaluating registration results.
+    Parameters
+    ----------
+    image1      A 2D numpy.array or sitk.Image that
+    image2      A 2D numpy.array or sitk.Image that
+    image3      A 2D numpy.array or sitk.Image that
+
+    Returns     Nothing
+    -------
+
+    '''
+    if isinstance(image1, sitk.Image):
+        image1 = sitk.GetArrayFromImage(image1)
+    if isinstance(image2, sitk.Image):
+        image2 = sitk.GetArrayFromImage(image2)
+
+    if image1.shape != image2.shape:
+        raise ValueError("The dimensions of the images to be overlaid should match")
+
+    if image3 is None:
+        image3 = np.zeros(image1.shape, dtype=np.uint8)
+
+    rgb_image = np.concatenate([aux[..., np.newaxis] for aux in (image1, image2, image3)], axis=-1)
+
+    plt.imshow(rgb_image)
+    plt.axis('off')
+    plt.show()
+
 

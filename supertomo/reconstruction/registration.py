@@ -24,6 +24,8 @@ import matplotlib.pyplot as plt
 from IPython.display import clear_output
 from ..ui import show
 import sys
+import supertomo.utils.itkutils as itkutils
+import supertomo.ui.show as show
 
 # PLOTS
 # =============================================================================
@@ -35,10 +37,28 @@ def start_plot():
 
     metric_values = []
 
-def end_plot():
+def end_plot(fixed, moving, transform):
     global metric_values
+    plt.subplots(1, 2, figsize=(10, 8))
+
+    # Plot metric values
+    plt.subplot(1, 2, 1)
+    plt.plot(metric_values, 'r')
+    plt.title("Metric values")
+    plt.xlabel('Iteration Number', fontsize=12)
+    plt.ylabel('Metric Value', fontsize=12)
+
+    # Plot image overlay
+    resampled = itkutils.resample_image(moving, transform, reference=fixed)
+
+    fixed = sitk.Cast(fixed, sitk.sitkUInt8)
+    resampled = sitk.Cast(resampled, sitk.sitkUInt8)
+    plt.subplot(1, 2, 2)
+    plt.title("Overlay")
+    show.display_2d_image_overlay(fixed, resampled)
+
+
     del metric_values
-    plt.show()
 
 
 def plot_values(registration_method):
@@ -47,9 +67,6 @@ def plot_values(registration_method):
     metric_values.append(registration_method.GetMetricValue())
     # clear the output area (wait=True, to reduce flickering), and plot current data
     # plot the similarity metric values
-    plt.plot(metric_values, 'r')
-    plt.xlabel('Iteration Number', fontsize=12)
-    plt.ylabel('Metric Value', fontsize=12)
 
 # REGISTRATION METHODS
 
@@ -390,21 +407,26 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
     else:
         raise ValueError("Unknown metric: %s" % options.registration_method)
 
-    print 'Calculating initial registration parameters'
     tx = sitk.Euler2DTransform()
     tx.SetAngle(options.set_rotation)
 
-    transform = sitk.CenteredTransformInitializer(
-        fixed_image,
-        moving_image,
-        tx,
-        sitk.CenteredTransformInitializerFilter.GEOMETRY
-    )
-    registration.SetInitialTransform(transform)
+    if options.initializer:
+        print 'Calculating initial registration parameters'
+        transform = sitk.CenteredTransformInitializer(
+            fixed_image,
+            moving_image,
+            tx,
+            sitk.CenteredTransformInitializerFilter.GEOMETRY
+        )
+        registration.SetInitialTransform(transform)
+    else:
+        tx.SetTranslation([options.y_offset, options.x_offset])
+
+        tx.SetCenter(itkutils.calculate_center_of_image(moving_image))
+        registration.SetInitialTransform(tx)
 
     # OBSERVERS
     registration.AddCommand(sitk.sitkStartEvent, start_plot)
-    registration.AddCommand(sitk.sitkEndEvent, end_plot)
     registration.AddCommand(sitk.sitkIterationEvent, lambda: plot_values(registration))
 
     # START
@@ -415,6 +437,8 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
 
     print('Final metric value: {0}'.format(registration.GetMetricValue()))
     print('Optimizer\'s stopping condition, {0}'.format(registration.GetOptimizerStopConditionDescription()))
+
+    end_plot(fixed_image, moving_image, final_transform)
 
     return final_transform
 
@@ -483,17 +507,23 @@ def itk_registration_similarity_2d(fixed_image, moving_image, options):
     tx.SetAngle(options.set_rotation)
     tx.SetScale(options.set_scale)
 
-    transform = sitk.CenteredTransformInitializer(
-        fixed_image,
-        moving_image,
-        tx,
-        sitk.CenteredTransformInitializerFilter.GEOMETRY
-    )
-    registration.SetInitialTransform(transform)
+    if options.initializer:
+        transform = sitk.CenteredTransformInitializer(
+            fixed_image,
+            moving_image,
+            tx,
+            sitk.CenteredTransformInitializerFilter.GEOMETRY
+        )
+        registration.SetInitialTransform(transform)
+    else:
+        tx.SetTranslation([options.y_offset, options.x_offset])
+        tx.SetCenter(itkutils.calculate_center_of_image(moving_image))
+        registration.SetInitialTransform(tx)
 
     # OBSERVERS
+
     registration.AddCommand(sitk.sitkStartEvent, start_plot)
-    registration.AddCommand(sitk.sitkEndEvent, end_plot)
+    #registration.AddCommand(sitk.sitkEndEvent, end_plot)
     registration.AddCommand(sitk.sitkIterationEvent, lambda: plot_values(registration))
 
     # START
@@ -504,5 +534,103 @@ def itk_registration_similarity_2d(fixed_image, moving_image, options):
 
     print('Final metric value: {0}'.format(registration.GetMetricValue()))
     print('Optimizer\'s stopping condition, {0}'.format(registration.GetOptimizerStopConditionDescription()))
+
+    end_plot(fixed_image, moving_image, final_transform)
+
+    return final_transform
+
+
+def itk_registration_affine_2d(fixed_image, moving_image, options):
+    """
+    A Python implementation for a Rigid Body 2D registration, utilizing
+    ITK (www.itk.org) library functions.
+
+    :param fixed_image:     The reference image. Must be an instance of
+                            sitk.Image class.
+    :param moving_image:    The image that is to be registered. Must be
+                            an instance of sitk.Image class.
+                            The image for which the spatial transform will
+                            be calculated. Same requirements as above.
+    :param options:         Options provided by the user via CLI
+
+    :return:                The final transform as a sitk.Similarity2DTransform
+    """
+    print 'Setting up registration job'
+
+    assert isinstance(fixed_image, sitk.Image)
+    assert isinstance(moving_image, sitk.Image)
+
+    fixed_image = sitk.Cast(fixed_image, sitk.sitkFloat32)
+    moving_image = sitk.Cast(moving_image, sitk.sitkFloat32)
+
+    # REGISTRATION COMPONENTS SETUP
+    # ========================================================================
+
+    registration = sitk.ImageRegistrationMethod()
+
+    # OPTIMIZER
+    registration.SetOptimizerAsRegularStepGradientDescent(
+        options.max_step_length,
+        options.min_step_length,
+        options.registration_max_iterations,
+        relaxationFactor=options.relaxation_factor
+    )
+    translation_scale = 1.0 / options.translation_scale
+    scaling_scale = 1.0 / options.scaling_scale
+
+    registration.SetOptimizerScales([scaling_scale, 1.0, translation_scale, translation_scale])
+
+    # INTERPOLATOR
+    registration.SetInterpolator(sitk.sitkLinear)
+
+    # METRIC
+    if options.registration_method == 'mattes':
+        registration.SetMetricAsMattesMutualInformation(
+            numberOfHistogramBins=options.mattes_histogram_bins
+        )
+        registration.SetMetricSamplingStrategy(registration.RANDOM)
+        registration.SetMetricSamplingPercentage(options.mattes_sampling_percentage)
+
+    elif options.registration_method == 'correlation':
+        registration.SetMetricAsCorrelation()
+
+    elif options.registration_method == 'mean-squared-difference':
+        registration.SetMetricAsMeanSquares()
+    else:
+        raise ValueError("Unknown metric: %s" % options.registration_method)
+
+    print 'Calculating initial registration parameters'
+    tx = sitk.AffineTransform()
+
+
+    if options.initializer:
+        transform = sitk.CenteredTransformInitializer(
+            fixed_image,
+            moving_image,
+            tx,
+            sitk.CenteredTransformInitializerFilter.MOMENTS
+        )
+        registration.SetInitialTransform(transform)
+    else:
+        tx.SetTranslation([options.y_offset, options.x_offset])
+        tx.SetCenter(itkutils.calculate_center_of_image(moving_image))
+        registration.SetInitialTransform(tx)
+
+    # OBSERVERS
+
+    registration.AddCommand(sitk.sitkStartEvent, start_plot)
+    #registration.AddCommand(sitk.sitkEndEvent, end_plot)
+    registration.AddCommand(sitk.sitkIterationEvent, lambda: plot_values(registration))
+
+    # START
+    # ========================================================================
+
+    print "Starting registration"
+    final_transform = registration.Execute(fixed_image, moving_image)
+
+    print('Final metric value: {0}'.format(registration.GetMetricValue()))
+    print('Optimizer\'s stopping condition, {0}'.format(registration.GetOptimizerStopConditionDescription()))
+
+    end_plot(fixed_image, moving_image, final_transform)
 
     return final_transform

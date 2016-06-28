@@ -17,20 +17,20 @@ import SimpleITK as sitk
 import numpy
 import scipy
 
-def convert_to_numpy(itk_image):
+
+def convert_to_numpy(image):
     """
     A simple conversion function from ITK:Image to a Numpy array. Please notice
     that the pixel size information gets lost in the conversion. If you want
     to conserve image information, rather use ImageStack class method in
     iocbio.io.image_stack module
     """
-    assert isinstance(itk_image, sitk.Image)
+    assert isinstance(image, sitk.Image)
     array = sitk.GetArrayFromImage(image)
     # In ITK the order of the dimensions differs from Numpy. The array conversion
     # re-orders the dimensions, but of course the same has to be done to the spacing
     # information.
-    spacing_orig = image.GetSpacing()[::-1]
-    spacing = tuple(dim / scale_c for dim in spacing_orig)
+    spacing = image.GetSpacing()[::-1]
 
     return array, spacing
 
@@ -357,7 +357,7 @@ def calculate_center_of_image(image, center_of_mass=False):
     return center
 
 
-def make_composite_rgb_image(red, green, blue=None):
+def make_composite_rgb_image(red, green, blue=None, return_numpy=False):
     """
     A utitity to combine two or threegrayscale images into a single RGB image.
     If only two images are provided, an empty image is placed in the blue
@@ -374,14 +374,21 @@ def make_composite_rgb_image(red, green, blue=None):
     green = sitk.Cast(green, sitk.sitkUInt8)
     if blue is not None:
         assert isinstance(blue, sitk.Image)
-        blue = sitk.Cast(blue, sitk.sitkUInt8)
-
         return sitk.Compose(red, green, blue)
     else:
         blue = sitk.Image(red.GetSize(), sitk.sitkUInt8)
         blue.CopyInformation(red)
-        return sitk.Compose(red, green, blue)
+        if return_numpy:
+            import numpy as np
+            images = (convert_to_numpy(red)[0],
+                      convert_to_numpy(green)[0],
+                      convert_to_numpy(blue)[0])
 
+            spacing = convert_to_numpy(red)[1]
+            return np.concatenate(
+                [aux[..., np.newaxis] for aux in images], axis=-1), spacing
+        else:
+            return sitk.Compose(red, green, blue)
 
 
 

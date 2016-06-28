@@ -11,7 +11,8 @@ setup(
             'supertomo.main = supertomo.bin.main:main',
             'supertomo.import = supertomo.bin.import:main',
             'supertomo.correlatem = supertomo.bin.correlatem:main',
-            'supertomo.test.hdf5 = supertomo.bin.test.test_hdf5.py:main'
+            'supertomo.test.hdf5 = supertomo.bin.test.test_hdf5.py:main',
+            'supertomo.transform = supertomo.bin.transform:main'
         ]
     },
     platforms=["any"],
