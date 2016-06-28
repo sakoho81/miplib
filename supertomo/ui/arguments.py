@@ -24,6 +24,22 @@ def get_correlate_tem_script_options(arguments):
     return parser.parse_args(arguments)
 
 
+def get_transform_script_options(arguments):
+    parser = argparse.ArgumentParser(
+        description="Command line arguments for the"
+                    " SuperTomo2 image transform script"
+    )
+    parser = get_common_options(parser)
+
+    parser.add_argument('moving_image')
+    parser.add_argument('fixed_image')
+    parser.add_argument('transform')
+    parser.add_argument('--hdf', action='store_true')
+
+    return parser.parse_args(arguments)
+
+
+
 def get_common_options(parser):
     assert isinstance(parser, argparse.ArgumentParser)
     group = parser.add_argument_group("Common", "Common Options for SuperTomo2 scripts")
@@ -142,6 +158,11 @@ def get_registration_options(parser):
     """
     assert isinstance(parser, argparse.ArgumentParser)
     group = parser.add_argument_group("Registration", "Options for image registration")
+    group.add_argument(
+        '--initializer-off',
+        dest='initializer',
+        action='store_false'
+    )
     group.add_argument(
         '--reg-method',
         dest='registration_method',
@@ -298,6 +319,19 @@ def get_registration_options(parser):
         default=0.000001,
         help='Specify an estimate for initial rotation angle'
     )
+    group.add_argument(
+        '--x-offset',
+        dest='x_offset',
+        type=float,
+        default=0.0
+    )
+    group.add_argument(
+        '--y-offset',
+        dest='y_offset',
+        type=float,
+        default=0.0
+    )
+
     group.add_argument(
         '--reg-max-iterations',
         dest='registration_max_iterations',

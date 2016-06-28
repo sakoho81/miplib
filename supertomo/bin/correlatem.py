@@ -60,13 +60,7 @@ def main():
         print 'No such file: %s' % options.em_image_path
         sys.exit(1)
 
-    # Output directory name will be automatically formatted according
-    # to current date and time; e.g. 2014-02-18_supertomo_output
-    output_dir = datetime.datetime.now().strftime("%Y-%m-%d")+'_clem_output'
-    output_dir = os.path.join(options.working_directory, output_dir)
 
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
         
     # Load input images
     sted_image = sitk.ReadImage(options.sted_image_path)
@@ -143,58 +137,59 @@ def main():
 
     # REGISTRATION
     ##########################################################################
-    if options.register:
 
+    if options.tfm_type == "rigid":
+        final_transform = registration.itk_registration_rigid_2d(sted_image, em_image, options)
+    elif options.tfm_type == "similarity":
         final_transform = registration.itk_registration_similarity_2d(sted_image, em_image, options)
 
-        em_image = itkutils.resample_image(
-            em_original,
-            final_transform,
-            reference=sted_image
-        )
+    em_image = itkutils.resample_image(
+        em_original,
+        final_transform,
+        reference=sted_image
+    )
 
 
-    # TRANSFORM
-    ##########################################################################
-    if options.transform:
 
-        transform_path = os.path.join(options.working_directory,
-                                      options.transform_path)
-        if not os.path.isfile(transform_path):
-            raise ValueError('Not a valid file %s' % transform_path)
-
-        transform = sitk.ReadTransform(transform_path)
-
-        em_image = itkutils.resample_image(
-            em_original,
-            transform,
-            reference=sted_image
-        )
 
     # OUTPUT
     ##########################################################################
 
-    # Files are named according to current time (the date will be
-    # in the folder name)
-    date_now = datetime.datetime.now().strftime("%H-%M-%S")
-    file_name = ''
+    keep = raw_input("Do you want to keep the results (yes/no)? ")
 
-    if options.transform:
-        file_name = date_now + '-clem_transform.tiff'
+    while True:
+        if keep in ('y', 'Y', 'yes', 'YES'):
+            # Files are named according to current time (the date will be
+            # in the folder name)
 
-    elif options.register:
-        tfm_name = os.path.join(output_dir, date_now + '_transform' + '.txt')
-        sitk.WriteTransform(final_transform, tfm_name)
+            # Output directory name will be automatically formatted according
+            # to current date and time; e.g. 2014-02-18_supertomo_output
+            output_dir = datetime.datetime.now().strftime("%Y-%m-%d") + '_clem_output'
+            output_dir = os.path.join(options.working_directory, output_dir)
 
-        file_name = date_now + \
-                    '-clem_registration-' + \
-                    options.registration_method + \
-                    '.tiff'
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
 
-    file_name = os.path.join(output_dir, file_name)
+            date_now = datetime.datetime.now().strftime("%H-%M-%S")
+            file_name = date_now + \
+                        '-clem_registration-' + \
+                        options.registration_method + \
+                        '.tiff'
+            file_path = os.path.join(output_dir, file_name)
+            tfm_name = date_now + '_transform' + '.txt'
+            tfm_path = os.path.join(output_dir, tfm_name)
+            sitk.WriteTransform(final_transform, tfm_path)
 
-    rgb_image = itkutils.make_composite_rgb_image(sted_original, em_image)
-    sitk.WriteImage(rgb_image, file_name)
+            rgb_image = itkutils.make_composite_rgb_image(sted_original, em_image)
+            sitk.WriteImage(rgb_image, file_path)
+            print "The image was saved to %s and the transform to %s in " \
+                  "the output directory %s" % (file_name, tfm_name, output_dir)
+            break
+        elif keep in ('n', 'N', 'no', 'No'):
+            print "Exiting without saving results."
+            break
+        else:
+            print "Unkown command. Please state yes or no"
 
 
 if __name__ == "__main__":
