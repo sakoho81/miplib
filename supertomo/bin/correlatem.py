@@ -20,32 +20,12 @@ from supertomo.utils import itkutils
 from supertomo.ui import arguments, show
 
 
-def check_necessary_inputs(options):
-
-    if options.sted_image_path is None:
-        print "EM image not specified"
-        return False
-
-    if options.em_image_path is None:
-        print "STED image not specified"
-        return False
-
-    if not (options.register or options.transform):
-        print "You must specify an operation --register or --transform"
-        return False
-
-    return True
-
-
 def main():
     options = arguments.get_correlate_tem_script_options(sys.argv[1:])
     
     # SETUP
     ##########################################################################
-    # Check that all the necessary inputs are given
-    if not check_necessary_inputs(options):
-        sys.exit(1)
-        
+
     # Check that the STED image exists
     options.sted_image_path = os.path.join(options.working_directory,
                                          options.sted_image_path)
@@ -155,9 +135,8 @@ def main():
     # OUTPUT
     ##########################################################################
 
-    keep = raw_input("Do you want to keep the results (yes/no)? ")
-
     while True:
+        keep = raw_input("Do you want to keep the results (yes/no)? ")
         if keep in ('y', 'Y', 'yes', 'YES'):
             # Files are named according to current time (the date will be
             # in the folder name)

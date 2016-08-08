@@ -4,9 +4,22 @@ import os
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.widgets import Button
 import SimpleITK as sitk
 
+import time
+
 vaa3d_bin = "/home/sami/bin/Vaa3D_Ubuntu_64bit_v3.200/vaa3d"
+
+def onclick(event):
+    ix, iy = event.xdata, event.ydata
+    print 'x = %d, y = %d'%(ix, iy)
+    global coords
+    coords.append([int(ix), int(iy)])
+
+    if len(coords) >= 8:
+        plt.close()
+
 
 
 def evaluate_3d_image(image):
@@ -75,29 +88,58 @@ def display_3d_slice_with_alpha(image_z, alpha, fixed, moving):
     plt.axis('off')
 
 
-# callback invoked by the interact ipython method for scrolling through the image stacks of
-# the two images (moving and fixed)
-def display_2d_images(image1, image2):
-    if isinstance(image1, sitk.Image):
-        image1 = sitk.GetArrayFromImage(image1)
-    if isinstance(image2, sitk.Image):
-        image2 = sitk.GetArrayFromImage(image2)
-    # create a figure with two subplots and the specified size
-    plt.subplots(1, 2, figsize=(10, 8))
+
+def display_2d_images(image1, image2, landmarks=False):
+    """
+    A function that can be used to display two SimpleITK images side by side.
+    It is also possible to select paired landmarks from the two images, by
+    enabling the landmarks argument.
+
+    Parameters
+
+    image1      SimpleITk image object
+    image2      SimpleITK image object
+    landmarks   Enables the landmark selection functionality
+
+    """
+
+    if not isinstance(image1, sitk.Image) and isinstance(image2, sitk.Image):
+        raise ValueError("ITK image required")
+
+    im1 = sitk.GetArrayFromImage(image1)
+    im2 = sitk.GetArrayFromImage(image2)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 8))
 
     # draw the fixed image in the first subplot
-    plt.subplot(1, 2, 1)
-    plt.imshow(image1, cmap=plt.cm.Greys_r)
-    plt.title('image1')
-    plt.axis('off')
+    ax1.imshow(im1, cmap=plt.cm.Greys_r)
+    ax1.set_title('image1')
+    ax1.axis('off')
 
     # draw the moving image in the second subplot
-    plt.subplot(1, 2, 2)
-    plt.imshow(image2, cmap=plt.cm.Greys_r)
-    plt.title('image2')
-    plt.axis('off')
+    ax2.imshow(im2, cmap=plt.cm.Greys_r)
+    ax2.set_title('image2')
+    ax2.axis('off')
 
-    plt.show()
+    if landmarks:
+        global coords
+        coords = []
+        fig.canvas.mpl_connect('button_press_event', onclick)
+        print "Select four landmark pairs"
+
+        plt.show()
+
+        im1_spacing = image1.GetSpacing()[0]
+        im1_coords = [[x * im1_spacing, y * im1_spacing] for x, y in coords[0:-1:2]]
+
+        im2_spacing = image2.GetSpacing()[0]
+        im2_coords = [[x * im2_spacing, y * im2_spacing] for x, y in coords[1:-1:2]]
+
+        del coords
+        return im1_coords, im2_coords
+
+    else:
+        plt.show()
 
 
 def display_2d_slices_with_alpha(alpha, fixed, moving):
@@ -136,5 +178,9 @@ def display_2d_image_overlay(image1, image2, image3=None):
     plt.imshow(rgb_image)
     plt.axis('off')
     plt.show()
+
+
+
+
 
 
