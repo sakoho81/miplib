@@ -12,6 +12,18 @@ def get_register_script_options(arguments):
     return parser.parse_args(arguments)
 
 
+def get_fusion_script_options(arguments):
+    parser = argparse.ArgumentParser(
+        description="Command line arguments for the"
+                    "SuperTomo2 image fusion script"
+    )
+    parser.add_argument('data_file')
+    parser = get_common_options(parser)
+    parser = get_fusion_options(parser)
+
+    return parser.parse_args(arguments)
+
+
 def get_correlate_tem_script_options(arguments):
     parser = argparse.ArgumentParser(
         description="Command line arguments for the "
@@ -37,7 +49,6 @@ def get_transform_script_options(arguments):
     parser.add_argument('--hdf', action='store_true')
 
     return parser.parse_args(arguments)
-
 
 
 def get_common_options(parser):

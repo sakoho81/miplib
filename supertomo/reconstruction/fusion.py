@@ -24,6 +24,7 @@ from scipy.ndimage.interpolation import zoom
 from supertomo.io import image_data, temp_data, tiffile
 from supertomo.reconstruction import ops_ext
 from supertomo.utils import itkutils, generic_utils as genutils
+from supertomo.ui import show
 
 
 class MultiViewFusionRL:
@@ -49,7 +50,7 @@ class MultiViewFusionRL:
         self.iteration_count = 0
 
         # Setup blocks
-        data.set_active_image(0, "registered")
+        data.set_active_image(0, 0, self.options.scale, "registered")
         self.num_blocks = options.num_blocks
         self.block_size = numpy.ceil(self.image_size / self.num_blocks)
 
@@ -330,3 +331,6 @@ class MultiViewFusionRL:
 
     def save_to_tiff(self, filename):
         tiffile.imsave(filename, self.estimate)
+
+    def show_result(self):
+        show.evaluate_3d_image(self.estimate)

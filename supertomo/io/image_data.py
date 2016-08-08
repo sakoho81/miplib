@@ -186,7 +186,7 @@ class ImageData():
     def create_rescaled_images(self, scale, chunk_size):
         """
         Creates rescaled versions of original images. Typically downscaling would
-        be used to speed up certain image processing tasts. The scaled images
+        be used to speed up certain image processing tasks. The scaled images
         are saved directly into the HDF5 file.
 
         Parameters
