@@ -142,6 +142,26 @@ def display_2d_images(image1, image2, landmarks=False):
         plt.show()
 
 
+def display_2d_image(image):
+    """
+    A function that can be used to display two SimpleITK images side by side.
+    It is also possible to select paired landmarks from the two images, by
+    enabling the landmarks argument.
+
+    Parameters
+
+    image       a Numpy array or a SimpleITk image object
+
+    """
+
+    if isinstance(image, sitk.Image):
+        image = sitk.GetArrayFromImage(image)
+
+    plt.imshow(image)
+    plt.axis('off')
+    plt.show()
+
+
 def display_2d_slices_with_alpha(alpha, fixed, moving):
     img = (1.0 - alpha) * fixed + alpha * moving
     plt.imshow(sitk.GetArrayFromImage(img), cmap=plt.cm.Greys_r)

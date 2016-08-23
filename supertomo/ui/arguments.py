@@ -1,6 +1,22 @@
 import argparse
 
 
+def get_import_script_options(arguments):
+    parser = argparse.ArgumentParser(
+        description="Command line arguments for the"
+                    "SuperTomo2 data import script."
+    )
+    parser.add_argument('data_dir_path')
+    parser.add_argument(
+        '--scales',
+        type=int,
+        nargs='*',
+        action='store'
+    )
+
+    return parser.parse_args(arguments)
+
+
 def get_register_script_options(arguments):
     parser = argparse.ArgumentParser(
         description="Command line arguments for the "
@@ -77,6 +93,20 @@ def get_common_options(parser):
         help='Show a 3D image of the fusion/registration result upon '
              'completion'
     )
+    group.add_argument(
+        '--scale',
+        type=int,
+        default=100,
+        help="Define the size of images to use. By default the full size originals"
+             "will be used, but it is possible to select resampled images as well"
+    )
+
+    group.add_argument(
+        '--channel',
+        type=int,
+        default=0,
+        help="Select the active color channel."
+    )
 
     return parser
 
@@ -125,7 +155,7 @@ def get_fusion_options(parser):
         dest='output_cast',
         action='store_true',
         help='By default the fusion output is returned as a 32-bit image'
-             'This switch can be used to enbale 8-bit unsigned output'
+             'This switch can be used to enable 8-bit unsigned output'
     )
 
     group.add_argument(
@@ -135,6 +165,16 @@ def get_fusion_options(parser):
         default='summative'
     )
 
+    group.add_argument(
+        '--blocks',
+        dest='num_blocks',
+        type=int,
+        default=1,
+        help="Define the number of blocks you want to break the images into"
+             "for the image fusion. This argument defaults to 1, which means"
+             "that the entire image will be used -- you should define a larger"
+             "number to optimize memory consumption"
+    )
     return parser
 
 
