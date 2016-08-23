@@ -45,12 +45,13 @@ class MultiViewFusionRL:
         self.data = data
         self.options = options
         self.n_views = self.data.get_number_of_images("registered")
-        self.image_size = self.data[:].shape
-        self.estimate = None
+        self.data.set_active_image(0, 0, options.scale, "registered")
+        self.image_size = self.data.get_image_size()
+        self.estimate = numpy.zeros(self.image_size, dtype=numpy.float64)
         self.iteration_count = 0
 
         # Setup blocks
-        data.set_active_image(0, 0, self.options.scale, "registered")
+        data.set_active_image(0, self.options.channel, self.options.scale, "registered")
         self.num_blocks = options.num_blocks
         self.block_size = numpy.ceil(self.image_size / self.num_blocks)
 
@@ -78,7 +79,7 @@ class MultiViewFusionRL:
         """
 
         if self.options.verbose:
-            print 'Entering %s.compute_estimate' % self.__class__.__name__
+            print 'Beginning the computation of the %ith estimate' % self.iteration_count
 
         if "multiplicative" in self.options.fusion_method:
             estimate_new = numpy.ones(self.image_size, dtype=numpy.float64)
@@ -100,7 +101,7 @@ class MultiViewFusionRL:
                 cache = fftconvolve(estimate_block, self.psfs[view], mode='same')
 
                 # Execute: cache = data/cache
-                self.data.set_active_image(view, "registered")
+                self.data.set_active_image(view, self.options.channel, self.options.scale, "registered")
                 block, block_size = self.data.get_registered_block(self.block_size, index)
                 ops_ext.inverse_division_inplace(cache, block)
 
@@ -114,9 +115,13 @@ class MultiViewFusionRL:
 
                 # Update the contribution from a single view to the new estimate
                 if "multiplicative" in self.options.fusion_method:
-                    estimate_new[index[0]:block_size[0], index[1]:block_size[1], index[1]:block_size[1]] *= cache.real
+                    estimate_new[index[0]:index[0]+block_size[0],
+                                 index[1]:index[1]+block_size[1],
+                                 index[2]:index[2]+block_size[2]] *= cache.real
                 else:
-                    estimate_new[index[0]:block_size[0], index[1]:block_size[1], index[1]:block_size[1]] += cache.real
+                    estimate_new[index[0]:index[0] + block_size[0],
+                                 index[1]:index[1] + block_size[1],
+                                 index[2]:index[2] + block_size[2]] += cache.real
 
         # Divide with the number of projections
         if "summative" in self.options.fusion_method:
@@ -169,39 +174,46 @@ class MultiViewFusionRL:
 
         first_estimate = self.options.first_estimate
 
+        self.data.set_active_image(0,
+                                   self.options.channel,
+                                   self.options.scale,
+                                   "registered")
+
         if first_estimate == 'first_image':
-            self.data.set_active_image(0, "registered")
-            self.estimate = self.data[:]
+            self.estimate = self.data[:].astype(numpy.float64)
         elif first_estimate == 'first_image_mean':
-            self.data.set_active_image(0, "registered")
             self.estimate = numpy.full(
                 self.data.get_image_size(),
                 float(numpy.mean(self.data[:])),
-                dtype=self.data.get_dtype()
+                dtype=numpy.float64
             )
-        elif first_estimate == 'sum of all projections':
+        elif first_estimate == 'sum_of_all':
             for i in range(self.n_views):
-                self.data.set_active_image(i, "registered")
-                self.estimate += self.data[:]
-            self.estimate *= (1.0 / self.n_views)
-
+                self.data.set_active_image(i,
+                                           self.options.channel,
+                                           self.options.scale,
+                                           "registered")
+                self.estimate += self.data[:].astype(numpy.float64)
+            self.estimate *= (1.0/self.n_views)
         elif first_estimate == 'simple_fusion':
-            self.data.set_active_image(0, "registered")
             self.estimate = self.data[:]
             for i in xrange(1, self.n_views):
-                self.data.set_active_image(i, "registered")
-                self.estimate = (self.estimate - (self.estimate - self.data[:]).clip(min=0)).clip(min=0)
-
+                self.data.set_active_image(i,
+                                           self.options.channel,
+                                           self.options.scale,
+                                           "registered")
+                self.estimate = (self.estimate - (self.estimate - self.data[:]).clip(min=0)).clip(min=0).astype(numpy.float64)
         elif first_estimate == 'average_af_all':
-            self.data.set_active_image(0, "registered")
-            self.estimate = numpy.zeros(self.data.get_image_size(), dtype=self.data.get_dtype())
+            self.estimate = numpy.zeros(self.image_size, dtype=numpy.float64)
             for i in range(self.n_views):
-                self.data.set_active_image(i, "registered")
-                self.estimate += (self.data[:] / self.n_views)
+                self.data.set_active_image(i,
+                                           self.options.channel,
+                                           self.options.scale,
+                                           "registered")
+                self.estimate += (self.data[:].astype(numpy.float64) / self.n_views)
         else:
             raise NotImplementedError(repr(first_estimate))
 
-        stop = False
         stop_message = ''
         self.iteration_count = 0
         max_count = self.options.max_nof_iterations
@@ -215,7 +227,7 @@ class MultiViewFusionRL:
         # The Fusion calculation starts here
         # ====================================================================
         try:
-            while not stop:
+            while True:
 
                 info_map = {}
                 ittime = time.time()
@@ -256,15 +268,15 @@ class MultiViewFusionRL:
                 # Check if it's time to stop:
                 if int(u) == 0 and int(n) == 0:
                     stop_message = 'The number of non converging photons reached to zero.'
-                    stop = True
+                    break
                 elif self.iteration_count >= max_count:
                     stop_message = 'The number of iterations reached to maximal count: %s' % max_count
-                    stop = True
+                    break
                 elif 'tau1' in self.data_to_save and tau1 <= self.options.rltv_stop_tau:
                     stop_message = 'Desired tau-threshold achieved'
-                    stop = True
+                    break
                 else:
-                    stop = False
+                    continue
 
         except KeyboardInterrupt:
             stop_message = 'Iteration was interrupted by user.'
@@ -287,7 +299,7 @@ class MultiViewFusionRL:
 
         self.psfs = []
 
-        self.data.set_active_image(0, "psf")
+        self.data.set_active_image(0, 0, 100, "psf")
         psf_spacing = self.data.get_voxel_size()
         psf_orig = self.data[:]
 
@@ -302,7 +314,7 @@ class MultiViewFusionRL:
             # every loop iteration. For a single PSF situation one read
             # in the beginning is enough.
             if n_psfs > 1:
-                self.data.set_active_image(i, "psf")
+                self.data.set_active_image(i, 0, 100, "psf")
                 psf_orig = self.data[:]
                 psf_spacing = self.data.get_voxel_size()
 

@@ -31,6 +31,12 @@ def main():
 
     data = image_data.ImageData(full_path)
 
+    if options.scale not in data.get_scales("registered"):
+        print "Images at the defined scale do not exist in the data structure." \
+              "The original images will be now resampled. This may take a long" \
+              "time depending on the image size and the number of views."
+        data.create_rescaled_images(options.scale)
+
     task = fusion.MultiViewFusionRL(data, options)
     task.execute()
 

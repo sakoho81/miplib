@@ -57,16 +57,12 @@ import sys
 import os
 from ..io import utils, image_data
 from ..definitions import *
-
+from ..ui import arguments
+from ..utils import itkutils
 
 def main():
-    # The user can give a directory from the command line or alternatively
-    # the image are expected to reside in the current working directory.
-    if len(sys.argv) == 2:
-        directory = sys.argv[1]
-        assert os.path.isdir(directory)
-    else:
-        directory = os.getcwd()
+    options = arguments.get_import_script_options(sys.argv[1:])
+    directory = options.data_dir_path
 
     # Create a new HDF5 file. If a file exists, new data will be appended.
     file_name = raw_input("Give a name for the HDF5 file: ")
@@ -81,7 +77,7 @@ def main():
         if full_path.endswith((".tiff", ".tif")):
             images, spacing = utils.get_imagej_tiff(full_path)
         elif full_path.endswith((".mhd", ".mha")):
-            images, spacing = utils.get_itk_image(full_path)
+            images, spacing = utils.get_itk_image(full_path, return_itk=False)
         else:
             continue
 
@@ -99,11 +95,15 @@ def main():
         # data, angle, spacing, index, scale, channel, chunk_size=None
 
         if image_type == "original":
-            data.add_original_image(images, angle, spacing, index, scale, channel)
+            data.add_original_image(images, scale, index, channel, angle, spacing)
         elif image_type == "registered":
-            data.add_registered_image(images, None, None, channel, index, scale, spacing)
+            data.add_registered_image(images, scale, index, channel, spacing)
         elif image_type == "psf":
             data.add_psf(images, angle, channel, index, scale, spacing)
+
+    # Calculate resampled images
+    for scale in options.scales:
+        data.create_rescaled_images(scale)
 
     # Add transforms for registered images.
     for transform_name in os.listdir(directory):
@@ -119,6 +119,23 @@ def main():
         channel = image_name.split("channel_")[-1].split("_angle")[0]
 
         full_path = os.path.join(directory, transform_name)
+
+        # First calculate registered image if not in the data structure
+        if not data.check_if_exists("registered", index, channel, scale):
+            print "Resampling registered image for image nr. ", index
+            data.set_active_image(0, channel, scale, "original")
+            reference = data.get_itk_image()
+            data.set_active_image(index, channel, scale, "original")
+            moving = data.get_itk_image()
+
+            transform = utils.read_itk_transform(full_path, return_itk=True)
+
+            registered = itkutils.resample_image(moving, transform, reference=reference)
+            registered, spacing = itkutils.convert_to_numpy(registered)
+
+            data.add_registered_image(registered, scale, index, channel, spacing)
+
+        # The add it's transform
         transform_type, params, fixed_params = utils.read_itk_transform(full_path)
         data.add_transform(scale, index, channel, params, fixed_params, transform_type)
 
