@@ -97,13 +97,14 @@ def main():
         if image_type == "original":
             data.add_original_image(images, scale, index, channel, angle, spacing)
         elif image_type == "registered":
-            data.add_registered_image(images, scale, index, channel, spacing)
+            data.add_registered_image(images, scale, index, channel, angle, spacing)
         elif image_type == "psf":
-            data.add_psf(images, angle, channel, index, scale, spacing)
+            data.add_psf(images, scale, index, channel, angle, spacing)
 
     # Calculate resampled images
     for scale in options.scales:
-        data.create_rescaled_images(scale)
+        data.create_rescaled_images("original", scale)
+
 
     # Add transforms for registered images.
     for transform_name in os.listdir(directory):
@@ -117,6 +118,7 @@ def main():
         scale = image_name.split("scale_")[-1].split("_index")[0]
         index = image_name.split("index_")[-1].split("_channel")[0]
         channel = image_name.split("channel_")[-1].split("_angle")[0]
+        angle = image_name.split("angle_")[-1].split(".")[0]
 
         full_path = os.path.join(directory, transform_name)
 
@@ -133,11 +135,15 @@ def main():
             registered = itkutils.resample_image(moving, transform, reference=reference)
             registered, spacing = itkutils.convert_to_numpy(registered)
 
-            data.add_registered_image(registered, scale, index, channel, spacing)
+            data.add_registered_image(registered, scale, index, channel, angle, spacing)
 
         # The add it's transform
         transform_type, params, fixed_params = utils.read_itk_transform(full_path)
         data.add_transform(scale, index, channel, params, fixed_params, transform_type)
+
+    # Calculate missing PSFs
+    if options.calculate_psfs:
+        data.calculate_missing_psfs()
 
     data.close()
 

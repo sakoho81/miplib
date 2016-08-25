@@ -102,7 +102,7 @@ class ImageData():
             reg_group = self.data.create_group(reg_group_name)
             reg_group[name] = image_group[name]
 
-    def add_registered_image(self, data, scale, index, channel, spacing, chunk_size=None):
+    def add_registered_image(self, data, scale, index, channel, angle, spacing, chunk_size=None):
         """
         Add a resampled, registered image.
 
@@ -140,13 +140,15 @@ class ImageData():
             image_group.create_dataset(name, data=data, chunks=chunk_size)
 
         # Each image has its own attributes
+        image_group[name].attrs["angle"] = angle
         image_group[name].attrs["spacing"] = spacing
         image_group[name].attrs["size"] = data.shape
 
-    def add_psf(self, data, scale, index, channel, angle, spacing, chunk_size=None):
+    def add_psf(self, data, scale, index, channel, angle, spacing, chunk_size=None,
+                calculated=False):
         assert isinstance(data, numpy.ndarray), "Invalid data format."
 
-        group_name = "psf/" + index
+        group_name = "psf/" + str(index)
         if group_name not in self.data:
             image_group = self.data.create_group(group_name)
         else:
@@ -164,6 +166,7 @@ class ImageData():
         image_group[name].attrs["angle"] = angle
         image_group[name].attrs["spacing"] = spacing
         image_group[name].attrs["size"] = data.shape
+        image_group[name].attrs["calculated"] = calculated
 
     def add_transform(self, scale, index, channel, params, fixed_params, transform_type):
         name = "registered/" + str(index) + "/channel_" + str(channel) + "_scale_" + str(scale)
@@ -173,7 +176,7 @@ class ImageData():
         self.data[name].attrs["tfm_params"] = params
         self.data[name].attrs["tfm_fixed_params"] = fixed_params
 
-    def create_rescaled_images(self, scale, chunk_size=None):
+    def create_rescaled_images(self, type, scale, chunk_size=None):
         """
         Creates rescaled versions of original images. Typically downscaling would
         be used to speed up certain image processing tasks. The scaled images
@@ -181,6 +184,7 @@ class ImageData():
 
         Parameters
         ----------
+        type        The image type
         scale       Scale is the percentage of the original image size.
         chunk_size  The same as with the other images. Can be used to define a
                     particular chunk size for data storage.
@@ -190,8 +194,8 @@ class ImageData():
 
         """
         # Iterate over all the images
-        for index in range(self.series_count):
-            group_name = "original/" + str(index)
+        for index in range(self.get_number_of_images(type)):
+            group_name = type + "/" + str(index)
             image_group = self.data[group_name]
             # Iterate over channels
             for channel in range(self.channel_count):
@@ -213,6 +217,26 @@ class ImageData():
                     image_group[name_new].attrs["angle"] = image_group[name_ref].attrs["angle"]
                     image_group[name_new].attrs["spacing"] = spacing
                     image_group[name_new].attrs["size"] = data.shape
+
+    def calculate_missing_psfs(self):
+        for channel in range(self.channel_count):
+            self.set_active_image(0, channel, 100, "psf")
+            image_spacing = self.get_voxel_size()
+            psf_orig = self.data[self.active_image][:]
+
+            for index in range(1, self.get_number_of_images("registered")):
+                if not self.check_if_exists("psf", index, channel, 100):
+                    self.set_active_image(index, channel, 100, "registered")
+                    transform = self.get_transform()
+                    psf_new = itkutils.rotate_psf(psf_orig,
+                                                  transform,
+                                                  image_spacing,
+                                                  return_numpy=True)[0]
+                    self.add_psf(psf_new, 100, index, channel,
+                                 self.get_rotation_angle(), image_spacing,
+                                 calculated=True)
+
+
 
     def add_fused_image(self, data, channel, scale, spacing):
         """
@@ -266,17 +290,22 @@ class ImageData():
         assert type in image_types_c
         scales = []
 
-        for index in range(self.get_number_of_images(type)):
-            image_group = self.data[type + str(index)]
+        def find_scale(name):
+            scales.append(int(name.split("_")[-1]))
 
-            for name in image_group:
-                scale = int(name[name.rindex("_")+1:])
-                if index == 0:
-                    scales.append(scale)
-                else:
-                    if scale not in scales:
-                        raise ValueError("Database error. Resampled images have not been"
-                                         "saved consistently for image type %s", type)
+        for index in range(self.get_number_of_images(type)):
+            scales = []
+            group_name = type + "/" + str(index)
+            image_group = self.data[group_name]
+            image_group.visit(find_scale)
+
+            if index == 0:
+                scales_ref = scales
+            else:
+                if set(scales_ref) != set(scales):
+                    raise ValueError("Database error. Resampled images have not been"
+                                     "saved consistently for image type %s", type)
+
         return scales
 
     def get_transform(self):
@@ -319,10 +348,14 @@ class ImageData():
 
         assert "registered" in self.active_image, "You must specify a registered image"
 
-        image_size = self.get_image_size()
-        end_index= start_index + block_size
+        image_size = self.data[self.active_image].shape
+        end_index = start_index + block_size
 
-        if (image_size > end_index).all():
+        print "Getting a block from ", self.active_image
+        print "The start index is %i %i %i" % tuple(start_index)
+        print "The block size is %i %i %i" % tuple(block_size)
+
+        if (image_size >= end_index).all():
             block = self.data[self.active_image][
                     start_index[0]:end_index[0],
                     start_index[1]:end_index[1],
@@ -336,11 +369,11 @@ class ImageData():
             block_size -= block_crop
             end_index = start_index + block_size
 
-            block[0:block_size[0], 0:block_size[1], 0:block_size[2]] = self.data[
-                                                                      start_index[0]:end_index[0],
-                                                                      start_index[1]:end_index[1],
-                                                                      start_index[2]:end_index[2]
-                                                                      ]
+            block[0:block_size[0],
+                  0:block_size[1],
+                  0:block_size[2]] = self.data[self.active_image][start_index[0]:end_index[0],
+                                                                  start_index[1]:end_index[1],
+                                                                  start_index[2]:end_index[2]]
             return block, block_size
 
     def get_itk_image(self):

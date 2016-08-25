@@ -13,6 +13,11 @@ def get_import_script_options(arguments):
         nargs='*',
         action='store'
     )
+    parser.add_argument(
+        '--calculate-psfs',
+        dest='calculate_psfs',
+        action='store_true'
+    )
 
     return parser.parse_args(arguments)
 
@@ -117,14 +122,14 @@ def get_fusion_options(parser):
 
     group.add_argument(
         '--max-nof-iterations',
-        type='int',
+        type=int,
         default=100,
         help='Specify maximum number of iterations.'
     )
     group.add_argument(
         '--convergence-epsilon',
         dest='convergence_epsilon',
-        type='float',
+        type=float,
         default=0.05,
         help='Specify small positive number that determines '
              'the window for convergence criteria.'
@@ -132,16 +137,21 @@ def get_fusion_options(parser):
 
     group.add_argument(
         '--first-estimate',
-        choices=['input image',
-                 'convolved input image',
-                 'sum of all projections',
-                 'stupid tomo',
-                 '2x convolved input image',
-                 'last result',
-                 'image_mean',
-                 'average'],
-        default='image_mean',
+        choices=['first_image',
+                 'sum_of_all',
+                 'simple_fusion',
+                 'first_image_mean',
+                 'average_of_all',
+                 'constant'],
+        default='first_image_mean',
         help='Specify first estimate for iteration.'
+    )
+
+    group.add_argument(
+        '--estimate-constant',
+        dest='estimate_constant',
+        type=float,
+        default=1.0
     )
 
     group.add_argument(
@@ -174,6 +184,12 @@ def get_fusion_options(parser):
              "for the image fusion. This argument defaults to 1, which means"
              "that the entire image will be used -- you should define a larger"
              "number to optimize memory consumption"
+    )
+    group.add_argument(
+        '--rltv-stop-tau',
+        type=float,
+        default=0.002,
+        help='Specify parameter for tau-stopping criteria.'
     )
     return parser
 

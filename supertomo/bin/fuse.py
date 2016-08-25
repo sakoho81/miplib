@@ -19,7 +19,8 @@ import supertomo.ui.arguments as arguments
 
 
 def main():
-    options = arguments.get_fusion_options(sys.argv[1:])
+
+    options = arguments.get_fusion_script_options(sys.argv[1:])
 
     full_path = os.path.join(options.working_directory,
                              options.data_file)
@@ -35,7 +36,12 @@ def main():
         print "Images at the defined scale do not exist in the data structure." \
               "The original images will be now resampled. This may take a long" \
               "time depending on the image size and the number of views."
-        data.create_rescaled_images(options.scale)
+        data.create_rescaled_images("registered", options.scale)
+
+    if data.get_number_of_images("psf") != data.get_number_of_images("registered"):
+        print "Some PSFs are missing. They are going to be calculated from the " \
+              "original STED PSF (that is assumed to be at index 0)."
+        data.calculate_missing_psfs()
 
     task = fusion.MultiViewFusionRL(data, options)
     task.execute()

@@ -22,7 +22,7 @@ from scipy.signal import fftconvolve
 from scipy.ndimage.interpolation import zoom
 
 from supertomo.io import image_data, temp_data, tiffile
-from supertomo.reconstruction import ops_ext
+import ops_ext
 from supertomo.utils import itkutils, generic_utils as genutils
 from supertomo.ui import show
 
@@ -45,16 +45,20 @@ class MultiViewFusionRL:
         self.data = data
         self.options = options
         self.n_views = self.data.get_number_of_images("registered")
-        self.data.set_active_image(0, 0, options.scale, "registered")
-        self.image_size = self.data.get_image_size()
-        self.estimate = numpy.zeros(self.image_size, dtype=numpy.float64)
+        self.data.set_active_image(0, self.options.channel, self.options.scale,
+                                   "registered")
+
+        self.image_size = numpy.array(self.data.get_image_size())
+
         self.iteration_count = 0
 
         # Setup blocks
-        data.set_active_image(0, self.options.channel, self.options.scale, "registered")
         self.num_blocks = options.num_blocks
-        self.block_size = numpy.ceil(self.image_size / self.num_blocks)
+        self.block_size = numpy.ceil(self.image_size / self.num_blocks).astype(numpy.int)
+        if self.num_blocks > 1:
+            self.image_size += numpy.ceil(self.block_size.astype(numpy.float16)/2).astype(numpy.int)
 
+        self.estimate = numpy.zeros(self.image_size, dtype=numpy.float64)
         # Setup PSFs
         self.psfs = []
         self.adj_psfs = []
@@ -65,6 +69,8 @@ class MultiViewFusionRL:
         else:
             pass
 
+        print "The fusion will be run with %i blocks per dimension" % self.num_blocks
+        print "The internal image size is %i %i %i" % tuple(self.image_size)
         # Create temporary directory and data file.
         self.data_to_save = ('count', 't', 'mn', 'mx', 'tau1', 'tau2', 'leak', 'e',
                              's', 'u', 'n', 'u_esu', 'mem')
@@ -78,8 +84,7 @@ class MultiViewFusionRL:
         function -- it is used internally by the class during fusion process.
         """
 
-        if self.options.verbose:
-            print 'Beginning the computation of the %ith estimate' % self.iteration_count
+        print 'Beginning the computation of the %i. estimate' % self.iteration_count
 
         if "multiplicative" in self.options.fusion_method:
             estimate_new = numpy.ones(self.image_size, dtype=numpy.float64)
@@ -92,8 +97,9 @@ class MultiViewFusionRL:
                                          xrange(0, self.image_size[2], self.block_size[2])):
 
             index = numpy.array((x, y, z), dtype=int)
-            estimate_block = self.estimate[index: index + self.block_size]
-
+            estimate_block = self.estimate[index[0]:index[0]+self.block_size[0],
+                                           index[1]:index[1]+self.block_size[1],
+                                           index[2]:index[2]+self.block_size[2]]
             # Iterate over views
             for view in xrange(self.n_views):
 
@@ -103,25 +109,30 @@ class MultiViewFusionRL:
                 # Execute: cache = data/cache
                 self.data.set_active_image(view, self.options.channel, self.options.scale, "registered")
                 block, block_size = self.data.get_registered_block(self.block_size, index)
-                ops_ext.inverse_division_inplace(cache, block)
+                #ops_ext.inverse_division_inplace(cache, block)
+                with numpy.errstate(divide="ignore"):
+                    cache = block / cache
+                    cache[cache == numpy.inf] = 0.0
+                    cache = numpy.nan_to_num(cache)
 
                 # Execute: cache = convolve(PSF(-), cache), inverse of non-normalized
                 # Convolution with virtual PSFs is performed here as well, if
                 # necessary
                 if "opt" in self.options.fusion_method:
-                    cache = fftconvolve(cache, self.virtual_psfs[view])
+                    cache = fftconvolve(cache, self.virtual_psfs[view], mode='same')
                 else:
-                    cache = fftconvolve(cache, self.adj_psfs[view])
+                    cache = fftconvolve(cache, self.adj_psfs[view], mode='same')
 
                 # Update the contribution from a single view to the new estimate
                 if "multiplicative" in self.options.fusion_method:
                     estimate_new[index[0]:index[0]+block_size[0],
                                  index[1]:index[1]+block_size[1],
-                                 index[2]:index[2]+block_size[2]] *= cache.real
+                                 index[2]:index[2]+block_size[2]] *= cache
                 else:
+
                     estimate_new[index[0]:index[0] + block_size[0],
                                  index[1]:index[1] + block_size[1],
-                                 index[2]:index[2] + block_size[2]] += cache.real
+                                 index[2]:index[2] + block_size[2]] += cache
 
         # Divide with the number of projections
         if "summative" in self.options.fusion_method:
@@ -178,12 +189,13 @@ class MultiViewFusionRL:
                                    self.options.channel,
                                    self.options.scale,
                                    "registered")
-
+        real_size = self.data.get_image_size()
         if first_estimate == 'first_image':
-            self.estimate = self.data[:].astype(numpy.float64)
+            self.estimate[0:real_size[0], 0:real_size[1], 0:real_size[2]] = \
+                self.data[:].astype(numpy.float64)
         elif first_estimate == 'first_image_mean':
             self.estimate = numpy.full(
-                self.data.get_image_size(),
+                self.image_size,
                 float(numpy.mean(self.data[:])),
                 dtype=numpy.float64
             )
@@ -193,16 +205,17 @@ class MultiViewFusionRL:
                                            self.options.channel,
                                            self.options.scale,
                                            "registered")
-                self.estimate += self.data[:].astype(numpy.float64)
+                self.estimate[0:real_size[0], 0:real_size[1], 0:real_size[2]] \
+                    += self.data[:].astype(numpy.float64)
             self.estimate *= (1.0/self.n_views)
         elif first_estimate == 'simple_fusion':
-            self.estimate = self.data[:]
+            self.estimate[0:real_size[0], 0:real_size[1], 0:real_size[2]] = self.data[:]
             for i in xrange(1, self.n_views):
                 self.data.set_active_image(i,
                                            self.options.channel,
                                            self.options.scale,
                                            "registered")
-                self.estimate = (self.estimate - (self.estimate - self.data[:]).clip(min=0)).clip(min=0).astype(numpy.float64)
+                self.estimate = (self.estimate - (self.estimate[0:real_size[0], 0:real_size[1], 0:real_size[2]] - self.data[:]).clip(min=0)).clip(min=0).astype(numpy.float64)
         elif first_estimate == 'average_af_all':
             self.estimate = numpy.zeros(self.image_size, dtype=numpy.float64)
             for i in range(self.n_views):
@@ -210,7 +223,11 @@ class MultiViewFusionRL:
                                            self.options.channel,
                                            self.options.scale,
                                            "registered")
-                self.estimate += (self.data[:].astype(numpy.float64) / self.n_views)
+                self.estimate[0:real_size[0], 0:real_size[1], 0:real_size[2]] += (self.data[:].astype(numpy.float64) / self.n_views)
+        elif first_estimate == 'constant':
+            self.estimate = numpy.full(self.image_size,
+                                       self.options.estimate_constant,
+                                       dtype=numpy.float64)
         else:
             raise NotImplementedError(repr(first_estimate))
 
@@ -254,6 +271,7 @@ class MultiViewFusionRL:
                 info_map['TIME=%ss'] = t = time.time() - ittime
                 bar.updateComment(' ' + ', '.join([k % (genutils.tostr(info_map[k])) for k in sorted(info_map)]))
                 bar(self.iteration_count)
+                print
 
                 # Save parameters to file
                 self.temp_data.write_row(', '.join(self.data_to_save))
@@ -281,6 +299,9 @@ class MultiViewFusionRL:
         except KeyboardInterrupt:
             stop_message = 'Iteration was interrupted by user.'
 
+        if self.num_blocks > 1:
+            self.estimate = self.estimate[0:real_size[0], 0:real_size[1], 0:real_size[2]]
+
         print
         bar.updateComment(' ' + stop_message)
         bar(self.iteration_count)
@@ -288,49 +309,24 @@ class MultiViewFusionRL:
 
     def __get_psfs(self):
         """
-
-
+        Reads the PSFs from the HDF5 data structure and zooms to the same pixel
+        size with the registered images, of selected scale and channel.
         """
-
-        self.n_views = self.data.get_number_of_images("registered")
-        n_psfs = self.data.get_number_of_images("psf")
-
-        assert n_psfs == 1 or n_psfs == self.n_views, "Wrong amount of PSFs in the data file"
-
-        self.psfs = []
-
-        self.data.set_active_image(0, 0, 100, "psf")
-        psf_spacing = self.data.get_voxel_size()
-        psf_orig = self.data[:]
+        self.data.set_active_image(0, self.options.channel,
+                                   self.options.scale, "registered")
+        image_spacing = self.data.get_voxel_size()
 
         for i in range(0, self.n_views):
-            # Get the necessary information (spatial transformation
-            # and spacing from the images
-            self.data.set_active_image(i, "registered")
-            image_spacing = self.data.get_voxel_size()
-            transform = self.data.get_transform()
-
-            # In case that each view has a PSF, new data will be read at
-            # every loop iteration. For a single PSF situation one read
-            # in the beginning is enough.
-            if n_psfs > 1:
-                self.data.set_active_image(i, 0, 100, "psf")
-                psf_orig = self.data[:]
-                psf_spacing = self.data.get_voxel_size()
+            self.data.set_active_image(i, 0, 100, "psf")
+            psf_orig = self.data[:]
+            psf_spacing = self.data.get_voxel_size()
 
             # Zoom to the same voxel size
-            zoom_factors = psf_spacing / image_spacing
-            psf_new = zoom(psf_orig, zoom_factors)
+            zoom_factors = tuple(x/y for x, y in zip(psf_spacing, image_spacing))
+            psf_new = zoom(psf_orig, zoom_factors).astype(numpy.float64)
 
-            # Rotate PSF with the spatial transformation from the
-            # image registration task.
-            if i > 0:
-                psf_new = itkutils.rotate_psf(
-                    psf_new,
-                    transform,
-                    spacing=image_spacing,
-                    return_numpy=True
-                )
+            psf_new /= psf_new.sum()
+
 
             # Save the zoomed and rotated PSF, as well as its mirrored version
             self.psfs.append(psf_new)
@@ -345,4 +341,7 @@ class MultiViewFusionRL:
         tiffile.imsave(filename, self.estimate)
 
     def show_result(self):
-        show.evaluate_3d_image(self.estimate)
+        image = (255.0/self.estimate.max())*self.estimate
+        image[image < 0] = 0
+        image = image.astype(numpy.uint8)
+        show.evaluate_3d_image(image)
