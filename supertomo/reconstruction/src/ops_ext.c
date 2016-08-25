@@ -1,7 +1,7 @@
 
 
 #include <Python.h>
-#define PY_ARRAY_UNIQUE_SYMBOL PyArray_API
+//#define PY_ARRAY_UNIQUE_SYMBOL PyArray_API
 #include "numpy/arrayobject.h"
 
 #include <math.h>

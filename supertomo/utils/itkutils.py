@@ -104,7 +104,7 @@ def rotate_psf(psf, transform, spacing=None, return_numpy=False):
                       itk:Image, or a ImageStack.
 
     """
-    assert isinstance(transform, sitk.VersorRigid3DTransform)
+    #assert isinstance(transform, sitk.VersorRigid3DTransform)
 
     if isinstance(psf, numpy.ndarray):
         image = convert_from_numpy(psf, spacing)
@@ -115,8 +115,7 @@ def rotate_psf(psf, transform, spacing=None, return_numpy=False):
 
     # We don't want to translate, but only rotate
     parameters = transform.GetParameters()
-    for i in range(3, 6):
-        parameters[i] = 0.0
+    parameters = tuple(0.0 if i in range(3, 6) else parameters[i] for i in range(len(parameters)))
     transform.SetParameters(parameters)
 
     # Find  and set center of rotation This assumes that the PSF is in
