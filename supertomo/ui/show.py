@@ -22,7 +22,7 @@ def onclick(event):
 
 
 
-def evaluate_3d_image(image, ask_save=False):
+def evaluate_3d_image(image):
     """
     A utility function that can be used to display the registration
     and/or fusion results in Vaa3D volume viewer. The function returns
@@ -181,9 +181,5 @@ def display_2d_image_overlay(image1, image2, image3=None):
     plt.imshow(rgb_image)
     plt.axis('off')
     plt.show()
-
-
-
-
 
 

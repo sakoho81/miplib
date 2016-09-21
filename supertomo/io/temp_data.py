@@ -28,6 +28,10 @@ class TempData():
     def close_data_file(self):
         self.data_file.close()
 
+    def read_data_file(self):
+        self.close_data_file()
+        return self.data_file.read(with_titles=True)
+
 
 class RowFile:
     """
