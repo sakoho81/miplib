@@ -15,6 +15,7 @@ volumes. The code is based on Richardson-Lucy 3D deconvolution.
 import itertools
 import sys
 import time
+import mkl
 
 import numpy
 from numpy.testing import utils as numpy_utils
@@ -49,14 +50,12 @@ class MultiViewFusionRL:
                                    "registered")
 
         self.image_size = numpy.array(self.data.get_image_size())
-
+        print "The original image size is %i %i %i" % tuple(self.image_size)
         self.iteration_count = 0
 
         # Setup blocks
         self.num_blocks = options.num_blocks
-        self.block_size = numpy.ceil(self.image_size / self.num_blocks).astype(numpy.int)
-        if self.num_blocks > 1:
-            self.image_size += numpy.ceil(self.block_size.astype(numpy.float16)/2).astype(numpy.int)
+        self.block_size, self.image_size = self.__calculate_block_and_image_size()
 
         self.estimate = numpy.zeros(self.image_size, dtype=numpy.float64)
         # Setup PSFs
@@ -78,6 +77,8 @@ class MultiViewFusionRL:
         self.temp_data.create_data_file("fusion_data.csv", self.data_to_save)
         self.temp_data.write_comment('Fusion Command: %s' % (' '.join(map(str, sys.argv))))
 
+        mkl.set_num_threads(mkl.get_max_threads())
+
     def compute_estimate(self):
         """
         Calculates a single RL fusion estimate. There is no reason to call this
@@ -92,14 +93,21 @@ class MultiViewFusionRL:
             estimate_new = numpy.zeros(self.image_size, dtype=numpy.float64)
 
         # Iterate over blocks
+        block_nr = 1
         for x, y, z in itertools.product(xrange(0, self.image_size[0], self.block_size[0]),
                                          xrange(0, self.image_size[1], self.block_size[1]),
                                          xrange(0, self.image_size[2], self.block_size[2])):
 
             index = numpy.array((x, y, z), dtype=int)
-            estimate_block = self.estimate[index[0]:index[0]+self.block_size[0],
-                                           index[1]:index[1]+self.block_size[1],
-                                           index[2]:index[2]+self.block_size[2]]
+            if self.options.block_pad > 0:
+                estimate_block = self.__get_padded_block(index)
+            else:
+                estimate_block = self.estimate[index[0]:index[0]+self.block_size[0],
+                                               index[1]:index[1]+self.block_size[1],
+                                               index[2]:index[2]+self.block_size[2]]
+
+            print "The current block is %i" % block_nr
+            block_nr += 1
             # Iterate over views
             for view in xrange(self.n_views):
 
@@ -108,7 +116,8 @@ class MultiViewFusionRL:
 
                 # Execute: cache = data/cache
                 self.data.set_active_image(view, self.options.channel, self.options.scale, "registered")
-                block, block_size = self.data.get_registered_block(self.block_size, index)
+                block = self.data.get_registered_block(self.block_size, index)
+
                 #ops_ext.inverse_division_inplace(cache, block)
                 with numpy.errstate(divide="ignore"):
                     cache = block / cache
@@ -124,15 +133,27 @@ class MultiViewFusionRL:
                     cache = fftconvolve(cache, self.adj_psfs[view], mode='same')
 
                 # Update the contribution from a single view to the new estimate
-                if "multiplicative" in self.options.fusion_method:
-                    estimate_new[index[0]:index[0]+block_size[0],
-                                 index[1]:index[1]+block_size[1],
-                                 index[2]:index[2]+block_size[2]] *= cache
-                else:
+                if self.options.block_pad == 0:
+                    if "multiplicative" in self.options.fusion_method:
+                        estimate_new[index[0]:index[0]+self.block_size[0],
+                                     index[1]:index[1]+self.block_size[1],
+                                     index[2]:index[2]+self.block_size[2]] *= cache
+                    else:
 
-                    estimate_new[index[0]:index[0] + block_size[0],
-                                 index[1]:index[1] + block_size[1],
-                                 index[2]:index[2] + block_size[2]] += cache
+                        estimate_new[index[0]:index[0] + self.block_size[0],
+                                     index[1]:index[1] + self.block_size[1],
+                                     index[2]:index[2] + self.block_size[2]] += cache
+                else:
+                    pad = self.options.block_pad
+                    if "multiplicative" in self.options.fusion_method:
+                        estimate_new[index[0]:index[0] + self.block_size[0],
+                        index[1]:index[1] + self.block_size[1],
+                        index[2]:index[2] + self.block_size[2]] *= cache[pad:-pad]
+                    else:
+
+                        estimate_new[index[0]:index[0] + self.block_size[0],
+                        index[1]:index[1] + self.block_size[1],
+                        index[2]:index[2] + self.block_size[2]] += cache[pad:-pad]
 
         # Divide with the number of projections
         if "summative" in self.options.fusion_method:
@@ -345,3 +366,72 @@ class MultiViewFusionRL:
         image[image < 0] = 0
         image = image.astype(numpy.uint8)
         show.evaluate_3d_image(image)
+
+    def __calculate_block_and_image_size(self):
+        block_size = self.image_size
+        image_size = self.image_size
+        multiplier = None
+
+        if self.num_blocks == 1:
+            return block_size, image_size
+        elif self.num_blocks == 2:
+            multiplier = numpy.array([2, 1, 1])
+        elif self.num_blocks == 4:
+            multiplier = numpy.array([2, 2, 1])
+        elif self.num_blocks == 8:
+            multiplier = numpy.array([2, 2, 2])
+        else:
+            raise NotImplementedError
+
+        block_size = numpy.ceil(self.image_size.astype(numpy.float16) / multiplier)
+        image_size += (multiplier * block_size - image_size)
+
+        if self.options.block_pad != 0:
+            block_size = numpy.add(block_size, self.options.block_pad * 2)
+
+        return block_size, image_size
+
+    def __get_padded_block(self, start_index):
+        block_pad = self.options.block_pad
+        block_size = self.block_size
+        image_size = self.image_size
+
+        end_index = start_index + self.block_size + block_pad
+        start_index -= block_pad
+        # print "Getting a block from ", self.active_image
+        # print "The start index is %i %i %i" % tuple(start_index)
+        # print "The block size is %i %i %i" % tuple(block_size)
+
+        if (image_size >= end_index).all() and (start_index >= 0).all():
+            block = self.estimate[
+                    start_index[0]:end_index[0],
+                    start_index[1]:end_index[1],
+                    start_index[2]:end_index[2]
+                    ]
+            return block
+
+        elif (start_index < 0).any():
+            block = numpy.zeros(block_size)
+            block_start = numpy.negative(start_index.clip(max=0))
+            image_start = start_index + block_start
+
+            block[block_start[0]:block_size[0],
+                  block_start[1]:block_size[1],
+                  block_start[2]:block_size[2]] = self.estimate[image_start[0]:end_index[0],
+                                                                image_start[1]:end_index[1],
+                                                                image_start[2]:end_index[2]]
+            return block
+
+        else:
+            block = numpy.zeros(block_size)
+            block_crop = end_index - image_size
+            block_crop[block_crop < 0] = 0
+            block_end = block_size - block_crop
+            end_index = start_index + block_end
+
+            block[0:block_end[0],
+                  0:block_end[1],
+                  0:block_end[2]] = self.estimate[start_index[0]:end_index[0],
+                                                  start_index[1]:end_index[1],
+                                                  start_index[2]:end_index[2]]
+            return block

@@ -336,7 +336,7 @@ def get_registration_options(parser):
     # Initializer options
     group.add_argument(
         '--set-rot-axis',
-        dest='set_rot_axis',
+        dest='rot_axis',
         type=int,
         default=0,
         help='Specify the axis for initial rotation of the '
