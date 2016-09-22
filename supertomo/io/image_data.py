@@ -468,7 +468,7 @@ class ImageData():
     #     stop_index = start_index + block.shape
     #     self.data["fused"][start_index:stop_index] = block
 
-    def get_registered_block(self, block_size, block_pad, start_index):
+    def get_registered_block(self, block_size, block_pad, block_start_index):
         """
         When fusing large images, it is often necessary to divide the images
         into several blocks in order to keep the memory requirements at bay.
@@ -482,7 +482,9 @@ class ImageData():
         :param block_pad    The amount of padding to be applied to the sides of the
                             block. This kind of partial overlap of adjacent blocks is
                             needed to avoid fusion artifacts at the block boundaries.
-        :param start_index  The index pointing to the beginning of the block.
+
+        :param block_start_index
+                            The index pointing to the beginning of the block.
 
         Returns
         -------
@@ -490,13 +492,14 @@ class ImageData():
 
         """
         assert isinstance(block_size, numpy.ndarray)
-        assert isinstance(start_index, numpy.ndarray)
 
         assert "registered" in self.active_image, "You must specify a registered image"
 
         image_size = self.data[self.active_image].shape
-        end_index = start_index + block_size + block_pad
-        start_index -= block_pad
+
+        # Apply padding
+        end_index = block_start_index + block_size + block_pad
+        start_index = block_start_index - block_pad
         # print "Getting a block from ", self.active_image
         # print "The start index is %i %i %i" % tuple(start_index)
         # print "The block size is %i %i %i" % tuple(block_size)
@@ -509,30 +512,35 @@ class ImageData():
                     ]
             return block
 
-        elif (start_index < 0).any():
-            block = numpy.zeros(block_size)
-            block_start = numpy.negative(start_index.clip(max=0))
-            image_start = start_index + block_start
-
-            block[block_start[0]:block_size[0],
-                  block_start[1]:block_size[1],
-                  block_start[2]:block_size[2]] = self.data[self.active_image][image_start[0]:end_index[0],
-                                                                               image_start[1]:end_index[1],
-                                                                               image_start[2]:end_index[2]]
-            return block
-
         else:
-            block = numpy.zeros(block_size)
-            block_crop = end_index - image_size
-            block_crop[block_crop < 0] = 0
-            block_end = block_size - block_crop
+            pad_block_size = block_size + 2 * block_pad
+            block = numpy.zeros(pad_block_size)
+
+            # If the start_index is close to the image boundaries, it is very
+            # probable that padding will introduce negative start_index values.
+            # In such case the first pixel index must be corrected.
+            if (start_index < 0).any():
+                block_start = numpy.negative(start_index.clip(max=0))
+                image_start = start_index + block_start
+            else:
+                block_start = (0, 0, 0)
+                image_start = start_index
+            # If the padded block is larger than the image size the
+            # block_size must be adjusted.
+            if not (image_size >= end_index).all():
+                block_crop = end_index - image_size
+                block_crop[block_crop < 0] = 0
+                block_end = pad_block_size - block_crop
+            else:
+                block_end = pad_block_size
+
             end_index = start_index + block_end
 
-            block[0:block_end[0],
-                  0:block_end[1],
-                  0:block_end[2]] = self.data[self.active_image][start_index[0]:end_index[0],
-                                                                  start_index[1]:end_index[1],
-                                                                  start_index[2]:end_index[2]]
+            block[block_start[0]:block_end[0],
+                  block_start[1]:block_end[1],
+                  block_start[2]:block_end[2]] = self.data[self.active_image][image_start[0]:end_index[0],
+                                                                              image_start[1]:end_index[1],
+                                                                              image_start[2]:end_index[2]]
             return block
 
     def get_itk_image(self):
