@@ -191,6 +191,14 @@ def get_fusion_options(parser):
         default=0.002,
         help='Specify parameter for tau-stopping criteria.'
     )
+
+    group.add_argument(
+        '--pad',
+        dest='block_pad',
+        type=int,
+        default=0,
+        help='The amount of padding to apply to a fusion block.'
+    )
     return parser
 
 

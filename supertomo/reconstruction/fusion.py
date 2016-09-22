@@ -100,7 +100,7 @@ class MultiViewFusionRL:
 
             index = numpy.array((x, y, z), dtype=int)
             if self.options.block_pad > 0:
-                estimate_block = self.__get_padded_block(index)
+                estimate_block = self.__get_padded_block(index.copy())
             else:
                 estimate_block = self.estimate[index[0]:index[0]+self.block_size[0],
                                                index[1]:index[1]+self.block_size[1],
@@ -108,6 +108,7 @@ class MultiViewFusionRL:
 
             print "The current block is %i" % block_nr
             block_nr += 1
+
             # Iterate over views
             for view in xrange(self.n_views):
 
@@ -116,7 +117,7 @@ class MultiViewFusionRL:
 
                 # Execute: cache = data/cache
                 self.data.set_active_image(view, self.options.channel, self.options.scale, "registered")
-                block = self.data.get_registered_block(self.block_size, index)
+                block = self.data.get_registered_block(self.block_size, self.options.block_pad, index.copy())
 
                 #ops_ext.inverse_division_inplace(cache, block)
                 with numpy.errstate(divide="ignore"):
@@ -145,15 +146,18 @@ class MultiViewFusionRL:
                                      index[2]:index[2] + self.block_size[2]] += cache
                 else:
                     pad = self.options.block_pad
+
                     if "multiplicative" in self.options.fusion_method:
                         estimate_new[index[0]:index[0] + self.block_size[0],
-                        index[1]:index[1] + self.block_size[1],
-                        index[2]:index[2] + self.block_size[2]] *= cache[pad:-pad]
+                                     index[1]:index[1] + self.block_size[1],
+                                     index[2]:index[2] + self.block_size[2]] *= cache[pad:-pad]
                     else:
-
+                        # print "The block size is ", self.block_size
                         estimate_new[index[0]:index[0] + self.block_size[0],
-                        index[1]:index[1] + self.block_size[1],
-                        index[2]:index[2] + self.block_size[2]] += cache[pad:-pad]
+                                     index[1]:index[1] + self.block_size[1],
+                                     index[2]:index[2] + self.block_size[2]] += cache[pad:pad + self.block_size[0],
+                                                                                      pad:pad + self.block_size[1],
+                                                                                      pad:pad + self.block_size[2]]
 
         # Divide with the number of projections
         if "summative" in self.options.fusion_method:
@@ -354,23 +358,47 @@ class MultiViewFusionRL:
             self.adj_psfs.append(psf_new[::-1, ::-1, ::-1])
 
     def save_to_hdf(self):
-        self.data.set_active_image(0, "registered")
+        """
+        Save result to the SuperTomo2 data structure.
+
+        """
+        self.data.set_active_image(0,
+                                   self.options.channel,
+                                   self.options.scale,
+                                   "registered")
         spacing = self.data.get_voxel_size()
-        self.data.add_fused_image(self.estimate, spacing)
+
+        self.data.add_fused_image(self.get_8bit_result(),
+                                  self.options.channel,
+                                  self.options.scale,
+                                  spacing)
 
     def save_to_tiff(self, filename):
-        tiffile.imsave(filename, self.estimate)
+        """
+        Save fusion result to TIFF
+
+        Parameters
+        ----------
+        :param filename     full path to the image
+
+        """
+
+        tiffile.imsave(filename, self.get_8bit_result())
 
     def show_result(self):
-        image = (255.0/self.estimate.max())*self.estimate
-        image[image < 0] = 0
-        image = image.astype(numpy.uint8)
-        show.evaluate_3d_image(image)
+        """
+        Show fusion result
+        """
+        show.evaluate_3d_image(self.get_8bit_result())
 
     def __calculate_block_and_image_size(self):
+        """
+        Calculate the block size and the internal image size for a given
+        number of blocks. 1,2,4 or 8 blocks are currently supported.
+
+        """
         block_size = self.image_size
         image_size = self.image_size
-        multiplier = None
 
         if self.num_blocks == 1:
             return block_size, image_size
@@ -383,25 +411,34 @@ class MultiViewFusionRL:
         else:
             raise NotImplementedError
 
-        block_size = numpy.ceil(self.image_size.astype(numpy.float16) / multiplier)
+        block_size = numpy.ceil(self.image_size.astype(numpy.float16) / multiplier).astype(numpy.int64)
         image_size += (multiplier * block_size - image_size)
-
-        if self.options.block_pad != 0:
-            block_size = numpy.add(block_size, self.options.block_pad * 2)
 
         return block_size, image_size
 
-    def __get_padded_block(self, start_index):
+    def __get_padded_block(self, block_start_index):
+        """
+        Get a padded block from the self.estimate
+
+        Parameters
+        ----------
+        :param block_start_index  The real block start index, not considering the padding
+
+        Returns
+        -------
+        Returns the padded estimate block as a numpy array.
+
+        """
+
         block_pad = self.options.block_pad
-        block_size = self.block_size
         image_size = self.image_size
 
-        end_index = start_index + self.block_size + block_pad
-        start_index -= block_pad
-        # print "Getting a block from ", self.active_image
-        # print "The start index is %i %i %i" % tuple(start_index)
-        # print "The block size is %i %i %i" % tuple(block_size)
+        # Apply padding
+        end_index = block_start_index + self.block_size + block_pad
+        start_index = block_start_index - block_pad
 
+        # If the padded block fits within the image boundaries, nothing special
+        # is needed to extract it. Normal numpy slicing notation is used.
         if (image_size >= end_index).all() and (start_index >= 0).all():
             block = self.estimate[
                     start_index[0]:end_index[0],
@@ -410,28 +447,43 @@ class MultiViewFusionRL:
                     ]
             return block
 
-        elif (start_index < 0).any():
-            block = numpy.zeros(block_size)
-            block_start = numpy.negative(start_index.clip(max=0))
-            image_start = start_index + block_start
-
-            block[block_start[0]:block_size[0],
-                  block_start[1]:block_size[1],
-                  block_start[2]:block_size[2]] = self.estimate[image_start[0]:end_index[0],
-                                                                image_start[1]:end_index[1],
-                                                                image_start[2]:end_index[2]]
-            return block
-
         else:
+            block_size = self.block_size + 2 * block_pad
+            # Block outside the image boundaries will be filled with zeros.
             block = numpy.zeros(block_size)
-            block_crop = end_index - image_size
-            block_crop[block_crop < 0] = 0
-            block_end = block_size - block_crop
+            # If the start_index is close to the image boundaries, it is very
+            # probable that padding will introduce negative start_index values.
+            # In such case the first pixel index must be corrected.
+            if (start_index < 0).any():
+                block_start = numpy.negative(start_index.clip(max=0))
+                image_start = start_index + block_start
+            else:
+                block_start = (0, 0, 0)
+                image_start = start_index
+
+            # If the padded block is larger than the image size the
+            # block_size must be adjusted.
+            if not (image_size >= end_index).all():
+                block_crop = end_index - image_size
+                block_crop[block_crop < 0] = 0
+                block_end = block_size - block_crop
+            else:
+                block_end = block_size
+
             end_index = start_index + block_end
 
-            block[0:block_end[0],
-                  0:block_end[1],
-                  0:block_end[2]] = self.estimate[start_index[0]:end_index[0],
-                                                  start_index[1]:end_index[1],
-                                                  start_index[2]:end_index[2]]
+            block[block_start[0]:block_end[0],
+                  block_start[1]:block_end[1],
+                  block_start[2]:block_end[2]] = self.estimate[image_start[0]:end_index[0],
+                                                               image_start[1]:end_index[1],
+                                                               image_start[2]:end_index[2]]
             return block
+
+    def get_8bit_result(self):
+        """
+        Returns the current estimate (the fusion result) as an 8-bit uint, rescaled
+        to the full 0-255 range.
+        """
+        image = (255.0 / self.estimate.max()) * self.estimate
+        image[image < 0] = 0
+        return image.astype(numpy.uint8)
