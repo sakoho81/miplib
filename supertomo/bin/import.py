@@ -102,8 +102,10 @@ def main():
             data.add_psf(images, scale, index, channel, angle, spacing)
 
     # Calculate resampled images
-    for scale in options.scales:
-        data.create_rescaled_images("original", scale)
+    if options.scales is not None:
+        for scale in options.scales:
+            print "Creating %s percent downsampled versions of the original images" % scale
+            data.create_rescaled_images("original", scale)
 
 
     # Add transforms for registered images.

@@ -337,9 +337,9 @@ class ImageData():
         Returns the rotation angle, as degrees or radians
         """
         if radians:
-            return numpy.pi * self.data[self.active_image].attrs["angle"] / 180
+            return numpy.pi * int(self.data[self.active_image].attrs["angle"]) / 180
         else:
-            return self.data[self.active_image].attrs["angle"]
+            return int(self.data[self.active_image].attrs["angle"])
 
     def get_voxel_size(self):
         """
