@@ -84,7 +84,7 @@ class MultiViewRegistration:
             self.registration.SetMetricAsMattesMutualInformation(
                 numberOfHistogramBins=options.mattes_histogram_bins
             )
-            self.registration.SetMetricSamplingStrategy(self.registration.RANDOM)
+            self.registration.SetMetricSamplingStrategy(self.registration.REGULAR)
             self.registration.SetMetricSamplingPercentage(options.mattes_sampling_percentage)
 
         elif options.registration_method == 'correlation':
@@ -125,11 +125,11 @@ class MultiViewRegistration:
             tx = sitk.Euler3DTransform()
 
             if self.options.rot_axis == 0:
-                tx.SetAngle(initial_rotation, 0, 0)
+                tx.SetRotation(initial_rotation, 0, 0)
             elif self.options.rot_axis == 1:
-                tx.SetAngle(0, initial_rotation, 0)
+                tx.SetRotation(0, initial_rotation, 0)
             else:
-                tx.SetAngle(0, 0, initial_rotation)
+                tx.SetRotation(0, 0, initial_rotation)
 
             if self.options.initializer:
                 print 'Calculating initial registration parameters'
@@ -137,8 +137,11 @@ class MultiViewRegistration:
                     fixed_image,
                     moving_image,
                     tx,
-                    sitk.CenteredTransformInitializerFilter.MOMENTS
+                    sitk.CenteredTransformInitializerFilter.GEOMETRY
                 )
+                if self.options.jupyter:
+                    print "The calculated initial transform is:"
+                    print transform
                 self.registration.SetInitialTransform(transform)
             else:
                 tx.SetTranslation([self.options.y_offset,
@@ -156,13 +159,10 @@ class MultiViewRegistration:
             # START
             # ========================================================================
 
-            print "Starting registration of view %i", i
+            print "Starting registration of view %i" % i
             self.transform = self.registration.Execute(fixed_image, moving_image)
 
             # RESULTS
-            self.result = itkutils.resample_image(moving_image,
-                                                  self.transform,
-                                                  reference=fixed_image),
 
             print('Final metric value: {0}'.format(self.registration.GetMetricValue()))
             print(
@@ -171,7 +171,7 @@ class MultiViewRegistration:
             # Show the result to the user or save directly. The latter makes sense
             # when one is relatively sure that the registration is going to work.
             if self.options.test_drive:
-                self.__end_plot(fixed_image)
+                self.__end_plot(fixed_image, moving_image)
                 if self.__get_user_input("Do you want to save the result (yes/no)? "):
                     self.save_result()
                 else:
@@ -216,9 +216,11 @@ class MultiViewRegistration:
         Start the registration observer. A list is initialized for the metric
         values
         """
-        self.metric_values = []
+        global metric_values
 
-    def __end_plot(self, fixed):
+        metric_values = []
+
+    def __end_plot(self, fixed, moving):
         """
         Show registration results either in a Jupyter notebook, or Fiji.
 
@@ -226,11 +228,17 @@ class MultiViewRegistration:
         ----------
         fixed   The fixed image
         """
+        global metric_values
+
+        result = itkutils.resample_image(moving,
+                                         self.transform,
+                                         reference=fixed)
+
         if self.options.jupyter:
             plt.subplots(1, 2, figsize=(10, 8))
             fixed = itkutils.convert_to_numpy(sitk.Cast(fixed, sitk.sitkUInt8))[0]
-            self.result = itkutils.convert_to_numpy(
-                sitk.Cast(self.result, sitk.sitkUInt8)
+            moving = itkutils.convert_to_numpy(
+                sitk.Cast(result, sitk.sitkUInt8)
             )[0]
 
             from IPython.html.widgets import interact
@@ -238,7 +246,7 @@ class MultiViewRegistration:
             def update(layer):
                 # Plot metric values
                 plt.subplot(1, 2, 1)
-                plt.plot(self.metric_values, 'r')
+                plt.plot(metric_values, 'r')
                 plt.title("Metric values")
                 plt.xlabel('Iteration Number', fontsize=12)
                 plt.ylabel('Metric Value', fontsize=12)
@@ -246,16 +254,20 @@ class MultiViewRegistration:
                 # Plot image overlay
                 plt.subplot(1, 2, 2)
                 plt.title("Overlay")
-                show.display_2d_image_overlay(fixed[layer, :, :], self.result[layer, :, :])
+                show.display_2d_image_overlay(fixed[layer, :, :], moving[layer, :, :])
 
             interact(update, layer=(0, fixed.shape[0] - 1, 1))
         else:
-            rgb_result = itkutils.make_composite_rgb_image(fixed, self.result)
+            rgb_result = itkutils.make_composite_rgb_image(fixed, result)
             sitk.Show(rgb_result)
+
+        del metric_values
 
     def __plot_values(self, registration_method):
         """
         Adds the current metric value to the list.
         """
-        self.metric_values.append(registration_method.GetMetricValue())
+        global metric_values
+
+        metric_values.append(registration_method.GetMetricValue())
 

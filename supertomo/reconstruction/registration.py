@@ -416,9 +416,10 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
             fixed_image,
             moving_image,
             tx,
-            sitk.CenteredTransformInitializerFilter.GEOMETRY
+            sitk.CenteredTransformInitializerFilter.MOMENTS
         )
         registration.SetInitialTransform(transform)
+
     else:
         tx.SetTranslation([options.y_offset, options.x_offset])
 

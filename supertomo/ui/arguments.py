@@ -27,6 +27,7 @@ def get_register_script_options(arguments):
         description="Command line arguments for the "
                     "SuperTomo2 image registration script"
     )
+    parser.add_argument('data_file')
     parser = get_common_options(parser)
     parser = get_registration_options(parser)
 
@@ -111,6 +112,20 @@ def get_common_options(parser):
         type=int,
         default=0,
         help="Select the active color channel."
+    )
+
+    group.add_argument(
+        '--jupyter',
+        action='store_true',
+        help='A switch to enable certain functions that only work when using'
+             'Jupyter notebook to run the code.'
+    )
+    group.add_argument(
+        '--test-drive',
+        dest="test_drive",
+        action='store_true',
+        help="Enable certain sections of code that are used for debugging or "
+             "tuning parameter values with new images"
     )
 
     return parser
@@ -403,6 +418,12 @@ def get_registration_options(parser):
     group.add_argument(
         '--y-offset',
         dest='y_offset',
+        type=float,
+        default=0.0
+    )
+    group.add_argument(
+        '--z-offset',
+        dest='z_offset',
         type=float,
         default=0.0
     )
