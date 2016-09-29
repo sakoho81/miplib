@@ -320,8 +320,8 @@ def get_registration_options(parser):
              'Mutual Information sampling'
     )
     group.add_argument(
-        '--mattes-sampling-percentage',
-        dest='mattes_sampling_percentage',
+        '--sampling-percentage',
+        dest='sampling_percentage',
         type=float,
         default=1.0,
         help='Specify the number of samples to take from each '
@@ -463,6 +463,12 @@ def get_registration_options(parser):
         default=0,
         help='Inserting an integer value larger than zero enables a grayscale'
              'threshold filter'
+    )
+    group.add_argument(
+        '--learning-rate',
+        dest='learning_rate',
+        type=float,
+        default=1.0
     )
 
     return parser
