@@ -256,8 +256,9 @@ def median_filter(image, kernel_radius):
     :param kernel_radius:   median kernel radius
     :return:                filtered image
     """
-    method = sitk.MedianImageFilter
-    method.SetRadius(kernel_radius)
+    method = sitk.MedianImageFilter()
+    kernel = [kernel_radius,] * image.GetDimension()
+    method.SetRadius(kernel)
 
     return method.Execute(image)
 
@@ -347,7 +348,7 @@ def calculate_center_of_image(image, center_of_mass=False):
     if center_of_mass:
         np_image, spacing = convert_to_numpy(image)
         center = scipy.ndimage.measurements.center_of_mass(np_image)
-        center *= spacing
+        center *= numpy.array(spacing)
     else:
         center = map(
             lambda size, spacing: spacing * size / 2,

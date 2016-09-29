@@ -337,7 +337,8 @@ class ImageData():
         Returns the rotation angle, as degrees or radians
         """
         if radians:
-            return numpy.pi * int(self.data[self.active_image].attrs["angle"]) / 180
+            angle = numpy.pi * int(self.data[self.active_image].attrs["angle"]) / 180
+            return angle
         else:
             return int(self.data[self.active_image].attrs["angle"])
 

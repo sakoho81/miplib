@@ -71,8 +71,12 @@ def display_3d_slice_with_alpha(image_z, alpha, fixed, moving):
     plt.axis('off')
 
 
-
-def display_2d_images(image1, image2, landmarks=False):
+def display_2d_images(image1,
+                      image2,
+                      image1_title='image1',
+                      image2_title='image2',
+                      vertical=False,
+                      landmarks=False):
     """
     A function that can be used to display two SimpleITK images side by side.
     It is also possible to select paired landmarks from the two images, by
@@ -86,22 +90,27 @@ def display_2d_images(image1, image2, landmarks=False):
 
     """
 
-    if not isinstance(image1, sitk.Image) and isinstance(image2, sitk.Image):
-        raise ValueError("ITK image required")
+    if isinstance(image1, sitk.Image):
+        image1 = sitk.GetArrayFromImage(image1)
+    if isinstance(image2, sitk.Image):
+        image2 = sitk.GetArrayFromImage(image2)
 
-    im1 = sitk.GetArrayFromImage(image1)
-    im2 = sitk.GetArrayFromImage(image2)
-
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 8))
+    if vertical:
+        fig, (ax1, ax2) = plt.subplots(
+            2, 1, figsize=(10, 8),
+            gridspec_kw = {'height_ratios':[3, 1], 'width_ratios':[1, 1]}
+        )
+    else:
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 8))
 
     # draw the fixed image in the first subplot
-    ax1.imshow(im1, cmap=plt.cm.Greys_r)
-    ax1.set_title('image1')
+    ax1.imshow(image1, cmap=plt.cm.Greys_r)
+    ax1.set_title(image1_title)
     ax1.axis('off')
 
     # draw the moving image in the second subplot
-    ax2.imshow(im2, cmap=plt.cm.Greys_r)
-    ax2.set_title('image2')
+    ax2.imshow(image2, cmap=plt.cm.Greys_r)
+    ax2.set_title(image2_title)
     ax2.axis('off')
 
     if landmarks:
