@@ -5,7 +5,8 @@ setup(
     name='supertomo',
     version='0.1',
     packages=find_packages(),
-    install_requires=['numpy', 'scipy', 'h5py', 'SuperTomo', 'SimpleITK', 'matplotlib'],
+    install_requires=['numpy', 'scipy', 'h5py', 'SuperTomo', 'SimpleITK',
+                      'matplotlib', 'accelerate', 'numba'],
     entry_points={
         'console_scripts': [
             'supertomo.import = supertomo.bin.import:main',

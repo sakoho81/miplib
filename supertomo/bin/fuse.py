@@ -13,7 +13,11 @@ This is the main program file for the SuperTomo fusion calculation
 import sys
 import os
 
+from accelerate.cuda import cuda_compatible
+
 import supertomo.reconstruction.fusion as fusion
+import supertomo.reconstruction.fusion_cuda as gpufusion
+
 import supertomo.io.image_data as image_data
 import supertomo.ui.arguments as arguments
 
@@ -43,9 +47,13 @@ def main():
               "original STED PSF (that is assumed to be at index 0)."
         data.calculate_missing_psfs()
 
-    task = fusion.MultiViewFusionRL(data, options)
-    task.execute()
+    if cuda_compatible():
+        task = gpufusion.MultiViewFusionRLCuda(data, options)
+    else:
+        task = fusion.MultiViewFusionRL(data, options)
 
+    # task = fusion.MultiViewFusionRL(data, options)
+    task.execute()
     task.show_result()
 
     while True:
