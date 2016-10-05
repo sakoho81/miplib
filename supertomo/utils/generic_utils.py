@@ -475,7 +475,7 @@ def expand_to_shape(data, shape, dtype=None, background=None):
     if background is None:
         background = 0
 
-    if shape != data.shape:
+    if (shape != data.shape):
         expanded_data = numpy.zeros(shape, dtype=dtype) + background
         slices = []
         rhs_slices = []
