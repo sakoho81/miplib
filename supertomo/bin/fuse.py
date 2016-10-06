@@ -60,6 +60,7 @@ def main():
         keep = raw_input("Do you want to save the result (yes/no)? ")
         if keep in ('y', 'Y', 'yes', 'YES'):
             task.save_to_hdf()
+            break
         elif keep in ('n', 'N', 'no', 'No'):
             print "Exiting without saving results."
             break
