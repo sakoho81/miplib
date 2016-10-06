@@ -372,7 +372,7 @@ class MultiViewFusionRL:
                                    "registered")
         spacing = self.data.get_voxel_size()
 
-        self.data.add_fused_image(self.get_8bit_result(),
+        self.data.add_fused_image(self.estimate,
                                   self.options.channel,
                                   self.options.scale,
                                   spacing)
@@ -391,9 +391,13 @@ class MultiViewFusionRL:
 
     def show_result(self):
         """
-        Show fusion result
+        Show fusion result. This is a temporary solution for now
+        calling Fiji through ITK. An internal viewer would be
+        preferable.
         """
-        show.evaluate_3d_image(self.get_8bit_result())
+        import SimpleITK as sitk
+        sitk.Show(sitk.GetImageFromArray(self.estimate))
+        #show.evaluate_3d_image(self.get_8bit_result())
 
     def __calculate_block_and_image_size(self):
         """
