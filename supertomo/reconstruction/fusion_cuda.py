@@ -2,7 +2,7 @@
 """
 fusion.py
 
-Copyright (C) 2014 Sami Koho
+Copyright (C) 2016 Sami Koho
 All rights reserved.
 
 This software may be modified and distributed under the terms
@@ -56,7 +56,7 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
 
         self.scaler = numpy.full(self.image_size, 1.0/self.n_views, dtype=numpy.float32)
 
-        print('kernel config: %s x %s' % (blockpergrid, threadpergpublock))
+        print('Optimal kernel config: %s x %s' % (blockpergrid, threadpergpublock))
 
     def compute_estimate(self):
         """
@@ -82,7 +82,7 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
 
             # Iterate over views
             for view in xrange(self.n_views):
-
+                # print "Calculating estimate for view %i" % view
                 if self.options.block_pad > 0:
                     h_estimate_block = self.get_padded_block(index.copy())
                 else:
@@ -152,6 +152,15 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
         else:
             estimate_new = genutils.nroot(estimate_new, self.n_views)
 
+        # TV Regularization (doesn't seem to do anything miraculous).
+        if self.options.rltv_lambda > 0 and self.iteration_count > 0:
+            dv_est = ops_ext.div_unit_grad(self.estimate, self.voxel_size)
+            with numpy.errstate(divide="ignore"):
+                estimate_new /= (1.0 - self.options.rltv_lambda * dv_est)
+                estimate_new[estimate_new == numpy.inf] = 0.0
+                estimate_new = numpy.nan_to_num(estimate_new)
+
+        # Update estimate inplace. Get convergence statistics.
         return ops_ext.update_estimate_poisson(self.estimate,
                                                estimate_new,
                                                self.options.convergence_epsilon)

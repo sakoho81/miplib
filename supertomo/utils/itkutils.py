@@ -53,13 +53,23 @@ def make_itk_transform(type, dims, parameters, fixed_parameters):
     :param fixed_parameters:    The transform fixed parameters tuple
     :return:                    Returns an initialized ITK spatial transform.
     """
-    transform = sitk.Transform(dims, type)
+    if type == "AffineTransform":
+        transform = sitk.AffineTransform(dims)
+    else:
+        raise NotImplementedError()
 
     transform.SetParameters(parameters)
     transform.SetFixedParameters(fixed_parameters)
 
     return transform
 
+def get_itk_transform_parameters(transform):
+
+    tfm_type = transform.GetName()
+    params = transform.GetParameters()
+    fixed_params = transform.GetFixedParameters()
+    
+    return tfm_type, params, fixed_params
 
 
 def resample_image(image, transform, reference=None):
@@ -113,10 +123,20 @@ def rotate_psf(psf, transform, spacing=None, return_numpy=False):
 
     assert isinstance(image, sitk.Image)
 
-    # We don't want to translate, but only rotate
-    parameters = transform.GetParameters()
-    parameters = tuple(0.0 if i in range(3, 6) else parameters[i] for i in range(len(parameters)))
-    transform.SetParameters(parameters)
+    if isinstance(transform, sitk.AffineTransform):
+        print "Hep"
+
+        array = numpy.array(transform.GetMatrix()).reshape(3, 3)
+        rotation = scipy.linalg.polar(array, "right")[0]
+        matrix = tuple(rotation.ravel())
+        transform.SetMatrix(matrix)
+        transform.SetTranslation((0.0, 0.0, 0.0))
+
+    else:
+        # We don't want to translate, but only rotate
+        parameters = transform.GetParameters()
+        parameters = tuple(0.0 if i in range(3, 6) else parameters[i] for i in range(len(parameters)))
+        transform.SetParameters(parameters)
 
     # Find  and set center of rotation This assumes that the PSF is in
     # the centre of the volume, which should be expected, as otherwise it

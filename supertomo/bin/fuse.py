@@ -48,6 +48,8 @@ def main():
         data.calculate_missing_psfs()
 
     if cuda_compatible():
+        print "Found a compatible GPU. The image fusion will be run with " \
+              "hardware acceleration."
         task = gpufusion.MultiViewFusionRLCuda(data, options)
     else:
         task = fusion.MultiViewFusionRL(data, options)
