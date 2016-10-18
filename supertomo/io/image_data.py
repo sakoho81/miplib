@@ -97,12 +97,12 @@ class ImageData():
         image_group[name].attrs["spacing"] = spacing
         image_group[name].attrs["size"] = data.shape
 
-        # The first image is the same in the registered group as well,
-        # so a soft link will be created here.
-        if int(index) == 0:
-            reg_group_name = "registered/" + index
-            reg_group = self.data.create_group(reg_group_name)
-            reg_group[name] = image_group[name]
+        # # The first image is the same in the registered group as well,
+        # # so a soft link will be created here.
+        # if int(index) == 0:
+        #     reg_group_name = "registered/" + index
+        #     reg_group = self.data.create_group(reg_group_name)
+        #     reg_group[name] = image_group[name]
 
     def add_registered_image(self, data, scale, index, channel, angle, spacing, chunk_size=None):
         """
@@ -324,6 +324,54 @@ class ImageData():
                                  self.get_rotation_angle(), image_spacing,
                                  calculated=True)
 
+    def migrate_registration_result(self, from_scale, to_scale):
+        """
+        With this function it is possible
+        to migrate the registration results from one scale to another.
+
+        With very large images it is sometimes easier and faster to perform
+        image registration with downsampled versions of the original images.
+        The accuracy of the registration result is often very good, even with
+        60 percent downsampled images.
+
+        Parameters
+        ----------
+        :item from_scale    The scale for which there is an existing
+                            registration result.
+        :item to_scale      The scale for which the new registration results
+                            should be calculated.
+
+        Returns
+        -------
+
+        """
+
+        # Check that the registration result for the specified scale
+        # exists.
+        assert from_scale in self.get_scales("registered")
+
+        if to_scale not in self.get_scales("original"):
+            self.create_rescaled_images("original", to_scale)
+
+        for channel in range(self.channel_count):
+
+            self.set_active_image(0, channel, to_scale, "original")
+            self.add_registered_image(self.data[self.active_image][:], to_scale,
+                                      0, channel, 0, self.get_voxel_size())
+
+            for view in range(1, self.get_number_of_images("original")):
+                self.set_active_image(view, channel, from_scale, "registered")
+                transform = self.get_transform()
+                self.set_active_image(view, channel, to_scale, "original")
+                image = self.get_itk_image()
+                angle = self.get_rotation_angle(radians=False)
+                spacing = self.get_voxel_size()
+                result = itkutils.convert_to_numpy(
+                    itkutils.resample_image(image, transform)
+                )[0]
+                self.add_registered_image(result, to_scale, view, channel, angle,
+                                          spacing)
+
     def get_rotation_angle(self, radians=True):
         """
         Get rotation angle of the currently active image.
@@ -420,7 +468,8 @@ class ImageData():
             else:
                 if set(scales_ref) != set(scales):
                     raise ValueError("Database error. Resampled images have not been"
-                                     "saved consistently for image type %s", image_type)
+                                     "saved consistently for image type %s" %
+                                     image_type)
 
         return scales
 

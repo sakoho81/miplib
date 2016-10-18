@@ -6,7 +6,7 @@ from supertomo.definitions import *
 import tiffile
 from ..utils import itkutils
 
-scale_c = 1e6
+scale_c = 1.0e6
 
 
 def get_imagej_tiff(filename, memmap=False, return_itk=False):
@@ -49,8 +49,10 @@ def get_imagej_tiff(filename, memmap=False, return_itk=False):
 
     # Create a tuple for zxy-spacing. The order of the dimensions follows that of the
     # image data
-    spacing = (z_spacing/scale_c, 1.0/tags["x_resolution"][0], 1.0/tags["y_resolution"][0])
+    spacing = (z_spacing, scale_c/tags["x_resolution"][0], scale_c/tags[
+        "y_resolution"][0])
 
+    print spacing
     if return_itk:
         return itkutils.convert_from_numpy(images, spacing)
     else:
@@ -122,18 +124,18 @@ def read_itk_transform(path, return_itk=False):
         return transform
 
     else:
-        #TODO: Check that this makes any sense. Also consult the ITK HDF implementation for ideas
-        with open(path, 'r') as f:
-            for line in f:
-                if line.startswith('Transform:'):
-                    type_string = line.split(': ')[1].split('_')[0]
-                    if "VersorRigid" in type_string:
-                        transform_type = itk_transforms_c['sitkVersorRigid']
-                        break
-                    else:
-                        raise NotImplementedError("Unknown transform type: "
-                                                  "%s" % type_string)
-
+        # #TODO: Check that this makes any sense. Also consult the ITK HDF implementation for ideas
+        # with open(path, 'r') as f:
+        #     for line in f:
+        #         if line.startswith('Transform:'):
+        #             type_string = line.split(': ')[1].split('_')[0]
+        #             if "VersorRigid" in type_string:
+        #                 transform_type = itk_transforms_c['sitkVersorRigid']
+        #                 break
+        #             else:
+        #                 raise NotImplementedError("Unknown transform type: "
+        #                                           "%s" % type_string)
+        transform_type = transform.GetName()
         params = transform.GetParameters()
         fixed_params = transform.GetFixedParameters()
         return transform_type, params, fixed_params

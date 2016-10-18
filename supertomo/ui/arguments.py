@@ -75,7 +75,8 @@ def get_transform_script_options(arguments):
 
 def get_common_options(parser):
     assert isinstance(parser, argparse.ArgumentParser)
-    group = parser.add_argument_group("Common", "Common Options for SuperTomo2 scripts")
+    group = parser.add_argument_group("Common",
+                                      "Common Options for SuperTomo2 scripts")
     group.add_argument(
         '--verbose',
         action='store_true'
@@ -103,8 +104,10 @@ def get_common_options(parser):
         '--scale',
         type=int,
         default=100,
-        help="Define the size of images to use. By default the full size originals"
-             "will be used, but it is possible to select resampled images as well"
+        help="Define the size of images to use. By default the full size "
+             "originals"
+             "will be used, but it is possible to select resampled images as "
+             "well"
     )
 
     group.add_argument(
@@ -128,6 +131,14 @@ def get_common_options(parser):
              "tuning parameter values with new images"
     )
 
+    group.add_argument(
+        '--evaluate',
+        dest='evaluate_results',
+        action='store_true',
+        help='Indicate whether you want to evaluate the registration/fusion '
+             'results by eye before they are saved'
+             'to the data structure.'
+    )
     return parser
 
 
@@ -186,7 +197,8 @@ def get_fusion_options(parser):
     group.add_argument(
         '--fusion-method',
         dest='fusion_method',
-        choices=['multiplicative', 'multiplicative-opt', 'summative', 'summative-opt'],
+        choices=['multiplicative', 'multiplicative-opt', 'summative',
+                 'summative-opt'],
         default='summative'
     )
 
@@ -205,6 +217,12 @@ def get_fusion_options(parser):
         type=float,
         default=0.002,
         help='Specify parameter for tau-stopping criteria.'
+    )
+    group.add_argument(
+        '--rltv-lambda',
+        type=float,
+        default=0,
+        help="Enable Total Variation regularization by selecting value > 0"
     )
 
     group.add_argument(
@@ -240,14 +258,16 @@ def get_registration_options(parser):
 
     set_translation_scale controls how translations and rotations relate
     to one another during registration. By default translation scale is
-    1000 times that of rotation, as rotations of 1 radian are rare, but translations
+    1000 times that of rotation, as rotations of 1 radian are rare,
+    but translations
     can be in range of tens or hundreds of pixels.
 
     min_step, max_step and reg_max_iterations control the registration
     speed and accuracy
     """
     assert isinstance(parser, argparse.ArgumentParser)
-    group = parser.add_argument_group("Registration", "Options for image registration")
+    group = parser.add_argument_group("Registration",
+                                      "Options for image registration")
     group.add_argument(
         '--initializer-off',
         dest='initializer',
@@ -299,7 +319,8 @@ def get_registration_options(parser):
         dest='mean_kernel',
         type=int,
         default=0,
-        help='In case you would like to use a mean filter to smoothen the images'
+        help='In case you would like to use a mean filter to smoothen the '
+             'images'
              'before registration, define a kernel here'
     )
     group.add_argument(
@@ -307,7 +328,8 @@ def get_registration_options(parser):
         dest='median_size',
         type=int,
         default=0,
-        help='Enable median filtering before registering by a non-zero kernel size'
+        help='Enable median filtering before registering by a non-zero kernel '
+             'size'
     )
 
     # Mattes mutual information metric specific options
@@ -474,11 +496,11 @@ def get_registration_options(parser):
     return parser
 
 
-def get_tem_correlation_options (parser):
-
+def get_tem_correlation_options(parser):
     assert isinstance(parser, argparse.ArgumentParser)
 
-    group = parser.add_argument_group("TEM Correlation", "Options for STED-TEM correlation")
+    group = parser.add_argument_group("TEM Correlation",
+                                      "Options for STED-TEM correlation")
 
     # Image file path prefix
 

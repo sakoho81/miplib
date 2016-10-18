@@ -38,14 +38,13 @@ class MultiViewRegistration:
         # Results
         self.final_transform = None
 
-
         # REGISTRATION COMPONENTS SETUP
         # ========================================================================
 
         self.registration = sitk.ImageRegistrationMethod()
 
         # OPTIMIZER
-        # TODO: The optimizer might need to be changed. This one is a bit stupid.
+
         self.registration.SetOptimizerAsRegularStepGradientDescent(
             options.learning_rate,
             options.min_step_length,
@@ -53,7 +52,7 @@ class MultiViewRegistration:
             relaxationFactor=options.relaxation_factor,
             estimateLearningRate=self.registration.EachIteration
         )
-        #translation_scale = 1.0 / options.translation_scale
+        # translation_scale = 1.0 / options.translation_scale
         # self.registration.SetOptimizerScales([10, 10, 10,
         #                                       .1, .1,.1])
 
@@ -77,11 +76,13 @@ class MultiViewRegistration:
             raise ValueError("Unknown metric: %s" % options.registration_method)
 
         self.registration.SetMetricSamplingStrategy(self.registration.RANDOM)
-        self.registration.SetMetricSamplingPercentage(options.sampling_percentage)
+        self.registration.SetMetricSamplingPercentage(
+            options.sampling_percentage)
 
     def execute(self):
         """
-        Run image registration. All the views are registered one by one. The image
+        Run image registration. All the views are registered one by one. The
+        image
         at index 0 is used as a reference.
         """
         # Get reference image.
@@ -107,7 +108,6 @@ class MultiViewRegistration:
                                    "original")
         moving_image = self.data.get_itk_image()
 
-
         # INITIALIZATION
         # --------------
         # Start by rotating the moving image with the known rotation angle.
@@ -130,10 +130,11 @@ class MultiViewRegistration:
 
         # Translation
         manual_transform.SetTranslation([self.options.y_offset,
-                                  self.options.x_offset,
-                                  self.options.z_offset])
+                                         self.options.x_offset,
+                                         self.options.z_offset])
 
-        modified_moving_image = itkutils.resample_image(moving_image, manual_transform)
+        modified_moving_image = itkutils.resample_image(moving_image,
+                                                        manual_transform)
 
         # 2. Run Automatic initialization
 
@@ -152,7 +153,8 @@ class MultiViewRegistration:
 
         # SPATIAL MASK
         # =====================================================================
-        # The registration metric works more reliably when it knows where non-zero
+        # The registration metric works more reliably when it knows where
+        # non-zero
         # voxels are located.
 
         fixed_mask = sitk.BinaryDilate(
@@ -169,8 +171,9 @@ class MultiViewRegistration:
         print "Starting registration of views " \
               "%i (fixed) & %i (moving)" % (self.fixed_index, self.moving_index)
 
-        result = self.registration.Execute(sitk.Cast(fixed_image, sitk.sitkFloat32),
-                                           sitk.Cast(modified_moving_image,sitk.sitkFloat32))
+        result = self.registration.Execute(
+            sitk.Cast(fixed_image, sitk.sitkFloat32),
+            sitk.Cast(modified_moving_image, sitk.sitkFloat32))
 
         result = sitk.AffineTransform(result)
         # RESULTS
@@ -198,9 +201,11 @@ class MultiViewRegistration:
                                                     combined_center)
 
         # Print final metric value and stopping condition
-        print('Final metric value: {0}'.format(self.registration.GetMetricValue()))
         print(
-            'Optimizer\'s stopping condition, {0}'.format(self.registration.GetOptimizerStopConditionDescription()))
+        'Final metric value: {0}'.format(self.registration.GetMetricValue()))
+        print(
+            'Optimizer\'s stopping condition, {0}'.format(
+                self.registration.GetOptimizerStopConditionDescription()))
         print self.final_transform
 
     def set_moving_image(self, index):
@@ -254,7 +259,27 @@ class MultiViewRegistration:
 
         moving_image = self.data.get_itk_image()
 
-        return itkutils.resample_image(moving_image, self.final_transform, fixed_image)
+        return itkutils.resample_image(moving_image, self.final_transform,
+                                       fixed_image)
+
+    def save_result(self):
+        scale = self.options.scale
+        channel = self.options.channel
+        view = self.moving_index
+
+        # Add registered image
+        self.data.set_active_image(view, channel, scale, "original")
+        angle = self.data.get_rotation_angle(radians=False)
+        spacing = self.data.get_voxel_size()
+        registered_image = itkutils.convert_to_numpy(
+            self.get_resampled_result())[0]
+        self.data.add_registered_image(registered_image, scale, view, channel,
+                                       angle, spacing)
+        # Add transform
+        transform = self.get_final_transform()
+        tfm_params = itkutils.get_itk_transform_parameters(transform)
+        self.data.add_transform(scale, view, channel, tfm_params[1],
+                                tfm_params[2], tfm_params[0])
 
     def add_observers(self, start, update):
         """
@@ -269,10 +294,5 @@ class MultiViewRegistration:
 
         """
         self.registration.AddCommand(sitk.sitkStartEvent, start)
-        self.registration.AddCommand(sitk.sitkIterationEvent, lambda: update(self.registration))
-
-
-
-
-
-
+        self.registration.AddCommand(sitk.sitkIterationEvent,
+                                     lambda: update(self.registration))

@@ -55,6 +55,7 @@ class MultiViewFusionRL:
 
         self.image_size = numpy.array(self.data.get_image_size())
         print "The original image size is %i %i %i" % tuple(self.image_size)
+        self.voxel_size = self.data.get_voxel_size()
         self.iteration_count = 0
 
         # Setup blocks
@@ -73,7 +74,8 @@ class MultiViewFusionRL:
             pass
 
         print "The fusion will be run with %i blocks" % self.num_blocks
-        print "The internal image size is %i %i %i" % tuple(self.image_size)
+        padded_block_size = tuple(self.block_size + 2*self.options.block_pad)
+        print "The internal block size is %i %i %i" % padded_block_size
         # Create temporary directory and data file.
         self.data_to_save = ('count', 't', 'mn', 'mx', 'tau1', 'tau2', 'leak', 'e',
                              's', 'u', 'n', 'u_esu', 'mem')
