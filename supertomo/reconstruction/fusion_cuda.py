@@ -50,13 +50,21 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
         blockpergrid = self.__best_grid_size(
             tuple(reversed(padded_block_size)), threadpergpublock)
 
-        self.__get_fourier_psfs()
-
         FFTPlan(padded_block_size, itype=numpy.complex64, otype=numpy.complex64)
+
+        # Select views to fuse
+        if self.options.fuse_views == -1:
+            self.views = xrange(self.n_views)
+        else:
+            self.views = self.options.fuse_views
+
+        self.n_views = len(self.views)
 
         self.scaler = numpy.full(self.image_size, 1.0/self.n_views, dtype=numpy.float32)
 
         print('Optimal kernel config: %s x %s' % (blockpergrid, threadpergpublock))
+
+        self.__get_fourier_psfs()
 
     def compute_estimate(self):
         """
@@ -70,6 +78,8 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
         else:
             estimate_new = numpy.zeros(self.image_size, dtype=numpy.float32)
 
+
+
         # Iterate over blocks
         for x, y, z in itertools.product(xrange(0, self.image_size[0], self.block_size[0]),
                                          xrange(0, self.image_size[1], self.block_size[1]),
@@ -80,9 +90,8 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
             stream1 = cuda.stream()
             stream2 = cuda.stream()
 
-            # Iterate over views
-            for view in xrange(self.n_views):
-                # print "Calculating estimate for view %i" % view
+            for idx, view in enumerate(self.views):
+                print "Calculating estimate for view %i" % view
                 if self.options.block_pad > 0:
                     h_estimate_block = self.get_padded_block(index.copy())
                 else:
@@ -91,7 +100,7 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
                                                      index[2]:index[2] + self.block_size[2]]
 
                 d_estimate_block = cuda.to_device(h_estimate_block.astype(numpy.complex64), stream=stream1)
-                d_psf = cuda.to_device(self.psfs_fft[view], stream=stream2)
+                d_psf = cuda.to_device(self.psfs_fft[idx], stream=stream2)
 
                 # Execute: cache = convolve(PSF, estimate), non-normalized
                 fft_inplace(d_estimate_block, stream=stream1)
@@ -110,7 +119,8 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
                 ops_ext.inverse_division_inplace(h_estimate_block, h_image_block)
 
                 d_estimate_block = cuda.to_device(h_estimate_block, stream=stream1)
-                d_adj_psf = cuda.to_device(self.adj_psfs_fft[view], stream=stream2)
+                d_adj_psf = cuda.to_device(self.adj_psfs_fft[idx],
+                                           stream=stream2)
 
                 fft_inplace(d_estimate_block, stream=stream1)
                 stream2.synchronize()
@@ -216,7 +226,7 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
         self.psfs_fft = []
         self.adj_psfs_fft = []
         padded_block_size = tuple(self.block_size + 2*self.options.block_pad)
-        for view in range(self.n_views):
+        for view in self.views:
             h_psf = genutils.expand_to_shape(self.psfs[view], padded_block_size).astype(numpy.complex64)
             h_adj_psf = genutils.expand_to_shape(self.adj_psfs[view], padded_block_size).astype(numpy.complex64)
             h_psf = numpy.fft.fftshift(h_psf)

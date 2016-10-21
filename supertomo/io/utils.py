@@ -52,7 +52,7 @@ def get_imagej_tiff(filename, memmap=False, return_itk=False):
     spacing = (z_spacing, scale_c/tags["x_resolution"][0], scale_c/tags[
         "y_resolution"][0])
 
-    print spacing
+    #print spacing
     if return_itk:
         return itkutils.convert_from_numpy(images, spacing)
     else:

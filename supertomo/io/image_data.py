@@ -291,7 +291,7 @@ class ImageData():
                     spacing = tuple(100*x/scale for x in image_group[name_ref].attrs["spacing"])
                     z_factor = float(scale)/100
                     zoom = (z_factor, z_factor, z_factor)
-                    data = ndimage.zoom(image_group[name_ref], zoom, order=3)
+                    data = ndimage.zoom(image_group[name_ref], zoom, order=1)
                     if chunk_size is None:
                         image_group.create_dataset(name_new, data=data)
                     else:

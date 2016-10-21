@@ -80,8 +80,7 @@ def main():
             else:
                 if utils.get_user_input(
                         "Skipping view %i. Do you want to continue "
-                        "registration?",
-                        view):
+                        "registration?" % view):
                     continue
                 else:
                     print "Exiting registration without saving results"
