@@ -124,7 +124,7 @@ def rotate_psf(psf, transform, spacing=None, return_numpy=False):
     assert isinstance(image, sitk.Image)
 
     if isinstance(transform, sitk.AffineTransform):
-        print "Hep"
+        #print "Hep"
 
         array = numpy.array(transform.GetMatrix()).reshape(3, 3)
         rotation = scipy.linalg.polar(array, "right")[0]

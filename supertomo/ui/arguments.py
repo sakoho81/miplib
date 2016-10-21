@@ -1,5 +1,31 @@
 import argparse
+from itertools import chain
 
+# CUSTOM PARSER TYPES
+# =============================================================================
+
+
+def parseRangeList(rngs):
+    """
+    This parser type was created to enable the input of numeric ranges, such
+    as "2, 5, 7-11, 26". It returns a sorted list of integers.
+    """
+    def parse_range(rng):
+        parts = rng.split('-')
+        if 1 > len(parts) > 2:
+            raise ValueError("Bad range: '%s'" % (rng,))
+        parts = [int(i) for i in parts]
+        start = parts[0]
+        end = start if len(parts) == 1 else parts[1]
+        if start > end:
+            end, start = start, end
+        return range(start, end + 1)
+
+    return sorted(set(chain(*[parse_range(rng) for rng in rngs.split(',')])))
+
+# CLI SCRIPT ARGUMENTS
+# The supertomo scripts located in the /bin each have their specific
+# argparse functions. Common arguments are added as argument groups.
 
 def get_import_script_options(arguments):
     parser = argparse.ArgumentParser(
@@ -72,6 +98,8 @@ def get_transform_script_options(arguments):
 
     return parser.parse_args(arguments)
 
+
+# Argument groups
 
 def get_common_options(parser):
     assert isinstance(parser, argparse.ArgumentParser)
@@ -232,39 +260,17 @@ def get_fusion_options(parser):
         default=0,
         help='The amount of padding to apply to a fusion block.'
     )
+    group.add_argument(
+        '--fuse-views',
+        dest='fuse_views',
+        type=parseRangeList,
+        default=-1
+    )
     return parser
 
 
 def get_registration_options(parser):
-    """
-    Defines command line options for image registration functions. The
-    methods are based on Insight Toolkit (www.itk.org) which is
-    required to run the functions.
 
-    Matte's Mutual Information  based registration introduces a number
-    of new command line options for fine tuning its behaviour. All of the
-    options have default values, which should work at least with the sample
-    image sets.
-
-    mattes_histogram_bins and mattes_spatial_samples define how samples are
-    drawn from the moving and fixed images for the mutual information metric.
-
-    set_rot_axis and set_rotation control the initial rotation
-    of the moving image by the initializer. The axis of the major rotation
-    (in case of 3D registration) should be selected and an estimate,
-    in radians, for the rotation offset
-    should be given. This will be optimized during registration, but sometimes
-    giving a rough initial estimate helps in finding a registration match.
-
-    set_translation_scale controls how translations and rotations relate
-    to one another during registration. By default translation scale is
-    1000 times that of rotation, as rotations of 1 radian are rare,
-    but translations
-    can be in range of tens or hundreds of pixels.
-
-    min_step, max_step and reg_max_iterations control the registration
-    speed and accuracy
-    """
     assert isinstance(parser, argparse.ArgumentParser)
     group = parser.add_argument_group("Registration",
                                       "Options for image registration")

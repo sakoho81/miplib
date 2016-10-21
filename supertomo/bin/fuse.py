@@ -25,7 +25,6 @@ import supertomo.ui.arguments as arguments
 def main():
 
     options = arguments.get_fusion_script_options(sys.argv[1:])
-
     full_path = os.path.join(options.working_directory,
                              options.data_file)
 
