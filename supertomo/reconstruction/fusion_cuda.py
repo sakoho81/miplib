@@ -16,6 +16,7 @@ as the MultiViewFusionRL class, for non-accelerated iterative image fusion.
 
 import numpy
 import itertools
+import os
 
 from accelerate.cuda.fft import FFTPlan, fft_inplace, ifft_inplace
 from numba import cuda, vectorize
@@ -60,7 +61,8 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
 
         self.n_views = len(self.views)
 
-        self.scaler = numpy.full(self.image_size, 1.0/self.n_views, dtype=numpy.float32)
+        #yself.scaler = numpy.full(self.image_size, 1.0/self.n_views,
+        # dtype=numpy.float32)
 
         print('Optimal kernel config: %s x %s' % (blockpergrid, threadpergpublock))
 
@@ -74,11 +76,9 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
         print 'Beginning the computation of the %i. estimate' % self.iteration_count
 
         if "multiplicative" in self.options.fusion_method:
-            estimate_new = numpy.ones(self.image_size, dtype=numpy.float32)
+            self.estimate_new[:] = numpy.ones(self.image_size, dtype=numpy.float32)
         else:
-            estimate_new = numpy.zeros(self.image_size, dtype=numpy.float32)
-
-
+            self.estimate_new[:] = numpy.zeros(self.image_size, dtype=numpy.float32)
 
         # Iterate over blocks
         for x, y, z in itertools.product(xrange(0, self.image_size[0], self.block_size[0]),
@@ -90,16 +90,21 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
             stream1 = cuda.stream()
             stream2 = cuda.stream()
 
-            for idx, view in enumerate(self.views):
-                print "Calculating estimate for view %i" % view
-                if self.options.block_pad > 0:
-                    h_estimate_block = self.get_padded_block(index.copy())
-                else:
-                    h_estimate_block = self.estimate[index[0]:index[0] + self.block_size[0],
-                                                     index[1]:index[1] + self.block_size[1],
-                                                     index[2]:index[2] + self.block_size[2]]
+            if self.options.block_pad > 0:
+                h_estimate_block = self.get_padded_block(index.copy(
 
-                d_estimate_block = cuda.to_device(h_estimate_block.astype(numpy.complex64), stream=stream1)
+                )).astype(numpy.complex64)
+            else:
+                h_estimate_block = self.estimate[
+                                   index[0]:index[0] + self.block_size[0],
+                                   index[1]:index[1] + self.block_size[1],
+                                   index[2]:index[2] + self.block_size[
+                                       2]].astype(numpy.complex64)
+
+            for idx, view in enumerate(self.views):
+                #print "Calculating estimate for view %i" % view
+
+                d_estimate_block = cuda.to_device(h_estimate_block, stream=stream1)
                 d_psf = cuda.to_device(self.psfs_fft[idx], stream=stream2)
 
                 # Execute: cache = convolve(PSF, estimate), non-normalized
@@ -109,70 +114,85 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
                 self.vmult(d_estimate_block, d_psf, out=d_estimate_block)
                 ifft_inplace(d_estimate_block)
 
-                h_estimate_block = d_estimate_block.copy_to_host()
+                h_estimate_block_new = d_estimate_block.copy_to_host()
 
                 # Execute: cache = data/cache
                 self.data.set_active_image(view, self.options.channel, self.options.scale, "registered")
                 h_image_block = self.data.get_registered_block(self.block_size,
                                                                self.options.block_pad,
                                                                index.copy()).astype(numpy.float32)
-                ops_ext.inverse_division_inplace(h_estimate_block, h_image_block)
+                ops_ext.inverse_division_inplace(h_estimate_block_new,
+                                                 h_image_block)
 
-                d_estimate_block = cuda.to_device(h_estimate_block, stream=stream1)
-                d_adj_psf = cuda.to_device(self.adj_psfs_fft[idx],
-                                           stream=stream2)
+                d_estimate_block = cuda.to_device(h_estimate_block_new,
+                                                  stream=stream1)
+                d_adj_psf = cuda.to_device(self.adj_psfs_fft[idx], stream=stream2)
 
                 fft_inplace(d_estimate_block, stream=stream1)
                 stream2.synchronize()
                 self.vmult(d_estimate_block, d_adj_psf, out=d_estimate_block)
                 ifft_inplace(d_estimate_block)
-                h_estimate_block = d_estimate_block.copy_to_host().real
+                h_estimate_block_new = d_estimate_block.copy_to_host().real
 
                 # Update the contribution from a single view to the new estimate
                 if self.options.block_pad == 0:
                     if "multiplicative" in self.options.fusion_method:
-                        estimate_new[index[0]:index[0] + self.block_size[0],
-                                     index[1]:index[1] + self.block_size[1],
-                                     index[2]:index[2] + self.block_size[2]] *= h_estimate_block
+                        self.estimate_new[
+                            index[0]:index[0] + self.block_size[0],
+                            index[1]:index[1] + self.block_size[1],
+                            index[2]:index[2] + self.block_size[2]
+                        ] *= h_estimate_block_new
                     else:
 
-                        estimate_new[index[0]:index[0] + self.block_size[0],
-                                     index[1]:index[1] + self.block_size[1],
-                                     index[2]:index[2] + self.block_size[2]] += h_estimate_block
+                        self.estimate_new[
+                            index[0]:index[0] + self.block_size[0],
+                            index[1]:index[1] + self.block_size[1],
+                            index[2]:index[2] + self.block_size[2]
+                        ] += h_estimate_block_new
                 else:
                     pad = self.options.block_pad
 
                     if "multiplicative" in self.options.fusion_method:
-                        estimate_new[index[0]:index[0] + self.block_size[0],
-                                     index[1]:index[1] + self.block_size[1],
-                                     index[2]:index[2] + self.block_size[2]] *= h_estimate_block[pad:pad + self.block_size[0],
-                                                                                                 pad:pad + self.block_size[1],
-                                                                                                 pad:pad + self.block_size[2]]
+                        self.estimate_new[
+                            index[0]:index[0] + self.block_size[0],
+                            index[1]:index[1] + self.block_size[1],
+                            index[2]:index[2] + self.block_size[2]
+                        ] *= h_estimate_block_new[
+                                 pad:pad + self.block_size[0],
+                                 pad:pad + self.block_size[1],
+                                 pad:pad + self.block_size[2]
+                             ]
                     else:
                         # print "The block size is ", self.block_size
-                        estimate_new[index[0]:index[0] + self.block_size[0],
+                        self.estimate_new[
+                            index[0]:index[0] + self.block_size[0],
                                      index[1]:index[1] + self.block_size[1],
-                                     index[2]:index[2] + self.block_size[2]] += h_estimate_block[pad:pad + self.block_size[0],
-                                                                                                 pad:pad + self.block_size[1],
-                                                                                                 pad:pad + self.block_size[2]]
+                                     index[2]:index[2] + self.block_size[2]
+                        ] += h_estimate_block_new[
+                                 pad:pad + self.block_size[0],
+                                 pad:pad + self.block_size[1],
+                                 pad:pad + self.block_size[2]
+                             ]
         # Divide with the number of projections
         if "summative" in self.options.fusion_method:
-            estimate_new = self.float_vmult(estimate_new, self.scaler)
-            #estimate_new *= (1.0 / self.n_views)
+            # self.estimate_new[:] = self.float_vmult(self.estimate_new,
+            #                                         self.scaler)
+            self.estimate_new *= (1.0 / self.n_views)
         else:
-            estimate_new = genutils.nroot(estimate_new, self.n_views)
+            self.estimate_new[:] = genutils.nroot(self.estimate_new,
+                                                  self.n_views)
 
         # TV Regularization (doesn't seem to do anything miraculous).
         if self.options.rltv_lambda > 0 and self.iteration_count > 0:
             dv_est = ops_ext.div_unit_grad(self.estimate, self.voxel_size)
             with numpy.errstate(divide="ignore"):
-                estimate_new /= (1.0 - self.options.rltv_lambda * dv_est)
-                estimate_new[estimate_new == numpy.inf] = 0.0
-                estimate_new = numpy.nan_to_num(estimate_new)
+                self.estimate_new /= (1.0 - self.options.rltv_lambda * dv_est)
+                self.estimate_new[self.estimate_new == numpy.inf] = 0.0
+                self.estimate_new[:] = numpy.nan_to_num(self.estimate_new)
 
         # Update estimate inplace. Get convergence statistics.
         return ops_ext.update_estimate_poisson(self.estimate,
-                                               estimate_new,
+                                               self.estimate_new,
                                                self.options.convergence_epsilon)
 
     @staticmethod
@@ -223,20 +243,36 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
         """
         Pre-calculates the PSFs during image fusion process.
         """
-        self.psfs_fft = []
-        self.adj_psfs_fft = []
+        print "Pre-calculating PSFs"
+
         padded_block_size = tuple(self.block_size + 2*self.options.block_pad)
+        memmap_shape = numpy.insert(numpy.array(padded_block_size), 0,
+                                    self.n_views)
+
+        psfs_fft_f = os.path.join(self.memmap_directory, 'psf_fft_f.dat')
+        self.psfs_fft = numpy.memmap(psfs_fft_f, dtype='complex64',
+                                     mode='w+', shape=tuple(memmap_shape))
+        adj_psfs_fft_f = os.path.join(self.memmap_directory,
+                                      'adj_psf_fft_f.dat')
+        self.adj_psfs_fft = numpy.memmap(adj_psfs_fft_f, dtype='complex64',
+                                         mode='w+', shape=tuple(memmap_shape))
+
         for view in self.views:
-            h_psf = genutils.expand_to_shape(self.psfs[view], padded_block_size).astype(numpy.complex64)
-            h_adj_psf = genutils.expand_to_shape(self.adj_psfs[view], padded_block_size).astype(numpy.complex64)
-            h_psf = numpy.fft.fftshift(h_psf)
-            h_adj_psf = numpy.fft.fftshift(h_adj_psf)
+            self.psfs_fft[view] = genutils.expand_to_shape(
+                self.psfs[view], padded_block_size).astype(numpy.complex64)
+            self.adj_psfs_fft[view] = genutils.expand_to_shape(
+                self.adj_psfs[view], padded_block_size).astype(numpy.complex64)
+            self.psfs_fft[view] = numpy.fft.fftshift(self.psfs_fft[view])
+            self.adj_psfs_fft[view] = numpy.fft.fftshift(self.adj_psfs_fft[view])
 
-            fft_inplace(h_psf)
-            fft_inplace(h_adj_psf)
+            fft_inplace(self.psfs_fft[view])
+            fft_inplace(self.adj_psfs_fft[view])
 
-            self.psfs_fft.append(h_psf)
-            self.adj_psfs_fft.append(h_adj_psf)
+    def close(self):
+        del self.psfs_fft
+        del self.adj_psfs_fft
+        fusion.MultiViewFusionRL.close(self)
+
 
 
 

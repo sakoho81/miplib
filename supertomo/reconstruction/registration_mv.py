@@ -92,15 +92,6 @@ class MultiViewRegistration:
                                    "original")
         fixed_image = self.data.get_itk_image()
 
-        # Check if a result exists for the chosen image pair
-        if self.data.check_if_exists("registered",
-                                     self.moving_index,
-                                     self.options.channel,
-                                     self.options.scale):
-            if utils.get_user_input("A result already exists for the view %i. "
-                                    "Do you want to skip registering it?"):
-                return
-
         # Get moving image
         self.data.set_active_image(self.moving_index,
                                    self.options.channel,
@@ -156,11 +147,11 @@ class MultiViewRegistration:
         # The registration metric works more reliably when it knows where
         # non-zero
         # voxels are located.
-
+        thd = self.options.mask_threshold
         fixed_mask = sitk.BinaryDilate(
-            sitk.BinaryThreshold(fixed_image, 0, 30, 0, 1))
+            sitk.BinaryThreshold(fixed_image, 0, thd, 0, 1))
         moving_mask = sitk.BinaryDilate(
-            sitk.BinaryThreshold(modified_moving_image, 0, 30, 0, 1))
+            sitk.BinaryThreshold(modified_moving_image, 0, thd, 0, 1))
 
         self.registration.SetMetricFixedMask(fixed_mask)
         self.registration.SetMetricMovingMask(moving_mask)

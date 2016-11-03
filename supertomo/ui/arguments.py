@@ -23,6 +23,9 @@ def parseRangeList(rngs):
 
     return sorted(set(chain(*[parse_range(rng) for rng in rngs.split(',')])))
 
+def parseFromToString(string):
+    return list(int(i) for i in string.split("to"))
+
 # CLI SCRIPT ARGUMENTS
 # The supertomo scripts located in the /bin each have their specific
 # argparse functions. Common arguments are added as argument groups.
@@ -43,6 +46,13 @@ def get_import_script_options(arguments):
         '--calculate-psfs',
         dest='calculate_psfs',
         action='store_true'
+    )
+
+    parser.add_argument(
+        '--copy-registration-result',
+        dest='copy_registration_result',
+        type=parseFromToString,
+        default=-1,
     )
 
     return parser.parse_args(arguments)
@@ -266,6 +276,16 @@ def get_fusion_options(parser):
         type=parseRangeList,
         default=-1
     )
+    group.add_argument(
+        '--memmap-estimates',
+        action='store_true'
+    )
+
+    group.add_argument(
+        '--disable-tau1',
+        action='store_true'
+    )
+
     return parser
 
 
@@ -486,11 +506,12 @@ def get_registration_options(parser):
         action='store_false'
     )
     group.add_argument(
-        '--threshold',
+        '--mask-threshold',
+        dest='mask_threshold',
         type=int,
-        default=0,
-        help='Inserting an integer value larger than zero enables a grayscale'
-             'threshold filter'
+        default=30,
+        help='Intensity threshold for the registration spatial mask. It '
+             'defaults to 30, which works with most images.'
     )
     group.add_argument(
         '--learning-rate',
@@ -498,6 +519,8 @@ def get_registration_options(parser):
         type=float,
         default=1.0
     )
+
+
 
     return parser
 

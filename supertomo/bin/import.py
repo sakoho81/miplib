@@ -147,6 +147,11 @@ def main():
     if options.calculate_psfs:
         data.calculate_missing_psfs()
 
+    if options.copy_registration_result != -1:
+        from_scale = options.copy_registration_result[0]
+        to_scale = options.copy_registration_result[1]
+        data.copy_registration_result(from_scale, to_scale)
+
     data.close()
 
 
