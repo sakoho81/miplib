@@ -6,6 +6,7 @@ import SimpleITK as sitk
 
 from ..utils import itkutils
 from ..definitions import *
+import supertomo.ui.utils as uiutils
 
 
 class ImageData():
@@ -142,7 +143,12 @@ class ImageData():
 
         name = "channel_" + str(channel) + "_scale_" + str(scale)
         if name in image_group:
-            return
+            if uiutils.get_user_input("The dataset %s already exists in image "
+                                      "group %s. Do you want to overwrite "
+                                      "it? " % (name, group_name)):
+                image_group[name][:] = data
+            else:
+                return
 
         if chunk_size is None:
             image_group.create_dataset(name, data=data)
@@ -291,7 +297,7 @@ class ImageData():
                     spacing = tuple(100*x/scale for x in image_group[name_ref].attrs["spacing"])
                     z_factor = float(scale)/100
                     zoom = (z_factor, z_factor, z_factor)
-                    data = ndimage.zoom(image_group[name_ref], zoom, order=1)
+                    data = ndimage.zoom(image_group[name_ref], zoom, order=3)
                     if chunk_size is None:
                         image_group.create_dataset(name_new, data=data)
                     else:
@@ -307,6 +313,17 @@ class ImageData():
         calculated here before image fusion. This requires that the spatial transform
         is available for every registered view.
         """
+        max_scale = max(self.get_scales("registered"))
+        if max_scale < 100:
+            if uiutils.get_user_input("There is no registration result "
+                                      "available for the original images. The "
+                                      "largest available scale is %i. Do you "
+                                      "want to proceed with that? " %
+                                      max_scale):
+                pass
+            else:
+                raise ValueError("No suitable registration result available.")
+
         for channel in range(self.channel_count):
             self.set_active_image(0, channel, 100, "psf")
             image_spacing = self.get_voxel_size()
@@ -314,7 +331,7 @@ class ImageData():
 
             for index in range(1, self.get_number_of_images("registered")):
                 if not self.check_if_exists("psf", index, channel, 100):
-                    self.set_active_image(index, channel, 100, "registered")
+                    self.set_active_image(index, channel, max_scale, "registered")
                     transform = self.get_transform()
                     psf_new = itkutils.rotate_psf(psf_orig,
                                                   transform,
@@ -324,7 +341,7 @@ class ImageData():
                                  self.get_rotation_angle(), image_spacing,
                                  calculated=True)
 
-    def migrate_registration_result(self, from_scale, to_scale):
+    def copy_registration_result(self, from_scale, to_scale):
         """
         With this function it is possible
         to migrate the registration results from one scale to another.
@@ -349,17 +366,19 @@ class ImageData():
         # Check that the registration result for the specified scale
         # exists.
         assert from_scale in self.get_scales("registered")
-
+        print "Copying registration results from %i to %i percent scale" % (
+              from_scale, to_scale)
         if to_scale not in self.get_scales("original"):
             self.create_rescaled_images("original", to_scale)
 
         for channel in range(self.channel_count):
-
+            print "Resampling view 0"
             self.set_active_image(0, channel, to_scale, "original")
             self.add_registered_image(self.data[self.active_image][:], to_scale,
                                       0, channel, 0, self.get_voxel_size())
 
             for view in range(1, self.get_number_of_images("original")):
+                print "Resampling view %i" % view
                 self.set_active_image(view, channel, from_scale, "registered")
                 transform = self.get_transform()
                 self.set_active_image(view, channel, to_scale, "original")

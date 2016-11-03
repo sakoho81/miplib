@@ -12,6 +12,7 @@ This is the main program file for the SuperTomo fusion calculation
 
 import sys
 import os
+import time
 
 from accelerate.cuda import cuda_compatible
 
@@ -20,7 +21,8 @@ import supertomo.reconstruction.fusion_cuda as gpufusion
 
 import supertomo.io.image_data as image_data
 import supertomo.ui.arguments as arguments
-
+import supertomo.ui.utils as uiutils
+import supertomo.utils.generic_utils as genutils
 
 def main():
 
@@ -54,21 +56,30 @@ def main():
         task = fusion.MultiViewFusionRL(data, options)
 
     # task = fusion.MultiViewFusionRL(data, options)
+    begin = time.time()
     task.execute()
-    task.show_result()
+    end = time.time()
 
-    while True:
-        keep = raw_input("Do you want to save the result (yes/no)? ")
-        if keep in ('y', 'Y', 'yes', 'YES'):
-            task.save_to_hdf()
-            break
-        elif keep in ('n', 'N', 'no', 'No'):
-            print "Exiting without saving results."
-            break
-        else:
-            print "Unkown command. Please state yes or no"
+    if options.evaluate_results:
+        task.show_result()
+
+    print "Fusion complete."
+    print "The fusion process with %i iterations " \
+          "took %s (H:M:S) to complete." % (options.max_nof_iterations,
+                                            genutils.format_time_string(
+                                                end-begin))
+
+    if uiutils.get_user_input("Do you want to save the result to TIFF? "):
+        file_path = os.path.join(options.working_directory,
+                                 "fusion_result.tif")
+        task.save_to_tiff(file_path)
+
+    if uiutils.get_user_input("Do you want to save the result to the HDF data "
+                              "structure? "):
+        task.save_to_hdf()
 
     data.close()
+    task.close()
 
 
 if __name__ == "__main__":
