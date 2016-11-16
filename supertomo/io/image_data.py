@@ -146,7 +146,7 @@ class ImageData():
             if uiutils.get_user_input("The dataset %s already exists in image "
                                       "group %s. Do you want to overwrite "
                                       "it? " % (name, group_name)):
-                image_group[name][:] = data
+                del image_group[name]
             else:
                 return
 
@@ -262,7 +262,7 @@ class ImageData():
         if channel > 0 and self.channel_count == 1:
             raise ValueError("Invalid channel count")
 
-        name = "channel" + str(channel) + "scale" + str(scale)
+        name = "channel_" + str(channel) + "_scale_" + str(scale)
         if name in image_group:
             return
 
@@ -281,7 +281,14 @@ class ImageData():
         chunk_size  The same as with the other images. Can be used to define a
                     particular chunk size for data storage.
         """
-
+        if scale in self.get_scales(type):
+            if uiutils.get_user_input(
+                            "The scale %i already exists for the image type "
+                            "%s. Do you want to recalculate?" % (scale, type)
+            ):
+                pass
+            else:
+                return
         # Iterate over all the images
         for index in range(self.get_number_of_images(type)):
             group_name = type + "/" + str(index)
@@ -290,22 +297,22 @@ class ImageData():
             for channel in range(self.channel_count):
                 name_new = "channel_" + str(channel) + "_scale_" + str(scale)
                 name_ref = "channel_" + str(channel) + "_scale_100"
-                # Check if exists and create if not.
+                # Check if exists and delete if yes.
                 if name_new in image_group:
+                    del image_group[name_new]
                     continue
+                spacing = tuple(100*x/scale for x in image_group[name_ref].attrs["spacing"])
+                z_factor = float(scale)/100
+                zoom = (z_factor, z_factor, z_factor)
+                data = ndimage.zoom(image_group[name_ref], zoom, order=3)
+                if chunk_size is None:
+                    image_group.create_dataset(name_new, data=data)
                 else:
-                    spacing = tuple(100*x/scale for x in image_group[name_ref].attrs["spacing"])
-                    z_factor = float(scale)/100
-                    zoom = (z_factor, z_factor, z_factor)
-                    data = ndimage.zoom(image_group[name_ref], zoom, order=3)
-                    if chunk_size is None:
-                        image_group.create_dataset(name_new, data=data)
-                    else:
-                        image_group.create_dataset(name_new, data=data, chunks=chunk_size)
+                    image_group.create_dataset(name_new, data=data, chunks=chunk_size)
 
-                    image_group[name_new].attrs["angle"] = image_group[name_ref].attrs["angle"]
-                    image_group[name_new].attrs["spacing"] = spacing
-                    image_group[name_new].attrs["size"] = data.shape
+                image_group[name_new].attrs["angle"] = image_group[name_ref].attrs["angle"]
+                image_group[name_new].attrs["spacing"] = spacing
+                image_group[name_new].attrs["size"] = data.shape
 
     def calculate_missing_psfs(self):
         """
@@ -376,6 +383,9 @@ class ImageData():
             self.set_active_image(0, channel, to_scale, "original")
             self.add_registered_image(self.data[self.active_image][:], to_scale,
                                       0, channel, 0, self.get_voxel_size())
+            self.set_active_image(0, channel, to_scale, "registered")
+            reference = self.get_itk_image()
+
 
             for view in range(1, self.get_number_of_images("original")):
                 print "Resampling view %i" % view
@@ -386,7 +396,7 @@ class ImageData():
                 angle = self.get_rotation_angle(radians=False)
                 spacing = self.get_voxel_size()
                 result = itkutils.convert_to_numpy(
-                    itkutils.resample_image(image, transform)
+                    itkutils.resample_image(image, transform, reference=reference)
                 )[0]
                 self.add_registered_image(result, to_scale, view, channel, angle,
                                           spacing)
@@ -528,7 +538,10 @@ class ImageData():
             print "Unkown image type."
             return
         else:
-            self.active_image = image_type + "/" + str(index) + "/channel_" + str(channel) + "_scale_" + str(scale)
+            if image_type == "fused":
+                self.active_image = image_type + "/channel_" + str(channel) + "_scale_" + str(scale)
+            else:
+                self.active_image = image_type + "/" + str(index) + "/channel_" + str(channel) + "_scale_" + str(scale)
             if self.active_image not in self.data:
                 raise ValueError("No such image: %s" % self.active_image)
 
