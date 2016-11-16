@@ -81,31 +81,34 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
             self.estimate_new[:] = numpy.zeros(self.image_size, dtype=numpy.float32)
 
         # Iterate over blocks
-        for x, y, z in itertools.product(xrange(0, self.image_size[0], self.block_size[0]),
-                                         xrange(0, self.image_size[1], self.block_size[1]),
-                                         xrange(0, self.image_size[2], self.block_size[2])):
+        stream1 = cuda.stream()
+        stream2 = cuda.stream()
 
-            index = numpy.array((x, y, z), dtype=int)
+        for idx, view in enumerate(self.views):
+            psf_fft = self.psfs_fft[idx]
+            adj_psf_fft = self.adj_psfs_fft[idx]
 
-            stream1 = cuda.stream()
-            stream2 = cuda.stream()
+            self.data.set_active_image(view, self.options.channel,
+                                       self.options.scale, "registered")
 
-            if self.options.block_pad > 0:
-                h_estimate_block = self.get_padded_block(index.copy(
+            for x, y, z in itertools.product(xrange(0, self.image_size[0], self.block_size[0]),
+                                             xrange(0, self.image_size[1], self.block_size[1]),
+                                             xrange(0, self.image_size[2], self.block_size[2])):
 
-                )).astype(numpy.complex64)
-            else:
-                h_estimate_block = self.estimate[
-                                   index[0]:index[0] + self.block_size[0],
-                                   index[1]:index[1] + self.block_size[1],
-                                   index[2]:index[2] + self.block_size[
-                                       2]].astype(numpy.complex64)
+                index = numpy.array((x, y, z), dtype=int)
 
-            for idx, view in enumerate(self.views):
-                #print "Calculating estimate for view %i" % view
+                if self.options.block_pad > 0:
+                    h_estimate_block = self.get_padded_block(
+                        index.copy()).astype(numpy.complex64)
+                else:
+                    h_estimate_block = self.estimate[
+                                       index[0]:index[0] + self.block_size[0],
+                                       index[1]:index[1] + self.block_size[1],
+                                       index[2]:index[2] + self.block_size[
+                                           2]].astype(numpy.complex64)
 
                 d_estimate_block = cuda.to_device(h_estimate_block, stream=stream1)
-                d_psf = cuda.to_device(self.psfs_fft[idx], stream=stream2)
+                d_psf = cuda.to_device(psf_fft, stream=stream2)
 
                 # Execute: cache = convolve(PSF, estimate), non-normalized
                 fft_inplace(d_estimate_block, stream=stream1)
@@ -117,7 +120,6 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
                 h_estimate_block_new = d_estimate_block.copy_to_host()
 
                 # Execute: cache = data/cache
-                self.data.set_active_image(view, self.options.channel, self.options.scale, "registered")
                 h_image_block = self.data.get_registered_block(self.block_size,
                                                                self.options.block_pad,
                                                                index.copy()).astype(numpy.float32)
@@ -126,7 +128,7 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
 
                 d_estimate_block = cuda.to_device(h_estimate_block_new,
                                                   stream=stream1)
-                d_adj_psf = cuda.to_device(self.adj_psfs_fft[idx], stream=stream2)
+                d_adj_psf = cuda.to_device(adj_psf_fft, stream=stream2)
 
                 fft_inplace(d_estimate_block, stream=stream1)
                 stream2.synchronize()
@@ -166,8 +168,8 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
                         # print "The block size is ", self.block_size
                         self.estimate_new[
                             index[0]:index[0] + self.block_size[0],
-                                     index[1]:index[1] + self.block_size[1],
-                                     index[2]:index[2] + self.block_size[2]
+                            index[1]:index[1] + self.block_size[1],
+                            index[2]:index[2] + self.block_size[2]
                         ] += h_estimate_block_new[
                                  pad:pad + self.block_size[0],
                                  pad:pad + self.block_size[1],
