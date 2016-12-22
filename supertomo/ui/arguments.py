@@ -286,6 +286,10 @@ def get_fusion_options(parser):
         action='store_true'
     )
 
+    group.add_argument(
+        '--disable-fft-psf-memmap',
+        action='store_true'
+    )
     return parser
 
 
