@@ -73,7 +73,8 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
             Calculates a single RL fusion estimate. There is no reason to call this
             function -- it is used internally by the class during fusion process.
         """
-        print 'Beginning the computation of the %i. estimate' % self.iteration_count
+        print 'Beginning the computation of the %i. estimate' % \
+              (self.iteration_count + 1)
 
         if "multiplicative" in self.options.fusion_method:
             self.estimate_new[:] = numpy.ones(self.image_size, dtype=numpy.float32)
@@ -248,16 +249,23 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
         print "Pre-calculating PSFs"
 
         padded_block_size = tuple(self.block_size + 2*self.options.block_pad)
+
         memmap_shape = numpy.insert(numpy.array(padded_block_size), 0,
                                     self.n_views)
 
-        psfs_fft_f = os.path.join(self.memmap_directory, 'psf_fft_f.dat')
-        self.psfs_fft = numpy.memmap(psfs_fft_f, dtype='complex64',
-                                     mode='w+', shape=tuple(memmap_shape))
-        adj_psfs_fft_f = os.path.join(self.memmap_directory,
-                                      'adj_psf_fft_f.dat')
-        self.adj_psfs_fft = numpy.memmap(adj_psfs_fft_f, dtype='complex64',
+        if self.options.disable_fft_psf_memmap:
+            self.psfs_fft = numpy.zeros(tuple(memmap_shape),
+                                        dtype=numpy.complex64)
+            self.adj_psfs_fft = numpy.zeros(tuple(memmap_shape),
+                                            dtype=numpy.complex64)
+        else:
+            psfs_fft_f = os.path.join(self.memmap_directory, 'psf_fft_f.dat')
+            self.psfs_fft = numpy.memmap(psfs_fft_f, dtype='complex64',
                                          mode='w+', shape=tuple(memmap_shape))
+            adj_psfs_fft_f = os.path.join(self.memmap_directory,
+                                          'adj_psf_fft_f.dat')
+            self.adj_psfs_fft = numpy.memmap(adj_psfs_fft_f, dtype='complex64',
+                                             mode='w+', shape=tuple(memmap_shape))
 
         for view in self.views:
             self.psfs_fft[view] = genutils.expand_to_shape(
@@ -271,8 +279,9 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
             fft_inplace(self.adj_psfs_fft[view])
 
     def close(self):
-        del self.psfs_fft
-        del self.adj_psfs_fft
+        if not self.options.disable_fft_psf_memmap:
+            del self.psfs_fft
+            del self.adj_psfs_fft
         fusion.MultiViewFusionRL.close(self)
 
 
