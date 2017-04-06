@@ -105,7 +105,7 @@ class MultiViewFusionRL:
         print "The internal block size is %i %i %i" % padded_block_size
         # Create temporary directory and data file.
         self.data_to_save = ('count', 't', 'mn', 'mx', 'tau1', 'tau2', 'leak', 'e',
-                             's', 'u', 'n', 'u_esu', 'mem')
+                             's', 'u', 'n', 'u_esu')
         self.temp_data = temp_data.TempData()
         self.temp_data.create_data_file("fusion_data.csv", self.data_to_save)
         self.temp_data.write_comment('Fusion Command: %s' % (' '.join(map(str, sys.argv))))
@@ -261,6 +261,7 @@ class MultiViewFusionRL:
                                    self.options.channel,
                                    self.options.scale,
                                    "registered")
+        orig_size = self.data.get_image_size()
 
         if first_estimate == 'first_image':
             self.estimate[:] = self.data[:].astype(numpy.float32)
@@ -272,18 +273,18 @@ class MultiViewFusionRL:
                                            self.options.channel,
                                            self.options.scale,
                                            "registered")
-                self.estimate += self.data[:].astype(numpy.float32)
+                self.estimate[:orig_size[0], :orig_size[1], :orig_size[2]] += self.data[:].astype(numpy.float32)
             self.estimate *= (1.0/self.n_views)
         elif first_estimate == 'simple_fusion':
-            self.estimate[:] = self.data[:]
+            self.estimate[:orig_size[0], :orig_size[1], :orig_size[2]] = self.data[:]
             for i in xrange(1, self.n_views):
                 self.data.set_active_image(i,
                                            self.options.channel,
                                            self.options.scale,
                                            "registered")
-                self.estimate[:] = (
-                    self.estimate - (
-                        self.estimate - self.data[:]
+                self.estimate[:orig_size[0], :orig_size[1], :orig_size[2]] = (
+                    self.estimate[:orig_size[0], :orig_size[1], :orig_size[2]] - (
+                        self.estimate[:orig_size[0], :orig_size[1], :orig_size[2]] - self.data[:]
                     ).clip(min=0)
                 ).clip(min=0).astype(numpy.float32)
         elif first_estimate == 'average_af_all':
@@ -333,13 +334,11 @@ class MultiViewFusionRL:
                         self.prev_estimate).sum()
                     info_map['TAU1=%s'] = tau1
 
-                mem = int(numpy_utils.memusage() / 2 ** 20)
 
                 # Update UI
                 info_map['E/S/U/N=%s/%s/%s/%s'] = int(e), int(s), int(u), int(n)
                 info_map['LEAK=%s%%'] = 100 * photon_leak
                 info_map['U/ESU=%s'] = u_esu
-                info_map['MEM=%sMB'] = mem
                 info_map['TIME=%ss'] = t = time.time() - ittime
                 bar.updateComment(' ' + ', '.join([k % (genutils.tostr(info_map[k])) for k in sorted(info_map)]))
                 bar(self.iteration_count)

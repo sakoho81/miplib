@@ -391,6 +391,7 @@ class ImageData():
                 print "Resampling view %i" % view
                 self.set_active_image(view, channel, from_scale, "registered")
                 transform = self.get_transform()
+                transform_params = self.get_transform_parameters()
                 self.set_active_image(view, channel, to_scale, "original")
                 image = self.get_itk_image()
                 angle = self.get_rotation_angle(radians=False)
@@ -400,6 +401,9 @@ class ImageData():
                 )[0]
                 self.add_registered_image(result, to_scale, view, channel, angle,
                                           spacing)
+                self.add_transform(to_scale, view, channel, transform_params[0], transform_params[1], transform_params[2])
+
+                #  def add_transform(self, scale, index, channel, params, fixed_params, transform_type):
 
     def get_rotation_angle(self, radians=True):
         """
@@ -428,6 +432,9 @@ class ImageData():
         Voxel size as a three element tuple (assuming 3D image).
         """
         return self.data[self.active_image].attrs["spacing"]
+
+    def get_max(self):
+        return self.data[self.active_image][:].max()
 
     def get_image_size(self):
         """
@@ -520,6 +527,15 @@ class ImageData():
                                            3,
                                            tfm_params,
                                            tfm_fixed_params)
+
+    def get_transform_parameters(self):
+        assert "registered" in self.active_image
+        tfm_type = self.data[self.active_image].attrs["tfm_type"]
+        tfm_params = self.data[self.active_image].attrs["tfm_params"]
+        tfm_fixed_params = self.data[self.active_image].attrs["tfm_fixed_params"]
+
+        return tfm_params, tfm_fixed_params, tfm_type
+
 
     def set_active_image(self, index, channel, scale, image_type):
         """

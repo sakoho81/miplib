@@ -48,7 +48,7 @@ def main():
               "original STED PSF (that is assumed to be at index 0)."
         data.calculate_missing_psfs()
 
-    if cuda_compatible():
+    if cuda_compatible() and not options.disable_cuda:
         print "Found a compatible GPU. The image fusion will be run with " \
               "hardware acceleration."
         task = gpufusion.MultiViewFusionRLCuda(data, options)
@@ -78,8 +78,8 @@ def main():
                               "structure? "):
         task.save_to_hdf()
 
-    data.close()
     task.close()
+    data.close()
 
 
 if __name__ == "__main__":
