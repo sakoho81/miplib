@@ -88,9 +88,15 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
         for idx, view in enumerate(self.views):
             psf_fft = self.psfs_fft[idx]
             adj_psf_fft = self.adj_psfs_fft[idx]
+            #print "The current view is %i" % view
 
             self.data.set_active_image(view, self.options.channel,
                                        self.options.scale, "registered")
+
+            #TODO: Make this somehow more elegantly. Probably the max could be saved with the registration result
+            #or then I could just stretch to the full range after resampling.
+            weighting = float(self.data.get_max())/255
+            #print "The weighting is %f" % weighting
 
             for x, y, z in itertools.product(xrange(0, self.image_size[0], self.block_size[0]),
                                              xrange(0, self.image_size[1], self.block_size[1]),
@@ -124,6 +130,7 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
                 h_image_block = self.data.get_registered_block(self.block_size,
                                                                self.options.block_pad,
                                                                index.copy()).astype(numpy.float32)
+                h_estimate_block_new *= weighting
                 ops_ext.inverse_division_inplace(h_estimate_block_new,
                                                  h_image_block)
 

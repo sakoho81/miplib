@@ -185,6 +185,10 @@ def get_fusion_options(parser):
     group = parser.add_argument_group("Fusion", "Options for image fusion")
 
     group.add_argument(
+        '--disable-cuda',
+        action='store_true'
+    )
+    group.add_argument(
         '--max-nof-iterations',
         type=int,
         default=100,
