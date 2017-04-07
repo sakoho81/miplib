@@ -26,6 +26,10 @@ def parseRangeList(rngs):
 def parseFromToString(string):
     return list(int(i) for i in string.split("to"))
 
+def parseCommaSeparatedList(string):
+    return sorted(int(i)for i in string.split(','))
+
+
 # CLI SCRIPT ARGUMENTS
 # The supertomo scripts located in the /bin each have their specific
 # argparse functions. Common arguments are added as argument groups.
@@ -38,8 +42,7 @@ def get_import_script_options(arguments):
     parser.add_argument('data_dir_path')
     parser.add_argument(
         '--scales',
-        type=int,
-        nargs='*',
+        type=parseCommaSeparatedList,
         action='store'
     )
     parser.add_argument(
@@ -53,6 +56,10 @@ def get_import_script_options(arguments):
         dest='copy_registration_result',
         type=parseFromToString,
         default=-1,
+    )
+    parser.add_argument(
+        '--normalize-inputs',
+        action='store_true'
     )
 
     return parser.parse_args(arguments)
