@@ -55,6 +55,7 @@ psf_scale_<scale>_index_<index>_channel_<channel>_angle_<angle>.<suffix>
 """
 import sys
 import os
+import numpy
 from ..io import utils, image_data
 from ..definitions import *
 from ..ui import arguments
@@ -80,6 +81,9 @@ def main():
             images, spacing = utils.get_itk_image(full_path, return_itk=False)
         else:
             continue
+
+        if options.normalize_inputs:
+            images = (images * (255.0/images.max())).astype(numpy.uint8)
 
         if not all(x in image_name for x in params_c) or not any(x in image_name for x in image_types_c):
             print "Unrecognized image name %s. Skipping it." % image_name
