@@ -189,6 +189,7 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
             #                                         self.scaler)
             self.estimate_new *= (1.0 / self.n_views)
         else:
+            self.estimate_new[self.estimate_new < 0] = 0
             self.estimate_new[:] = genutils.nroot(self.estimate_new,
                                                   self.n_views)
 
@@ -258,7 +259,7 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
         padded_block_size = tuple(self.block_size + 2*self.options.block_pad)
 
         memmap_shape = numpy.insert(numpy.array(padded_block_size), 0,
-                                    self.n_views)
+                                    len(self.views))
 
         if self.options.disable_fft_psf_memmap:
             self.psfs_fft = numpy.zeros(tuple(memmap_shape),
@@ -274,16 +275,16 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
             self.adj_psfs_fft = numpy.memmap(adj_psfs_fft_f, dtype='complex64',
                                              mode='w+', shape=tuple(memmap_shape))
 
-        for view in self.views:
-            self.psfs_fft[view] = genutils.expand_to_shape(
+        for idx, view in enumerate(self.views):
+            self.psfs_fft[idx] = genutils.expand_to_shape(
                 self.psfs[view], padded_block_size).astype(numpy.complex64)
-            self.adj_psfs_fft[view] = genutils.expand_to_shape(
+            self.adj_psfs_fft[idx] = genutils.expand_to_shape(
                 self.adj_psfs[view], padded_block_size).astype(numpy.complex64)
-            self.psfs_fft[view] = numpy.fft.fftshift(self.psfs_fft[view])
-            self.adj_psfs_fft[view] = numpy.fft.fftshift(self.adj_psfs_fft[view])
+            self.psfs_fft[idx] = numpy.fft.fftshift(self.psfs_fft[idx])
+            self.adj_psfs_fft[idx] = numpy.fft.fftshift(self.adj_psfs_fft[idx])
 
-            fft_inplace(self.psfs_fft[view])
-            fft_inplace(self.adj_psfs_fft[view])
+            fft_inplace(self.psfs_fft[idx])
+            fft_inplace(self.adj_psfs_fft[idx])
 
     def close(self):
         if not self.options.disable_fft_psf_memmap:
