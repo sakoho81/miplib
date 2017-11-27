@@ -91,17 +91,17 @@ def main():
             em_image,
             options.image_type
          )
-
-    if options.threshold > 0:
-        sted_image = itkutils.threshold_image_filter(
-            sted_image,
-            options.threshold
-        )
-
-        em_image = itkutils.threshold_image_filter(
-            em_image,
-            options.threshold
-        )
+    #
+    # if options.threshold > 0:
+    #     sted_image = itkutils.threshold_image_filter(
+    #         sted_image,
+    #         options.threshold
+    #     )
+    #
+    #     em_image = itkutils.threshold_image_filter(
+    #         em_image,
+    #         options.threshold
+    #     )
 
     if options.normalize:
         print 'Normalizing images'

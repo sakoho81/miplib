@@ -397,7 +397,7 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
             numberOfHistogramBins=options.mattes_histogram_bins
         )
         registration.SetMetricSamplingStrategy(registration.RANDOM)
-        registration.SetMetricSamplingPercentage(options.mattes_sampling_percentage)
+        registration.SetMetricSamplingPercentage(options.sampling_percentage)
 
     elif options.registration_method == 'correlation':
         registration.SetMetricAsCorrelation()
