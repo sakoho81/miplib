@@ -14,14 +14,13 @@ import sys
 import datetime
 import SimpleITK as sitk
 
-from supertomo.reconstruction import registration
-from supertomo.io import utils as ioutils
+from supertomo.processing import registration
 from supertomo.utils import itkutils
-from supertomo.ui import arguments, show
+from supertomo.ui import supertomo_options
 
 
 def main():
-    options = arguments.get_correlate_tem_script_options(sys.argv[1:])
+    options = supertomo_options.get_correlate_tem_script_options(sys.argv[1:])
     
     # SETUP
     ##########################################################################

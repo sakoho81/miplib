@@ -1,13 +1,10 @@
 import subprocess
-import supertomo.io.tiffile as tiffile
+import supertomo.data.io.tiffile as tiffile
 import os
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Button
 import SimpleITK as sitk
-
-import time
 
 vaa3d_bin = "/home/sami/bin/Vaa3D_Ubuntu_64bit_v3.200/vaa3d"
 

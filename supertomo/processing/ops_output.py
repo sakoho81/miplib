@@ -1,26 +1,14 @@
-"""
-Various utilities.
-"""
-
-__autodoc__ = ['expand_to_shape', 'contract_to_shape', 'ProgressBar', 'Options', 'encode',
-               'tostr', 'get_path_dir', 'float2dtype', 'time_to_str', 'time_it',
-               'time2str', 'bytes2str', 'sround', 'mfloat']
-
-import os
 import sys
 import time
+import numpy
 import hashlib
 
-import numpy
-
-
-file_extensions = ['.tif', '.lsm', 'tiff', '.raw', '.data']
 
 VERBOSE = False
 
 
 def argument_string(obj):
-    if isinstance(obj, (str, )):
+    if isinstance(obj, (str,)):
         return repr(obj)
     if isinstance(obj, (int, float, complex)):
         return str(obj)
@@ -42,7 +30,7 @@ def time_it(func):
     """Decorator: print how long calling given function took.
 
     Notes
-    ----- 
+    -----
     ``iocbio.utils.VERBOSE`` must be True for this decorator to be
     effective.
     """
@@ -59,13 +47,15 @@ def time_it(func):
 
     return new_func
 
+
 def format_time_string(seconds):
     m, s = divmod(seconds, 60)
     h, m = divmod(m, 60)
     return "%d:%02d:%02d" % (h, m, s)
 
+
 class ProgressBar:
-    """Creates a text-based progress bar. 
+    """Creates a text-based progress bar.
 
     Call the object with the ``print`` command to see the progress bar,
     which looks something like this::
@@ -74,12 +64,12 @@ class ProgressBar:
 
     You may specify the progress bar's width, min and max values on
     init. For example::
-    
+
       bar = ProgressBar(N)
       for i in range(N):
         print bar(i)
       print bar(N)
-        
+
     References
     ----------
     http://code.activestate.com/recipes/168639/
@@ -103,7 +93,6 @@ class ProgressBar:
         self.updateAmount(0)  # Build progress bar string
         self.prefix = prefix
         self.comment = self.comment_last = ''
-
 
     def updateComment(self, comment):
         self.comment = comment
@@ -178,11 +167,11 @@ class ProgressBar:
 
 class Holder:
     """ Holds pairs ``(name, value)`` as instance attributes.
-    
+
     The set of Holder pairs is extendable by
 
     ::
-    
+
       <Holder instance>.<name> = <value>
 
     and the values are accessible as
@@ -289,7 +278,7 @@ def time_to_str(s):
 
     Examples
     --------
-    >>> from iocbio.utils import time_to_str
+    >>> from supertomo.processing.ops_output import time_to_str
     >>> print time_to_str(123000000)
     3Y10M24d10h40m
     >>> print time_to_str(1230000)
@@ -352,236 +341,3 @@ def time_to_str(s):
 
 
 time2str = time_to_str
-
-
-def cast_to_dtype(data, dtype, rescale=True, remove_outliers=False):
-    """
-     A function for casting a numpy array into a new data type.
-    The .astype() property of Numpy sometimes produces satisfactory
-    results, but if the data type to cast into has a more limited
-    dynamic range than the original data type, problems may occur.
-
-    :param data:            a numpy.array object
-    :param dtype:           data type string, as in Python
-    :param rescale:         switch to enable rescaling pixel
-                            values to the new dynamic range.
-                            This should always be enabled when
-                            scaling to a more limited range,
-                            e.g. from float to int
-    :param remove_outliers: sometimes deconvolution/fusion generates
-                            bright artifacts, which interfere with
-                            the rescaling calculation. You can remove them
-                            with this switch
-    :return:                Returns the input data, cast into the new datatype
-    """
-    if data.dtype == dtype:
-        return data
-
-    if 'int' in str(dtype):
-        data_info = numpy.iinfo(dtype)
-        data_max = data_info.max
-        data_min = data_info.min
-    elif 'float' in str(dtype):
-        data_info = numpy.finfo(dtype)
-        data_max = data_info.max
-        data_min = data_info.min
-    else:
-        data_max = data.max()
-        data_min = data.min()
-        print "Warning casting into unknown data type. Detail clipping" \
-              "may occur"
-
-    # In case of unsigned integers, numbers below zero need to be clipped
-    if 'uint' in str(dtype):
-        data_max = 255
-        data_min = 0
-
-    if remove_outliers:
-        data = data.clip(0, numpy.percentile(data, 99.99))
-
-    if rescale is True:
-        return rescale_to_min_max(data, data_min, data_max).astype(dtype)
-    else:
-        return data.clip(data_min, data_max).astype(dtype)
-
-
-def rescale_to_min_max(data, data_min, data_max):
-    """
-    A function to rescale image intensities to range, define by
-    data_min and data_max input parameters.
-
-    :param data:        Input image (Numpy array)
-    :param data_min:    Minimum pixel value. Can be any type of a number
-                        (preferably of the same type with the data.dtype)
-    :param data_max:    Maximum pixel value
-    :return:            Return the rescaled array
-    """
-    # Return array with max value in the original image scaled to correct
-    # range
-    if abs(data.max()) > abs(data.min()) or data_min == 0:
-        return data_max / data.max() * data
-    else:
-        return data_min / data.min() * data
-
-
-def get_coherent_images(psf, stack, dtype):
-    """
-    Return PSF and stack images so that they have
-      - same orientation and voxel sizes
-      - same fft-optimal shape
-      - same floating point type
-    and
-      - the center of PSF is shifted to origin
-      - PSF is normalized such that convolve (PSF, 1) = 1
-    """
-    psf_angle = psf.get_rotation_angle() or 0
-    stack_angle = stack.get_rotation_angle() or 0
-
-    psf_voxels = psf.get_voxel_sizes()
-    stack_voxels = stack.get_voxel_sizes()
-
-    psf_images = psf.images
-    stack_images = stack.images
-
-    if psf_angle != stack_angle:
-        rotation = psf_angle - stack_angle
-        psf_images = numpy.ndimage.rotate(psf_images, rotation, axes=(-1, -2))
-        print 'PSF was rotated by', rotation
-
-    if not numpy.allclose(psf_voxels, stack_voxels, rtol=0.01):
-        zoom_factors = tuple([a / b for a, b in zip(psf_voxels, stack_voxels)])
-        psf_images = numpy.ndimage.zoom(psf_images, zoom_factors)
-        print 'PSF was zoomed by', zoom_factors
-
-    max_shape = [max(a, b) for a, b in zip(psf_images.shape, stack_images.shape)]
-    optimal_shape = tuple(map(FFTTasks.get_optimal_fft_size, max_shape))
-    psf_images = expand_to_shape(psf_images, optimal_shape, dtype)
-    stack_images = expand_to_shape(stack_images, optimal_shape, dtype)
-
-    psf_images = fftpack.fftshift(psf_images)
-    psf_images /= psf_images.sum()
-
-    return psf_images, stack_images
-
-
-def expand_to_shape(data, shape, dtype=None, background=None):
-    """
-    Expand data to given shape by zero-padding.
-    """
-    if dtype is None:
-        dtype = data.dtype
-
-    start_index = numpy.array(shape) - data.shape
-    data_start = numpy.negative(start_index.clip(max=0))
-    data = cast_to_dtype(data, dtype, rescale=False)
-    data = data[data_start[0]:, data_start[1]:, data_start[2]:]
-
-    if background is None:
-        background = 0
-
-    if (shape != data.shape):
-        expanded_data = numpy.zeros(shape, dtype=dtype) + background
-        slices = []
-        rhs_slices = []
-        for s1, s2 in zip(shape, data.shape):
-            a, b = (s1 - s2 + 1) // 2, (s1 + s2 + 1) // 2
-            c, d = 0, s2
-            while a < 0:
-                a += 1
-                b -= 1
-                c += 1
-                d -= 1
-            slices.append(slice(a, b))
-            rhs_slices.append(slice(c, d))
-        try:
-            expanded_data[tuple(slices)] = data[tuple(rhs_slices)]
-        except ValueError:
-            print data.shape, shape
-            raise
-        return expanded_data
-    else:
-        return data
-
-
-def contract_to_shape(data, shape):
-    """
-    Remove padding from input data array. The function
-    expects the padding to be symmetric on all sides
-    """
-
-    if shape != data.shape:
-        slices = []
-        for s1, s2 in zip(data.shape, shape):
-            slices.append(slice((s1 - s2) // 2, (s1 + s2) // 2))
-
-        image = data[tuple(slices)]
-    else:
-        image = data
-
-    return image
-
-
-def mul_seq(seq):
-    return reduce(lambda x, y: x * y, seq, 1)
-
-
-def float2dtype(float_type):
-    """Return numpy float dtype object from float type label.
-    """
-    if float_type == 'single' or float_type is None:
-        return numpy.float32
-    if float_type == 'double':
-        return numpy.float64
-    raise NotImplementedError(`float_type`)
-
-
-def check_path(path, prefix):
-    """
-    :param path:    Path to a file (string)
-    :param prefix:  Path prefix, if applicable. Used in cases in
-                    which the path argument is not an absolute
-                    path
-    :return:        Returns the absolute path, if the file is found,
-                    None otherwise
-    """
-    if not os.path.isfile(path):
-        path = os.path.join(prefix, path)
-        if not os.path.isfile(path):
-            print 'Not a valid file %s' % path
-            return None
-        return path
-
-
-def get_path_dir(path, suffix):
-    """ Return a directory name with suffix that will be used to save data
-    related to given path.
-    """
-    if os.path.isfile(path):
-        path_dir = path + '.' + suffix
-    elif os.path.isdir(path):
-        path_dir = os.path.join(path, suffix)
-    elif os.path.exists(path):
-        raise ValueError('Not a file or directory: %r' % path)
-    else:
-        base, ext = os.path.splitext(path)
-        if ext in file_extensions:
-            path_dir = path + '.' + suffix
-        else:
-            path_dir = os.path.join(path, suffix)
-    return path_dir
-
-
-def nroot(array, n):
-    """
-
-    :param array:   A n dimensional numpy array by default. Of course this works
-                    with single numbers and whatever the interpreter can understand
-    :param n:       The root - a number
-    :return:
-    """
-    return array ** (1.0 / n)
-
-
-def normalize(array):
-    return array / array.sum()
-

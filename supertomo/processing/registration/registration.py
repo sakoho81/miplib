@@ -21,10 +21,8 @@ information 3. mattes mutual information are supported implemented
 
 import SimpleITK as sitk
 import matplotlib.pyplot as plt
-from IPython.display import clear_output
-from ..ui import show
-import sys
-import supertomo.utils.itkutils as itkutils
+
+import supertomo.processing.ops_itk as ops_itk
 import supertomo.ui.show as show
 
 # PLOTS
@@ -49,7 +47,7 @@ def end_plot(fixed, moving, transform):
     plt.ylabel('Metric Value', fontsize=12)
 
     # Plot image overlay
-    resampled = itkutils.resample_image(moving, transform, reference=fixed)
+    resampled = ops_itk.resample_image(moving, transform, reference=fixed)
 
     fixed = sitk.Cast(fixed, sitk.sitkUInt8)
     resampled = sitk.Cast(resampled, sitk.sitkUInt8)
@@ -104,7 +102,7 @@ def plot_values(registration_method):
 #     data_to_save = ('Metric', 'X-versor', 'Y-versor', 'Z-versor', 'X-translation',
 #                     'Y-translation', 'Z-translation')
 #     data_file_name = os.path.join(data_file_path, 'registration_data.txt')
-#     data_file = io.RowFile(data_file_name, data_to_save, append=False)
+#     data_file = data.RowFile(data_file_name, data_to_save, append=False)
 #     data_file.comment('Registration Command: %s' % (' '.join(map(str, sys.argv))))
 #
 #     # Check if type conversions are needed.
@@ -116,22 +114,22 @@ def plot_values(registration_method):
 #         # Cast to floating point. Can be single or double precision, depending
 #         # on the setting
 #         image_type = options.internal_type+'3'
-#         fixed_image = itkutils.type_cast(
+#         fixed_image = ops_itk.type_cast(
 #             fixed_image,
 #             options.image_type,
 #             image_type
 #         )
-#         moving_image = itkutils.type_cast(
+#         moving_image = ops_itk.type_cast(
 #             moving_image,
 #             options.image_type,
 #             image_type
 #         )
 #         # Normalize images
-#         fixed_image = itkutils.normalize_image_filter(
+#         fixed_image = ops_itk.normalize_image_filter(
 #             fixed_image,
 #             image_type
 #         )
-#         moving_image = itkutils.normalize_image_filter(
+#         moving_image = ops_itk.normalize_image_filter(
 #             moving_image,
 #             image_type
 #         )
@@ -423,7 +421,7 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
     else:
         tx.SetTranslation([options.y_offset, options.x_offset])
 
-        tx.SetCenter(itkutils.calculate_center_of_image(moving_image))
+        tx.SetCenter(ops_itk.calculate_center_of_image(moving_image))
         registration.SetInitialTransform(tx)
 
     # OBSERVERS
@@ -518,7 +516,7 @@ def itk_registration_similarity_2d(fixed_image, moving_image, options):
         registration.SetInitialTransform(transform)
     else:
         tx.SetTranslation([options.y_offset, options.x_offset])
-        tx.SetCenter(itkutils.calculate_center_of_image(moving_image))
+        tx.SetCenter(ops_itk.calculate_center_of_image(moving_image))
         registration.SetInitialTransform(tx)
 
     # OBSERVERS
@@ -614,7 +612,7 @@ def itk_registration_affine_2d(fixed_image, moving_image, options):
         registration.SetInitialTransform(transform)
     else:
         tx.SetTranslation([options.y_offset, options.x_offset])
-        tx.SetCenter(itkutils.calculate_center_of_image(moving_image))
+        tx.SetCenter(ops_itk.calculate_center_of_image(moving_image))
         registration.SetInitialTransform(tx)
 
     # OBSERVERS

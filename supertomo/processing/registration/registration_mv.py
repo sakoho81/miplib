@@ -1,9 +1,8 @@
 import SimpleITK as sitk
 import numpy
 
-from ..io import image_data
-from ..ui import utils
-from ..utils import itkutils
+from supertomo.data.containers import image_data
+import supertomo.processing.ops_itk as ops_itk
 
 
 class MultiViewRegistration:
@@ -124,7 +123,7 @@ class MultiViewRegistration:
                                          self.options.x_offset,
                                          self.options.z_offset])
 
-        modified_moving_image = itkutils.resample_image(moving_image,
+        modified_moving_image = ops_itk.resample_image(moving_image,
                                                         manual_transform)
 
         # 2. Run Automatic initialization
@@ -250,7 +249,7 @@ class MultiViewRegistration:
 
         moving_image = self.data.get_itk_image()
 
-        return itkutils.resample_image(moving_image, self.final_transform,
+        return ops_itk.resample_image(moving_image, self.final_transform,
                                        fixed_image)
 
     def save_result(self):
@@ -262,13 +261,13 @@ class MultiViewRegistration:
         self.data.set_active_image(view, channel, scale, "original")
         angle = self.data.get_rotation_angle(radians=False)
         spacing = self.data.get_voxel_size()
-        registered_image = itkutils.convert_to_numpy(
+        registered_image = ops_itk.convert_to_numpy(
             self.get_resampled_result())[0]
         self.data.add_registered_image(registered_image, scale, view, channel,
                                        angle, spacing)
         # Add transform
         transform = self.get_final_transform()
-        tfm_params = itkutils.get_itk_transform_parameters(transform)
+        tfm_params = ops_itk.get_itk_transform_parameters(transform)
         self.data.add_transform(scale, view, channel, tfm_params[1],
                                 tfm_params[2], tfm_params[0])
 

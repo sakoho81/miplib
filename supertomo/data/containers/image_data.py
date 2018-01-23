@@ -2,10 +2,9 @@ import os
 import h5py
 import numpy
 import scipy.ndimage as ndimage
-import SimpleITK as sitk
 
-from ..utils import itkutils
-from ..definitions import *
+from supertomo.utils import itkutils
+from supertomo.data.definitions import *
 import supertomo.ui.utils as uiutils
 
 

@@ -25,13 +25,14 @@ import os
 import shutil
 
 import numpy
-from numpy.testing import utils as numpy_utils
 from scipy.signal import fftconvolve, medfilt
 from scipy.ndimage.interpolation import zoom
 
-from supertomo.io import image_data, temp_data, tiffile
+from supertomo.data.io import tiffile
+from supertomo.data.containers import temp_data, image_data
 import ops_ext
-from supertomo.utils import itkutils, generic_utils as genutils
+import supertomo.processing.ops_array as ops_array
+import supertomo.processing.ops_output as ops_output
 
 
 class MultiViewFusionRL:
@@ -206,7 +207,7 @@ class MultiViewFusionRL:
         if "summative" in self.options.fusion_method:
             self.estimate_new *= (1.0 / self.n_views)
         else:
-            self.estimate_new[:] = genutils.nroot(self.estimate_new,
+            self.estimate_new[:] = ops_array.nroot(self.estimate_new,
                                                   self.n_views)
 
         return ops_ext.update_estimate_poisson(self.estimate,
@@ -306,7 +307,7 @@ class MultiViewFusionRL:
         max_count = self.options.max_nof_iterations
         initial_photon_count = self.data[:].sum()
 
-        bar = genutils.ProgressBar(0,
+        bar = ops_array.ProgressBar(0,
                                    max_count,
                                    totalWidth=40,
                                    show_percentage=False)
@@ -340,7 +341,7 @@ class MultiViewFusionRL:
                 info_map['LEAK=%s%%'] = 100 * photon_leak
                 info_map['U/ESU=%s'] = u_esu
                 info_map['TIME=%ss'] = t = time.time() - ittime
-                bar.updateComment(' ' + ', '.join([k % (genutils.tostr(info_map[k])) for k in sorted(info_map)]))
+                bar.updateComment(' ' + ', '.join([k % (ops_output.tostr(info_map[k])) for k in sorted(info_map)]))
                 bar(self.iteration_count)
                 print
 

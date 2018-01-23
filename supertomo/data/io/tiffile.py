@@ -166,7 +166,7 @@ Other Python packages and modules for reading bio-scientific TIFF files:
 *  `PyLSM <https://launchpad.net/pylsm>`_
 *  `PyMca.TiffIO.py <http://pymca.sourceforge.net/>`_ (same as fabio.TiffIO)
 *  `BioImageXD.Readers <http://www.bioimagexd.net/>`_
-*  `Cellcognition.io <http://cellcognition.org/>`_
+*  `Cellcognition.data <http://cellcognition.org/>`_
 *  `CellProfiler.bioformats
    <https://github.com/CellProfiler/python-bioformats>`_
 
@@ -244,7 +244,7 @@ except ImportError:
 
 try:
     if __package__:
-        from . import _tifffile
+        from supertomo.data import _tifffile
     else:
         import _tifffile
 except ImportError:
@@ -1755,7 +1755,7 @@ class TiffFile(object):
     def fstat(self):
         try:
             return os.fstat(self._fh.fileno())
-        except Exception:  # io.UnsupportedOperation
+        except Exception:  # data.UnsupportedOperation
             return None
 
     @lazyattr
@@ -5163,7 +5163,7 @@ CZ_DATA_TYPES = {
 CZ_TYPE_OF_DATA = {
     0: 'Original scan data',
     1: 'Calculated data',
-    2: '3D reconstruction',
+    2: '3D processing',
     3: 'Topography height map',
 }
 

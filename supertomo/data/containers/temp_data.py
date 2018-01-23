@@ -1,6 +1,6 @@
 import os
 import tempfile
-import tiffile
+import supertomo.data.io.tiffile
 
 
 class TempData():
@@ -23,7 +23,7 @@ class TempData():
 
     def save_image(self, data, filename):
         image_path = os.path.join(self.dir, filename)
-        tiffile.imsave(image_path, data)
+        supertomo.data.io.tiffile.imsave(image_path, data)
 
     def close_data_file(self):
         self.data_file.close()
@@ -90,7 +90,7 @@ class RowFile:
             self.file = open(self.filename, 'w')
             self.nof_cols = len(titles + extra_titles)
             self.comment('@,@'.join(titles + extra_titles))
-            self.comment('To read data from this file, use ioc.microscope.io.RowFile(%r).read().' % (self.filename))
+            self.comment('To read data from this file, use ioc.microscope.data.RowFile(%r).read().' % (self.filename))
 
             if data is not None:
                 for i in range(len(data[data_titles[0]])):

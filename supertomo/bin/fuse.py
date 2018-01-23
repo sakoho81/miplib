@@ -16,13 +16,13 @@ import time
 
 from accelerate.cuda import cuda_compatible
 
-import supertomo.reconstruction.fusion as fusion
-import supertomo.reconstruction.fusion_cuda as gpufusion
+import supertomo.processing.fusion as fusion
+import supertomo.processing.fusion.fusion_cuda as gpufusion
 
-import supertomo.io.image_data as image_data
-import supertomo.ui.arguments as arguments
+import supertomo.data.containers.image_data as image_data
+import supertomo.ui.supertomo_options as arguments
 import supertomo.ui.utils as uiutils
-import supertomo.utils.generic_utils as genutils
+import supertomo.processing.ops_output as genutils
 
 def main():
 
