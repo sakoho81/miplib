@@ -56,13 +56,14 @@ psf_scale_<scale>_index_<index>_channel_<channel>_angle_<angle>.<suffix>
 import sys
 import os
 import numpy
-from ..io import utils, image_data
-from ..definitions import *
-from ..ui import arguments
-from ..utils import itkutils
+from supertomo.data.io import read
+from supertomo.data.containers import image_data
+from supertomo.data.definitions import *
+from ..ui import supertomo_options
+
 
 def main():
-    options = arguments.get_import_script_options(sys.argv[1:])
+    options = supertomo_options.get_import_script_options(sys.argv[1:])
     directory = options.data_dir_path
 
     # Create a new HDF5 file. If a file exists, new data will be appended.
@@ -75,10 +76,8 @@ def main():
     for image_name in os.listdir(directory):
         full_path = os.path.join(directory, image_name)
 
-        if full_path.endswith((".tiff", ".tif")):
-            images, spacing = utils.get_imagej_tiff(full_path)
-        elif full_path.endswith((".mhd", ".mha")):
-            images, spacing = utils.get_itk_image(full_path, return_itk=False)
+        if full_path.endswith((".tiff", ".tif", ".mhd", ".mha")):
+            images, spacing = read.image(full_path)
         else:
             continue
 
@@ -136,7 +135,7 @@ def main():
             data.set_active_image(index, channel, scale, "original")
             moving = data.get_itk_image()
 
-            transform = utils.read_itk_transform(full_path, return_itk=True)
+            transform = read.__itk_transform(full_path, return_itk=True)
 
             registered = itkutils.resample_image(moving, transform, reference=reference)
             registered, spacing = itkutils.convert_to_numpy(registered)
@@ -144,7 +143,7 @@ def main():
             data.add_registered_image(registered, scale, index, channel, angle, spacing)
 
         # The add it's transform
-        transform_type, params, fixed_params = utils.read_itk_transform(full_path)
+        transform_type, params, fixed_params = read.__itk_transform(full_path)
         data.add_transform(scale, index, channel, params, fixed_params, transform_type)
 
     # Calculate missing PSFs

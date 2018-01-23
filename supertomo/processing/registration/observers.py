@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 
 from IPython.html.widgets import interact
 
-from ..utils import itkutils
-from ..ui import show
+from supertomo.utils import itkutils
+from supertomo.ui import show
 
 
 def start_observer():

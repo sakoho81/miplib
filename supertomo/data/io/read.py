@@ -1,15 +1,49 @@
 import os
 
 import SimpleITK as sitk
-
-from supertomo.definitions import *
 import tiffile
-from ..utils import itkutils
+import numpy
+from supertomo.utils import itkutils
 
 scale_c = 1.0e6
 
 
-def get_imagej_tiff(filename, memmap=False, return_itk=False):
+def get_image(filename, return_itk=False):
+    """
+    A wrapper for the image read functions.
+    Parameters
+    :param filename The full path to an image
+    :param return_itk Return the image as :type image: numpy.array (false) or :type image: sitk.image
+
+    """
+    if filename.endswith((".tif", ".tiff")):
+        return __tiff(filename, return_itk)
+    elif filename.endswith((".mha", ".mhd")):
+        return __itk_image(filename, return_itk)
+    else:
+        raise ValueError("No image reader specified for "
+                         "%s" % filename)
+
+
+def __itk_image(filename, return_itk=True):
+    """
+    A function for reading image file types typical to ITK (mha & mhd). This is mostly
+    of a historical significance, because in the original SuperTomo 1 such files were
+    used, mostly for convenience.
+
+    :param filename:     Path to an ITK image
+    :param return_itk    Toggle whether to convert the ITK image into Numpy format
+    :return:             Image data as a Numpy array, voxel spacing tuple
+    """
+    assert filename.endswith((".mha", ".mhd"))
+    image = sitk.ReadImage(filename)
+    if return_itk:
+        return image
+    else:
+        return itkutils.convert_to_numpy(image)
+
+
+def __tiff(filename, memmap=False, return_itk=False):
     """
     ImageJ has a bit peculiar way of saving image metadata, especially the tags
     for voxel spacing, which is of main interest in SuperTomo. This function reads
@@ -59,46 +93,7 @@ def get_imagej_tiff(filename, memmap=False, return_itk=False):
         return images, spacing
 
 
-def get_itk_image(filename, return_itk = True):
-    """
-    A function for reading image file types typical to ITK (mha & mhd). This is mostly
-    of a historical significance, because in the original SuperTomo 1 such files were
-    used, mostly for convenience.
-
-    :param filename:     Path to an ITK image
-    :param return_itk    Toggle whether to convert the ITK image into Numpy format
-    :return:             Image data as a Numpy array, voxel spacing tuple
-    """
-    assert filename.endswith((".mha", ".mhd"))
-    image = sitk.ReadImage(filename)
-    if return_itk:
-        return image
-    else:
-        return itkutils.convert_to_numpy(image)
-
-
-def get_image(filename, return_itk=False):
-    """
-    A wrapper for the functions above.
-    Parameters
-    ----------
-    filename
-    return_itk
-
-    Returns
-    -------
-
-    """
-    if filename.endswith((".tif", ".tiff")):
-        return get_imagej_tiff(filename, return_itk)
-    elif filename.endswith((".mha", ".mhd")):
-        return get_itk_image(filename, return_itk)
-    else:
-        raise ValueError("No image reader specified for "
-                         "%s" % filename)
-
-
-def read_itk_transform(path, return_itk=False):
+def __itk_transform(path, return_itk=False):
     """
     Prior to starting to use the HDF5 format data storage images and spatial
     transforms were saved as separate image files on the hard drive. This
@@ -141,8 +136,31 @@ def read_itk_transform(path, return_itk=False):
         return transform_type, params, fixed_params
 
 
-def write_imagej_tiff(path, image, spacing):
-    tiffile.imsave(path,
-                   image,
-                   imagej=True,
-                   resolution=list(1.0/x for x in spacing))
+def open_carma_file(filename):
+    """
+    A simple implementation for the carma file import in Python
+    :param filename:
+    :return:
+    """
+    assert filename.endswith(".mat")
+    measurement = "meas_" + filename.split('/')[-1].split('.')[0]
+    data = loadmat(filename)[measurement]
+
+    spacing = data['PixelSize'][0][0][0]
+    spacing[0], spacing[2] = spacing[2], spacing[0]
+
+    shape = data['Size'][0][0][0]
+
+    images = numpy.zeros(shape, dtype=numpy.float32)
+
+    # For now only single detector is expected and all the
+    # laser gates are added into one image. When needed the
+    # various detectors and gates can be added as new dimensions
+    # to the array.
+    for i in range(0, int(data['LaserGatesCount'])):
+        name = 'pixel_d0_p' + str(i)
+        images += data[name][0][0]
+
+    images = numpy.swapaxes(images, 0, 2)
+
+    return images, spacing

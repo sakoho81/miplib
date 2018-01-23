@@ -5,12 +5,12 @@ import os
 import datetime
 import SimpleITK as sitk
 
-from supertomo.ui import arguments
-from supertomo.io import utils as ioutils
+from supertomo.ui import supertomo_options
+from supertomo.data.io import read as ioutils
 from supertomo.utils import itkutils
 
 def main():
-    options = arguments.get_transform_script_options(sys.argv[1:])
+    options = supertomo_options.get_transform_script_options(sys.argv[1:])
     fixed_image = None
     moving_image = None
     transform = None
@@ -47,7 +47,7 @@ def main():
         # READ FILES
         fixed_image = ioutils.get_image(fixed_image_path, return_itk=True)
         moving_image = ioutils.get_image(moving_image_path, return_itk=True)
-        transform = ioutils.read_itk_transform(transform_path, return_itk=True)
+        transform = ioutils.__itk_transform(transform_path, return_itk=True)
 
         transformed_image = itkutils.resample_image(moving_image,
                                                     transform,

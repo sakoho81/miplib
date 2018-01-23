@@ -18,14 +18,14 @@ import numpy
 import itertools
 import os
 
-from accelerate.cuda.fft import FFTPlan, fft_inplace, ifft_inplace
+from pyculib.fft import FFTPlan, fft_inplace, ifft_inplace
 from numba import cuda, vectorize
-from supertomo.utils import generic_utils as genutils
-import fusion
+import supertomo.processing.ops_array as ops_array
+import supertomo.processing.fusion
 import ops_ext
 
 
-class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
+class MultiViewFusionRLCuda(supertomo.processing.fusion.MultiViewFusionRL):
     """
     This class implements GPU accelerated versions of the iterative image
     fusion algorithms discussed in:
@@ -44,7 +44,7 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
         :param options: command line options that control the behavior
                         of the fusion algorithm
         """
-        fusion.MultiViewFusionRL.__init__(self, data, options)
+        supertomo.processing.fusion.MultiViewFusionRL.__init__(self, data, options)
 
         padded_block_size = self.block_size + 2*self.options.block_pad
         threadpergpublock = 32, 32, 8
@@ -190,7 +190,7 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
             self.estimate_new *= (1.0 / self.n_views)
         else:
             self.estimate_new[self.estimate_new < 0] = 0
-            self.estimate_new[:] = genutils.nroot(self.estimate_new,
+            self.estimate_new[:] = ops_array.nroot(self.estimate_new,
                                                   self.n_views)
 
         # TV Regularization (doesn't seem to do anything miraculous).
@@ -276,9 +276,9 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
                                              mode='w+', shape=tuple(memmap_shape))
 
         for idx, view in enumerate(self.views):
-            self.psfs_fft[idx] = genutils.expand_to_shape(
+            self.psfs_fft[idx] = ops_array.expand_to_shape(
                 self.psfs[view], padded_block_size).astype(numpy.complex64)
-            self.adj_psfs_fft[idx] = genutils.expand_to_shape(
+            self.adj_psfs_fft[idx] = ops_array.expand_to_shape(
                 self.adj_psfs[view], padded_block_size).astype(numpy.complex64)
             self.psfs_fft[idx] = numpy.fft.fftshift(self.psfs_fft[idx])
             self.adj_psfs_fft[idx] = numpy.fft.fftshift(self.adj_psfs_fft[idx])
@@ -290,7 +290,7 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
         if not self.options.disable_fft_psf_memmap:
             del self.psfs_fft
             del self.adj_psfs_fft
-        fusion.MultiViewFusionRL.close(self)
+        supertomo.processing.fusion.MultiViewFusionRL.close(self)
 
 
 

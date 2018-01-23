@@ -2,18 +2,9 @@
 Various utilities that are used to convert command line parameters into
 data types that the progrma understands.
 """
+import os
 
-import numpy
-
-def float2dtype(float_type):
-    """Return numpy float dtype object from float type label.
-    """
-    if float_type == 'single' or float_type is None:
-        return numpy.float32
-    if float_type == 'double':
-        return numpy.float64
-    raise NotImplementedError (`float_type`)
-
+file_extensions = ['.tif', '.lsm', 'tiff', '.raw', '.data']
 
 def get_user_input(message):
     """
@@ -36,3 +27,39 @@ def get_user_input(message):
             return False
         else:
             print "Unkown command. Please state yes or no"
+
+
+def get_path_dir(path, suffix):
+    """ Return a directory name with suffix that will be used to save data
+    related to given path.
+    """
+    if os.path.isfile(path):
+        path_dir = path + '.' + suffix
+    elif os.path.isdir(path):
+        path_dir = os.path.join(path, suffix)
+    elif os.path.exists(path):
+        raise ValueError('Not a file or directory: %r' % path)
+    else:
+        base, ext = os.path.splitext(path)
+        if ext in file_extensions:
+            path_dir = path + '.' + suffix
+        else:
+            path_dir = os.path.join(path, suffix)
+    return path_dir
+
+
+def check_path(path, prefix):
+    """
+    :param path:    Path to a file (string)
+    :param prefix:  Path prefix, if applicable. Used in cases in
+                    which the path argument is not an absolute
+                    path
+    :return:        Returns the absolute path, if the file is found,
+                    None otherwise
+    """
+    if not os.path.isfile(path):
+        path = os.path.join(prefix, path)
+        if not os.path.isfile(path):
+            raise ValueError('Not a valid file %s' % path)
+        return path
+
