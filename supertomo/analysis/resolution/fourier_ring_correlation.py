@@ -66,10 +66,15 @@ class FRC(object):
         assert isinstance(image1, Image)
         assert isinstance(image2, Image)
 
-        assert image1.get_dimensions() == image2.get_dimensions()
+        if image1.get_dimensions() != image2.get_dimensions():
+            raise ValueError("The image dimensions do not match")
+
         #TODO: Could calculate the Nyquist according to the pixel size here. Also the sphere should
         # be in physical units, instead of pixel numbers
-        if image1.get_dimensions()[0] == 1 and image1.ndim() == 3:
+        if image1.ndim() == 3:
+            if image1.get_dimensions()[0] > 1:
+                print ("For 3D analysis use Fourier shell correlation instead")
+
             image1 = Image(image1[0], image1.get_spacing()[1:])
             image2 = Image(image2[0], image1.get_spacing()[1:])
 
@@ -87,11 +92,16 @@ class FRC(object):
         # Create Fourier grid
         axes = (np.arange(-np.floor(i / 2.0), np.ceil(i / 2.0)) for i in dims)
         grid = np.meshgrid(*axes)
-        self.map_dist = np.sqrt(reduce(lambda x, y: x+y, (i**2 for i in grid)))
-
-        # FFT transforms of the input images
-        self.fft_image1 = np.fft.fftshift(np.fft.fft2(image1.get_array())).real
-        self.fft_image2 = np.fft.fftshift(np.fft.fft2(image2.get_array())).real
+        if self.ndims == 2:
+            self.map_dist = np.sqrt(reduce(lambda x, y: x+y, (i**2 for i in grid)))
+            # FFT transforms of the input images
+            self.fft_image1 = np.fft.fftshift(np.fft.rfft2(image1.get_array()))
+            self.fft_image2 = np.fft.fftshift(np.fft.rfft2(image2.get_array()))
+        else:
+            self.map_dist = np.sqrt(reduce(lambda x, y, z: x + y + z, (i ** 2 for i in grid)))
+            # FFT transforms of the input images
+            self.fft_image1 = np.fft.fftshift(np.fft.rfftn(image1.get_array()))
+            self.fft_image2 = np.fft.fftshift(np.fft.rfftn(image2.get_array()))
 
         # Get thickness of the rings
         width_ring = args.width_ring
@@ -325,23 +335,6 @@ class FRC(object):
             self.resolution = None
             return {'resolution': 0, 'x': 0, 'y': 0, 'crit': crit}
 
-    @staticmethod
-    def find_points_interval(distance_map, start, stop):
-        """
-        Find the indexes of points located within a fourier ring
-
-        :param distance_map: Is a numpy.array consisting of distances of pixels
-                             from the 0-frequency center in the centered 2D FFT
-                             image
-        :param start:        the ring starts at a radius r = start from the center
-        :param stop:         the ring stops at a radious r = stop from the center
-        :return:             returns a mask to select the indexes within the
-                             specified interval.
-        """
-        arr_inf = distance_map >= start
-        arr_sup = distance_map < stop
-        ind = np.where(arr_inf * arr_sup)
-        return ind
 
 
 class SoloFRC(FRC):

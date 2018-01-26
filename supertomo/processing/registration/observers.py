@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from IPython.html.widgets import interact
 
 from supertomo.utils import itkutils
-from supertomo.ui import show
+from supertomo.ui.plots import show
 
 
 def start_observer():

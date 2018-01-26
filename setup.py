@@ -15,7 +15,8 @@ setup(
             'supertomo.fuse = supertomo.bin.fuse:main',
             'supertomo.register = supertomo.bin.register:main',
             'supertomo.deconvolve = supertomo.bin.deconvolve:main',
-            'supertomo.resolution = supertomo.bin.resolution:main'
+            'supertomo.resolution = supertomo.bin.resolution:main',
+            'supertomo.3dfrc = supertomo.bin.threedfrc:main'
         ]
     },
     platforms=["any"],

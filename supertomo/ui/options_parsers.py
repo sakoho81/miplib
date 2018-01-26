@@ -26,3 +26,14 @@ def parseFromToString(string):
 
 def parseCommaSeparatedList(string):
     return sorted(int(i)for i in string.split(','))
+
+
+def ensure_positive(number):
+    try:
+        number = float(number)
+    except ValueError:
+        print("You must enter a number")
+    if number <= 0:
+        raise ValueError("The value should be greater than zero")
+
+    return number

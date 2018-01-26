@@ -3,26 +3,33 @@ import os
 import SimpleITK as sitk
 import tiffile
 import numpy
-from supertomo.utils import itkutils
+import supertomo.processing.ops_itk as itkutils
+import supertomo.data.containers.myimage as myimage
 
 scale_c = 1.0e6
 
 
-def get_image(filename, return_itk=False):
+def get_image(filename, return_type='numpy'):
     """
     A wrapper for the image read functions.
     Parameters
     :param filename The full path to an image
-    :param return_itk Return the image as :type image: numpy.array (false) or :type image: sitk.image
+    :param return_type Return the image as numpy.ndarray. sitk.Image or MyImage object.
+           the return type can be chosen with a string ('numpy, 'itk', 'myimage').
 
     """
+    assert return_type in ('numpy', 'itk', 'myimage')
+
     if filename.endswith((".tif", ".tiff")):
-        return __tiff(filename, return_itk)
-    elif filename.endswith((".mha", ".mhd")):
-        return __itk_image(filename, return_itk)
+        image = __tiff(filename, return_type == 'itk')
     else:
-        raise ValueError("No image reader specified for "
-                         "%s" % filename)
+        image = __itk_image(filename, return_type == 'itk')
+
+    if return_type == 'myimage':
+        return myimage.MyImage(image[0], image[1])
+    else:
+        return image
+
 
 
 def __itk_image(filename, return_itk=True):

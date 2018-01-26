@@ -23,7 +23,7 @@ import SimpleITK as sitk
 import matplotlib.pyplot as plt
 
 import supertomo.processing.ops_itk as ops_itk
-import supertomo.ui.show as show
+import supertomo.ui.plots.show as show
 
 # PLOTS
 # =============================================================================
