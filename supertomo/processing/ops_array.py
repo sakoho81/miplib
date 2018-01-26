@@ -1,5 +1,5 @@
 import numpy
-
+import pyculib
 
 def nroot(array, n):
     """
@@ -170,3 +170,23 @@ def rescale_to_min_max(data, data_min, data_max):
     else:
         return data_min / data.min() * data
 
+
+def fft(array, cuda=False): #type: (numpy.ndarray, bool) -> numpy.ndarray
+    if cuda:
+        return numpy.fft.fftshift(pyculib.fft_inplace(array.astype('complex64')))
+    else:
+        return numpy.fft.fftshift(numpy.fft.rfftn(array))
+
+
+def safe_divide(numerator, denominator):
+    """
+    Division of numpy arrays that can handle division by zero. NaN results are
+    coerced to zero. Also suppresses the division by zero warning.
+    :param numerator:
+    :param denominator:
+    :return:
+    """
+    with numpy.errstate(divide="ignore"):
+        result = numerator / denominator
+        result[result == numpy.inf] = 0.0
+        return numpy.nan_to_num(result)

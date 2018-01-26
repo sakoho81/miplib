@@ -6,6 +6,7 @@ import os
 
 file_extensions = ['.tif', '.lsm', 'tiff', '.raw', '.data']
 
+
 def get_user_input(message):
     """
     A method to ask question. The answer needs to be yes or no.
@@ -48,7 +49,7 @@ def get_path_dir(path, suffix):
     return path_dir
 
 
-def check_path(path, prefix):
+def get_full_path(path, prefix):
     """
     :param path:    Path to a file (string)
     :param prefix:  Path prefix, if applicable. Used in cases in
@@ -61,5 +62,18 @@ def check_path(path, prefix):
         path = os.path.join(prefix, path)
         if not os.path.isfile(path):
             raise ValueError('Not a valid file %s' % path)
-        return path
+    return path
 
+
+def get_filename_and_extension(path):
+    """
+    Returns a filename and the file extension. The filename cna
+    be either a simlpe filename or a full path.
+
+    :param path:
+    :return:
+    """
+    filename = path.split('.')[:-1]
+    extension = path.split('.')[-1]
+
+    return filename, extension
