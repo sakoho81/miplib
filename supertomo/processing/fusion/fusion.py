@@ -31,8 +31,8 @@ from scipy.ndimage.interpolation import zoom
 from supertomo.data.io import tiffile
 from supertomo.data.containers import temp_data, image_data
 import ops_ext
-import supertomo.processing.ops_array as ops_array
-import supertomo.processing.ops_output as ops_output
+import supertomo.processing.ndarray as ops_array
+import supertomo.processing.to_string as ops_output
 
 
 class MultiViewFusionRL:

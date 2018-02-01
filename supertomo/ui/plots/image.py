@@ -18,7 +18,6 @@ def onclick(event):
         plt.close()
 
 
-
 def evaluate_3d_image(image):
     """
     A utility function that can be used to display the registration

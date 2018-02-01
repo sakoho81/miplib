@@ -20,7 +20,7 @@ import numpy
 import ops_ext
 from pyculib.fft import FFTPlan, fft_inplace, ifft_inplace
 from numba import cuda, vectorize
-import supertomo.processing.ops_array as ops_array
+import supertomo.processing.ndarray as ops_array
 
 import deconvolve
 

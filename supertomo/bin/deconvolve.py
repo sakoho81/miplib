@@ -6,9 +6,9 @@ from accelerate.cuda import cuda_compatible
 
 from supertomo.ui import deconvolution_options as options
 from supertomo.processing.deconvolution import deconvolve_cuda, deconvolve
-from supertomo.data.containers import myimage
+from supertomo.data.containers import image
 from supertomo.psf import psfgen
-import supertomo.processing.ops_output as ops_output
+import supertomo.processing.to_string as ops_output
 import supertomo.ui.utils as uiutils
 
 
@@ -23,9 +23,9 @@ def main():
     # Figure out an image type and use the correct loader. It might make sense
     # to use Bioformats here.
     if image_path.endswith('.tif'):
-        image = myimage.MyImage.get_image_from_imagej_tiff(image_path)
+        image = image.Image.get_image_from_imagej_tiff(image_path)
     elif image_path.endswith('.mat'):
-        image = myimage.MyImage.get_image_from_carma_file(image_path)
+        image = image.Image.get_image_from_carma_file(image_path)
     else:
         raise AttributeError("Unknown image type %s" % image_path.split('.')[-1])
 
@@ -46,10 +46,10 @@ def main():
             if image.get_dimensions()[0] == 1:
                 psf_image = psf_image[psf_image.shape/2]
 
-            psf = myimage.MyImage(psf_image, psf_spacing)
+            psf = image.Image(psf_image, psf_spacing)
 
     else:
-        psf = myimage.MyImage.get_image_from_imagej_tiff(args.psf_path)
+        psf = image.Image.get_image_from_imagej_tiff(args.psf_path)
 
     # Start deconvolution
     if cuda_compatible():
