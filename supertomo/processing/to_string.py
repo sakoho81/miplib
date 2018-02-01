@@ -278,7 +278,7 @@ def time_to_str(s):
 
     Examples
     --------
-    >>> from supertomo.processing.ops_output import time_to_str
+    >>> from supertomo.processing.to_string import time_to_str
     >>> print time_to_str(123000000)
     3Y10M24d10h40m
     >>> print time_to_str(1230000)

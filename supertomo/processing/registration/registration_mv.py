@@ -2,7 +2,7 @@ import SimpleITK as sitk
 import numpy
 
 from supertomo.data.containers import image_data
-import supertomo.processing.ops_itk as ops_itk
+import supertomo.processing.itk as ops_itk
 
 
 class MultiViewRegistration:

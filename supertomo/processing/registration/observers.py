@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from IPython.html.widgets import interact
 
 from supertomo.utils import itkutils
-from supertomo.ui.plots import show
+from supertomo.ui.plots import image
 
 
 def start_observer():
@@ -57,7 +57,7 @@ def plot_result(self, fixed, moving):
         # Plot image overlay
         plt.subplot(1, 2, 2)
         plt.title("Overlay")
-        show.display_2d_image_overlay(fixed[layer, :, :], moving[layer, :, :])
+        image.display_2d_image_overlay(fixed[layer, :, :], moving[layer, :, :])
 
     interact(update, layer=(0, fixed.shape[0] - 1, 1))
 

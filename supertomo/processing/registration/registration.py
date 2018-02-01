@@ -22,8 +22,8 @@ information 3. mattes mutual information are supported implemented
 import SimpleITK as sitk
 import matplotlib.pyplot as plt
 
-import supertomo.processing.ops_itk as ops_itk
-import supertomo.ui.plots.show as show
+import supertomo.processing.itk as ops_itk
+import supertomo.ui.plots.image as show
 
 # PLOTS
 # =============================================================================

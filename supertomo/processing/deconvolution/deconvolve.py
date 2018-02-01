@@ -29,8 +29,8 @@ from scipy.ndimage.interpolation import zoom
 from scipy.signal import fftconvolve, medfilt
 
 import supertomo.analysis.resolution.fourier_ring_correlation as frc
-import supertomo.processing.ops_output as ops_output
-from supertomo.data.containers import myimage, temp_data
+import supertomo.processing.to_string as ops_output
+from supertomo.data.containers import image, temp_data
 
 
 class DeconvolutionRL:
@@ -46,8 +46,8 @@ class DeconvolutionRL:
         :param options: command line options that control the behavior
                         of the fusion algorithm
         """
-        assert isinstance(image, myimage.MyImage)
-        assert isinstance(psf, myimage.MyImage)
+        assert isinstance(image, image.Image)
+        assert isinstance(psf, image.Image)
 
         self.image = image
         self.psf = psf
@@ -289,10 +289,10 @@ class DeconvolutionRL:
                 # frc_job = resolution.FRC(myimage.MyImage(self.prev_estimate, self.image_spacing),
                 #                   myimage.MyImage(self.estimate, self.image_spacing),
                 #                   self.options)
-                frc_job = frc.SoloFRC(myimage.MyImage(self.estimate, self.image_spacing), self.options)
+                frc_job = frc.SoloFRC(image.Image(self.estimate, self.image_spacing), self.options)
                 solofrc = frc_job.get_resolution()['resolution']
-                frc_job = frc.FRC(myimage.MyImage(self.prev_estimate, self.image_spacing),
-                                  myimage.MyImage(self.estimate, self.image_spacing),
+                frc_job = frc.FRC(image.Image(self.prev_estimate, self.image_spacing),
+                                  image.Image(self.estimate, self.image_spacing),
                                   self.options)
                 duofrc = float(frc_job.get_resolution()['resolution'])
 
@@ -377,7 +377,7 @@ class DeconvolutionRL:
         preferable.
         """
 
-        return myimage.MyImage(self.estimate, self.image_spacing)
+        return image.Image(self.estimate, self.image_spacing)
 
     def __calculate_block_and_image_size(self):
         """

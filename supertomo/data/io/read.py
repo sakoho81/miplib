@@ -3,32 +3,31 @@ import os
 import SimpleITK as sitk
 import tiffile
 import numpy
-import supertomo.processing.ops_itk as itkutils
-import supertomo.data.containers.myimage as myimage
+import pims
+
+import supertomo.processing.itk as itkutils
 
 scale_c = 1.0e6
 
 
-def get_image(filename, return_type='numpy'):
+def get_image(filename, return_type='numpy', bioformats=True):
     """
     A wrapper for the image read functions.
     Parameters
+    :param bioformats: Toggle to disable bioformats reader.
     :param filename The full path to an image
-    :param return_type Return the image as numpy.ndarray. sitk.Image or MyImage object.
-           the return type can be chosen with a string ('numpy, 'itk', 'myimage').
+    :param return_type Return the image as numpy.ndarray. sitk.Image.
+           the return type can be chosen with a string ('numpy, 'itk').
 
     """
-    assert return_type in ('numpy', 'itk', 'myimage')
+    assert return_type in ('numpy', 'itk')
 
-    if filename.endswith((".tif", ".tiff")):
-        image = __tiff(filename, return_type == 'itk')
-    else:
+    if filename.endswith(".mha") or not bioformats:
         image = __itk_image(filename, return_type == 'itk')
-
-    if return_type == 'myimage':
-        return myimage.MyImage(image[0], image[1])
     else:
-        return image
+        image = __bioformats(filename, return_type == 'itk')
+
+    return image
 
 
 
@@ -171,3 +170,32 @@ def open_carma_file(filename):
     images = numpy.swapaxes(images, 0, 2)
 
     return images, spacing
+
+
+def __bioformats(filename, series=0, return_itk = False):
+    """
+    Read an image using the Bioformats importer. Good for most microscopy formats.
+
+    :param filename:
+    :param series:
+    :param return_itk:
+    :return:
+    """
+    assert pims.bioformats.available(), "Please install jpype in order to use " \
+                                        "the bioformats reader."
+    image = pims.bioformats.BioformatsReader(filename, series=series)
+    if len(image.axes) == 2:
+        spacing = (image.metadata.PixelsPhysicalSizeY(0),
+                   image.metadata.PixelsPhysicalSizeX(0))
+        image = image[0]
+    else:
+        spacing = (image.metadata.PixelsPhysicalSizeZ(0),
+                   image.metadata.PixelsPhysicalSizeY(0),
+                   image.metadata.PixelsPhysicalSizeX(0))
+    if return_itk:
+        return itkutils.convert_from_numpy(image, spacing)
+    else:
+        return image, spacing
+
+
+

@@ -22,7 +22,7 @@ import supertomo.processing.fusion.fusion_cuda as gpufusion
 import supertomo.data.containers.image_data as image_data
 import supertomo.ui.supertomo_options as arguments
 import supertomo.ui.utils as uiutils
-import supertomo.processing.ops_output as genutils
+import supertomo.processing.to_string as genutils
 
 def main():
 
