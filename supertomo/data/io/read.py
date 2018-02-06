@@ -6,11 +6,12 @@ import numpy
 import pims
 
 import supertomo.processing.itk as itkutils
+from supertomo.data.containers.image import Image
 
 scale_c = 1.0e6
 
 
-def get_image(filename, return_type='numpy', bioformats=True):
+def get_image(filename, return_type='image', bioformats=True):
     """
     A wrapper for the image read functions.
     Parameters
@@ -20,14 +21,18 @@ def get_image(filename, return_type='numpy', bioformats=True):
            the return type can be chosen with a string ('numpy, 'itk').
 
     """
-    assert return_type in ('numpy', 'itk')
+    assert return_type in ('numpy', 'itk', 'image')
 
     if filename.endswith(".mha") or not bioformats:
-        image = __itk_image(filename, return_type == 'itk')
+        data = __itk_image(filename, return_type == 'itk')
     else:
-        image = __bioformats(filename, return_type == 'itk')
+        data = __bioformats(filename, return_type == 'itk')
 
-    return image
+    if return_type == "image":
+        images, spacing = data
+        return Image(images, spacing)
+
+    return data
 
 
 

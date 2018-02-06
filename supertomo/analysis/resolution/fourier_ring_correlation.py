@@ -2,53 +2,13 @@
 Sami Koho 01/2017
 
 Image resolution measurement by Fourier Ring Correlation.
-
-The code in this file was modified from FRC implementation by Filippo Arcadu
-
-The original file header is shown below:
-
-#######                                                                      #######
-#######         FOURIER RING CORRELATION ANALYSIS FOR RESOLUTION             #######
-#######                                                                      #######
-#######  This routine evaluates the resol by means of the fourier            #######
-#######  ring correlation (FRC). The inputs are two reconstructions made     #######
-#######  with the same algorithm on a sinogram storing the odd-map_disted    #######
-#######  projections and on an other one storing the even-map_disted projec.-#######
-#######  tions. The two images are transformed with the FFT and their        #######
-#######  transform centered. Then, rings of increasing radius R are selec-   #######
-#######  ted, starting from the origin of the Fourier space, and the         #######
-#######  Fourier coefficients lying inside the ring are used to calculate    #######
-#######  the FRC at R, that is FRC(R), with the following formula:           #######
-#######                                                                      #######
-####### FRC(R)=(sum_{i in R}I_{1}(r_{i})*I_{2}(r_{i}))/sqrt((sum_{i in R}    #######
-#######        ||I_{1}(r_{i})||^{2})*(sum_{i in R}||I_{2}(r_{i})||^{2}))     #######
-#######                                                                      #######
-#######  At the same time, the so-called '2*sigma' curve is calculated at    #######
-#######  each step R:                                                        #######
-#######                F_{2*sigma}(R) = 2/sqrt(N_{p}(R)/2)                   #######
-#######  where N_{p} is the number of pixels in the ring of radius R.        #######
-#######  Then, the crossing point between FRC(R) and 2*sigma(R) is found     #######
-#######  as the first zero crossing point with negative slope of the dif-    #######
-#######  ference curve:                                                      #######
-#######                D(R) = FRC(R) - F_{2*sigma}(R)                        #######
-#######  The resol is calculated as real space distance correspon-           #######
-#######  to this intersection point.                                         ####### 
-#######                                                                      #######
-#######  Reference:                                                          #######
-#######  "Fourier Ring Correlation as a resol criterion for super-           #######
-#######  resol microscopy", N. Banterle et al., 2013, Journal of             #######
-#######  Structural Biology, 183  363-367.                                   #######
-#######                                                                      #######                                    
-#######        Author: Filippo Arcadu, arcusfil@gmail.com, 16/09/2013        #######
-#######                                                                      #######
-####################################################################################
-####################################################################################
-####################################################################################
+re
 """
 
 import numpy as np
 from supertomo.data.containers.image import Image
-from supertomo.data.containers.fourier_correlation import FourierCorrelationData
+from supertomo.data.containers.fourier_correlation import FourierCorrelationData, FourierCorrelationDataCollection
+from supertomo.analysis.resolution.analysis import FourierCorrelationAnalysis
 
 import fourier_shape_iterators as iterators
 import supertomo.processing.image as ops_image
@@ -76,11 +36,11 @@ class FRC(object):
         image1 = ops_image.zero_pad_to_cube(image1)
         image2 = ops_image.zero_pad_to_cube(image2)
 
-        self.iterator = iterators.FourierRingIterator(original_shape,
+        self.iterator = iterators.FourierRingIterator(image1.shape,
                                                       d_bin=args.width_ring)
-        # FFT transforms of the input images
-        self.fft_image1 = np.fft.fftshift(np.fft.rfft2(image1))
-        self.fft_image2 = np.fft.fftshift(np.fft.rfft2(image2))
+        # Calculate power spectra for the input images.
+        self.fft_image1 = np.fft.fftshift(np.fft.fft2(image1)).real
+        self.fft_image2 = np.fft.fftshift(np.fft.fft2(image2)).real
 
         if args.normalize_power:
             pixels = image1.shape[0] * image1.shape[1]
@@ -123,7 +83,6 @@ class FRC(object):
         for ind_ring, idx in self.iterator:
             subset1 = self.fft_image1[ind_ring]
             subset2 = self.fft_image2[ind_ring]
-
             c1[idx] = np.sum(subset1 * np.conjugate(subset2))
             c2[idx] = np.sum(np.abs(subset1) ** 2)
             c3[idx] = np.sum(np.abs(subset2) ** 2)
@@ -135,9 +94,15 @@ class FRC(object):
         n_points = np.array(points)
         frc = np.abs(c1) / np.sqrt(c2 * c3)
 
-        self._result = FourierCorrelationData()
-        self._result.correlation["correlation"] = frc
-        self._result.correlation["frequency"] = spatial_freq
-        self._result.correlation["point-x-bin"] = n_points
+        data_set = FourierCorrelationData()
+        data_set.correlation["correlation"] = frc
+        data_set.correlation["frequency"] = spatial_freq
+        data_set.correlation["points-x-bin"] = n_points
+
+        data_structure = FourierCorrelationDataCollection()
+        data_structure[0] = data_set
+
+        self._result = FourierCorrelationAnalysis(
+            data_structure, self.args).calculate_resolution(self.pixel_size)
 
         return self._result
