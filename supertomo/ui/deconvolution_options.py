@@ -16,16 +16,7 @@ def get_deconvolve_script_options(arguments):
     return parser.parse_args(arguments)
 
 
-def get_frc_script_options(arguments):
-    parser = argparse.ArgumentParser(description='Fourier ring correlation analysis',
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('directory')
-    parser.add_argument('--outdir', dest='pathout',
-                        help='Select output folder where to save the log file'
-                             + ' and the plots')
-    parser = get_frc_options_group(parser)
-    return parser.parse_args(arguments)
 
 
 def get_common_options(parser):
@@ -265,32 +256,3 @@ def get_psf_estimation_options(parser):
     return parser
 
 
-def get_frc_options_group(parser):
-    assert isinstance(parser, argparse.ArgumentParser)
-
-    group = parser.add_argument_group("Fourier ring correlation analysis", "Options for FRC analysis")
-
-    group.add_argument('--ring', dest='width_ring', type=float, default=5,
-                       help='Set thickness of the ring for FRC calculation')
-
-    group.add_argument('--square', dest='resol_square', action='store_true',
-                       help='Enable analysis only in the resolution square')
-
-    group.add_argument('--hanning', dest='hanning', action='store_true',
-                       help='Enable multiplication of the images with a hanning window')
-
-    group.add_argument('--labels', dest='labels',
-                       help='Enable specific labels for plots, one for each pair of images;'
-                       + ' e.g.: -l EST:GRIDREC:IFBPTV')
-
-    group.add_argument('--plot', dest='plot', action='store_true',
-                        help='Display check plot')
-
-    group.add_argument("--normalize-power", dest="normalize_power", action="store_true")
-
-    group.add_argument('--polynomial', dest='polynomial_degree', type=int,
-                        default=8)
-    group.add_argument('--resolution', dest='resolution_criterion',
-                        choices=['one-bit', 'half-bit', 'half-height'],
-                        default='half-bit')
-    return parser

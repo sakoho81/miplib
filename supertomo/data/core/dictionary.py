@@ -17,5 +17,9 @@ class FixedDictionary(object):
         return self._dictionary[key]
 
     @property
+    def keys(self):
+        return self._dictionary.keys()
+
+    @property
     def contents(self):
         return self._dictionary.keys(), self._dictionary.values()

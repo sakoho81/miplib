@@ -27,14 +27,12 @@ class FourierRingIterator(IteratorBase):
         self.d_bin = d_bin
         self.ring_start = 0
         self._nbins = floor(shape[0] / (2 * self.d_bin))
-
         # Create Fourier grid
         axes = (np.arange(-np.floor(i / 2.0), np.ceil(i / 2.0)) for i in shape)
         x, y = np.meshgrid(*axes)
 
         # Create OP vector array
         self.r = np.sqrt(x ** 2 + y ** 2)
-
         # Current ring index
         self.current_ring = self.ring_start
 
@@ -52,10 +50,10 @@ class FourierRingIterator(IteratorBase):
         return self
 
     def next(self):
-        try:
+        if self.current_ring < self._nbins:
             ring = self.__get_points_on_ring(self.current_ring * self.d_bin,
                                              (self.current_ring + 1) * self.d_bin)
-        except IndexError:
+        else:
             raise StopIteration
 
         self.current_ring += 1

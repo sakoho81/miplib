@@ -8,16 +8,6 @@ import SimpleITK as sitk
 
 vaa3d_bin = "/home/sami/bin/Vaa3D_Ubuntu_64bit_v3.200/vaa3d"
 
-def onclick(event):
-    ix, iy = event.xdata, event.ydata
-    print 'x = %d, y = %d'%(ix, iy)
-    global coords
-    coords.append([int(ix), int(iy)])
-
-    if len(coords) >= 8:
-        plt.close()
-
-
 def evaluate_3d_image(image):
     """
     A utility function that can be used to display the registration
@@ -61,6 +51,8 @@ def display_3d_slices(fixed_image_z, moving_image_z, fixed_npa, moving_npa):
 
 # callback invoked by the ipython interact method for scrolling and modifying the alpha blending
 # of an image stack of two images that occupy the same physical space.
+
+
 def display_3d_slice_with_alpha(image_z, alpha, fixed, moving):
     img = (1.0 - alpha) * fixed[:, :, image_z] + alpha * moving[:, :, image_z]
     plt.imshow(sitk.GetArrayFromImage(img), cmap=plt.cm.Greys_r)
@@ -71,8 +63,7 @@ def display_2d_images(image1,
                       image2,
                       image1_title='image1',
                       image2_title='image2',
-                      vertical=False,
-                      landmarks=False):
+                      vertical=False):
     """
     A function that can be used to display two SimpleITK images side by side.
     It is also possible to select paired landmarks from the two images, by
@@ -80,16 +71,14 @@ def display_2d_images(image1,
 
     Parameters
 
-    image1      SimpleITk image object
-    image2      SimpleITK image object
-    landmarks   Enables the landmark selection functionality
+    image1      A numpy.ndarray or its subclass
+    image2      A numpy.ndarray or its subclass
 
     """
+    assert issubclass(type(image1), np.ndarray)
+    assert issubclass(type(image2), np.ndarray)
 
-    if isinstance(image1, sitk.Image):
-        image1 = sitk.GetArrayFromImage(image1)
-    if isinstance(image2, sitk.Image):
-        image2 = sitk.GetArrayFromImage(image2)
+    assert image1.ndim == 2 and image2.ndim == 2
 
     if vertical:
         fig, (ax1, ax2) = plt.subplots(
@@ -109,25 +98,7 @@ def display_2d_images(image1,
     ax2.set_title(image2_title)
     ax2.axis('off')
 
-    if landmarks:
-        global coords
-        coords = []
-        fig.canvas.mpl_connect('button_press_event', onclick)
-        print "Select four landmark pairs"
-
-        plt.show()
-
-        im1_spacing = image1.GetSpacing()[0]
-        im1_coords = [[x * im1_spacing, y * im1_spacing] for x, y in coords[0:-1:2]]
-
-        im2_spacing = image2.GetSpacing()[0]
-        im2_coords = [[x * im2_spacing, y * im2_spacing] for x, y in coords[1:-1:2]]
-
-        del coords
-        return im1_coords, im2_coords
-
-    else:
-        plt.show()
+    plt.show()
 
 
 def display_2d_image(image):
@@ -144,6 +115,8 @@ def display_2d_image(image):
 
     if isinstance(image, sitk.Image):
         image = sitk.GetArrayFromImage(image)
+
+    assert image.ndim == 2
 
     plt.imshow(image)
     plt.axis('off')

@@ -12,11 +12,12 @@ def plot_frc_curves(frc, title="FRC curve"):
     assert isinstance(frc, FourierCorrelationData)
 
     # Define figure enviroment
-    fig = plt.figure(1)
+    axescolor = '#f6f6f6'
+    fig = plt.figure(1, facecolor=axescolor)
     rect = fig.patch
     rect.set_facecolor('white')
-    axescolor = '#f6f6f6'
-    ax = plt.subplot(111, facecolor=axescolor)
+
+    ax = plt.subplot(111)
 
     # Font setting
     font0 = FontProperties()
@@ -65,7 +66,7 @@ def plot_frc_curves(frc, title="FRC curve"):
         label = 'One-bit curve'
     elif res_crit == 'half-bit':
         label = 'Half-bit curve'
-    elif res_crit == 'threshold':
+    elif res_crit == 'fixed':
         label = 'y = %f' % y[0]
     else:
         raise AttributeError()

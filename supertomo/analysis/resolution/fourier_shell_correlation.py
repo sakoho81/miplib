@@ -1,3 +1,17 @@
+# coding=utf-8
+"""
+Sami Koho 01/2018
+
+Directional Fourier Shell Correlation for complex resolution analysis
+in 3D images.
+
+The code is based on:
+
+Tan et al: “Addressing Preferred Specimen Orientation in Single-Particle
+Cryo-EM through Tilting.” Nature Methods 14, no. 8 (July 3, 2017):
+793–96. doi:10.1038/nmeth.4347.
+"""
+
 import numpy as np
 
 import supertomo.processing.image as ops_myimage
