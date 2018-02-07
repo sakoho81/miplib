@@ -40,8 +40,10 @@ class FourierCorrelationData(object):
     """
     def __init__(self, data=None):
 
-        correlation_keys = "correlation frequency points-x-bin curve-fit curve-fit-eq"
-        resolution_keys = "threshold criterion resolution-point threshold-eq resolution"
+        correlation_keys = "correlation frequency points-x-bin curve-fit " \
+                           "curve-fit-coefficients"
+        resolution_keys = "threshold criterion resolution-point " \
+                          "resolution-threshold-coefficients resolution"
 
         self.resolution = FixedDictionary(resolution_keys.split())
         self.correlation = FixedDictionary(correlation_keys.split())
