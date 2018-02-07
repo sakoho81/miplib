@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 from matplotlib import rc
 from matplotlib.font_manager import FontProperties
-from supertomo.data.containers.fourier_correlation import FourierCorrelationData
+from supertomo.data.containers.fourier_correlation_data import FourierCorrelationData
 
 
 def plot_frc_curves(frc, title="FRC curve"):

@@ -18,7 +18,7 @@ import supertomo.processing.image as ops_myimage
 import fourier_shape_iterators as iterators
 
 from supertomo.data.containers.image import Image
-import supertomo.data.containers.fourier_correlation as containers
+import supertomo.data.containers.fourier_correlation_data as containers
 
 
 class DirectionalFSC():

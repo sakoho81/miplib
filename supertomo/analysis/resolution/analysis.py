@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.optimize as optimize
-from supertomo.data.containers.fourier_correlation import FourierCorrelationData, FourierCorrelationDataCollection
+from supertomo.data.containers.fourier_correlation_data import FourierCorrelationData, FourierCorrelationDataCollection
 import scipy.signal as signal
 
 class FourierCorrelationAnalysis(object):
@@ -30,7 +30,7 @@ class FourierCorrelationAnalysis(object):
         equation = np.poly1d(coeff)
 
         self.data_set.correlation["curve-fit"] = equation(self.data_set.correlation["frequency"])
-        self.data_set.correlation["curve-fit-eq"] = equation
+        self.data_set.correlation["curve-fit-coefficients"] = coeff
 
     def __calculate_resolution_threshold(self):
         """
@@ -59,11 +59,11 @@ class FourierCorrelationAnalysis(object):
             equation = np.poly1d(coeff)
             curve = equation(points)
         else:
-            equation = None
+            coeff = None
             curve = points
 
         self.data_set.resolution["threshold"] = curve
-        self.data_set.resolution["threshold-eq"] = equation
+        self.data_set.resolution["resolution-threshold-coefficients"] = coeff
         self.data_set.resolution["criterion"] = criterion
 
     def calculate_resolution(self, pixel_size):
@@ -90,8 +90,8 @@ class FourierCorrelationAnalysis(object):
             self.__fit_least_squares()
             self.__calculate_resolution_threshold()
 
-            frc_eq = self.data_set.correlation["curve-fit-eq"]
-            two_sigma_eq = self.data_set.resolution["threshold-eq"]
+            frc_eq = self.data_set.correlation["curve-fit-coefficients"]
+            two_sigma_eq = self.data_set.resolution["resolution-threshold-coefficients"]
 
             if criterion == 'one-bit' or criterion == 'half-bit':
                 for x0 in self.data_set.correlation["frequency"]:

@@ -7,7 +7,7 @@ re
 
 import numpy as np
 from supertomo.data.containers.image import Image
-from supertomo.data.containers.fourier_correlation import FourierCorrelationData, FourierCorrelationDataCollection
+from supertomo.data.containers.fourier_correlation_data import FourierCorrelationData, FourierCorrelationDataCollection
 from supertomo.analysis.resolution.analysis import FourierCorrelationAnalysis
 
 import fourier_shape_iterators as iterators
