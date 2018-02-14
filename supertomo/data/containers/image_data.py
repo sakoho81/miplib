@@ -3,7 +3,7 @@ import h5py
 import numpy
 import scipy.ndimage as ndimage
 
-from supertomo.utils import itkutils
+import supertomo.processing.itk as itkutils
 from supertomo.data.definitions import *
 import supertomo.ui.utils as uiutils
 

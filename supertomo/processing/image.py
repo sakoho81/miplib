@@ -80,6 +80,9 @@ def checkerboard_split(image):
     image1 = image[odd_index[0], :][:, odd_index[1]]
     image2 = image[even_index[0], :][:, even_index[1]]
 
+    image1.spacing = image.spacing
+    image2.spacing = image1.spacing
+
     return image1, image2
 
 
