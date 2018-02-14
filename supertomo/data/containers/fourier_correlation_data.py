@@ -33,6 +33,9 @@ class FourierCorrelationDataCollection(object):
         self.iter_index += 1
         return item
 
+    def __len__(self):
+        return len(self._data)
+
 
 class FourierCorrelationData(object):
     """

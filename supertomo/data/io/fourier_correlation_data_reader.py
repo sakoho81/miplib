@@ -26,7 +26,6 @@ class FourierCorrelationDataReader(object):
     def read_metadata(self):
         """
         Read a metadata dictionary from the HDF5 files header
-        :param metadata: a dictionary with all the necessary data to be written in the file
         """
         return dict(self.data.attrs)
 
@@ -66,7 +65,6 @@ class FourierCorrelationDataReader(object):
                 data_set = FourierCorrelationData()
                 resolution_group = self.data[group_name]["resolution"]
                 correlation_group = self.data[group_name]["correlation"]
-
 
                 data_set.resolution["threshold"] = resolution_group["threshold"][:]
                 data_set.resolution["resolution-point"] = \

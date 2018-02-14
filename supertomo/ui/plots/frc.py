@@ -1,91 +1,131 @@
 import matplotlib.pyplot as plt
 from matplotlib import rc
 from matplotlib.font_manager import FontProperties
-from supertomo.data.containers.fourier_correlation_data import FourierCorrelationData
+from supertomo.data.containers.fourier_correlation_data import FourierCorrelationData, FourierCorrelationDataCollection
 
 
-def plot_frc_curves(frc, title="FRC curve"):
-    """
-    Creates a plot of the FRC curves in the curve_list. Single or multiple vurves can
-    be plotted.
-    """
-    assert isinstance(frc, FourierCorrelationData)
+class FourierDataPlotter(object):
+    def __init__(self, data):
+        assert isinstance(data, FourierCorrelationDataCollection)
 
-    # Define figure enviroment
-    axescolor = '#f6f6f6'
-    fig = plt.figure(1, facecolor=axescolor)
-    rect = fig.patch
-    rect.set_facecolor('white')
+        self.data = data
 
-    ax = plt.subplot(111)
+        if len(self.data) < 3:
+            self._columns = len(self.data)
+        else:
+            self._columns = 3
 
-    # Font setting
-    font0 = FontProperties()
-    font1 = font0.copy()
-    font1.set_size('medium')
-    font = font1.copy()
-    font.set_family('sans')
-    rc('text', usetex=True)
+        if len(self.data) % self._columns == 0:
+            self._rows = len(self.data) / self._columns
+        else:
+            self._rows = len(self.data) / self._columns + 1
 
-    # Enable grid
-    gridLineWidth = 0.2
-    ax.yaxis.grid(True, linewidth=gridLineWidth, linestyle='-', color='0.05')
+    def plot_all(self):
 
-    # Marker setup
-    colorArray = ['blue', 'green', 'red', 'orange', 'brown', 'black', 'violet', 'pink']
-    marker_array = ['^', 's', 'o', 'd', '1', 'v', '*', 'p']
+        axescolor = '#f6f6f6'
 
-    # Axis limits
-    plt.ylim([0, 1.2])
+        fig, plots = plt.subplots(self._rows, self._columns,
+                                  facecolor=axescolor,
+                                  figsize=(15, self._rows*4))
+        # rect = fig.patch
+        # rect.set_facecolor('white')
 
-    # Axis labelling
-    xlabel = 'Spatial frequencies'
-    ylabel = 'Fourier Ring Correlation (FRC)'
-    plt.xlabel(xlabel, fontsize=12, position=(0.5, -0.2))
-    plt.ylabel(ylabel, fontsize=12, position=(0.5, 0.5))
+        fig.tight_layout()
 
-    # Title
-    plt.text(0.5, 1.06, title, horizontalalignment='center',
-             fontsize=18, transform=ax.transAxes)
+        for dataset, plot in zip(self.data, plots):
 
-    # Plot calculated FRC values as xy scatter.
-    y = frc.correlation["correlation"]
-    x = frc.correlation["frequency"]
-    plt.plot(x, y, marker_array[0], markersize=6, color=colorArray[0],
-             label='FRC')
+            angle = dataset[0]
+            data = dataset[1]
 
-    # Plot polynomial fit as a line plot over the FRC scatter
-    y = frc.correlation["curve-fit"]
-    plt.plot(x, y, linewidth=3, color=colorArray[1],
-             label='Least-squares fit')
+            title = "FRC @ angle %s" % angle
 
-    # Plot the resolution threshold curve
-    y = frc.resolution["threshold"]
-    res_crit = frc.resolution["criterion"]
-    if res_crit == 'one-bit':
-        label = 'One-bit curve'
-    elif res_crit == 'half-bit':
-        label = 'Half-bit curve'
-    elif res_crit == 'fixed':
-        label = 'y = %f' % y[0]
-    else:
-        raise AttributeError()
-    plt.plot(x, y, marker_array[3], color=colorArray[3], markersize=7,
-             label=label)
+            self.__make_frc_subplot(plot, data, title)
 
-    # Plot resolution point
-    y0 = frc.resolution["resolution-point"][0]
-    x0 = frc.resolution["resolution-point"][1]
+        plt.show()
 
-    plt.plot(x0, y0, 'ro', markersize=8, label='Resolution point')
+    def plot_one(self, angle):
+        plt.figure(figsize=(5, 4))
+        ax = plt.subplot(111)
 
-    verts = [(x0, 0), (x0, y0)]
-    xs, ys = zip(*verts)
+        self.__make_frc_subplot(ax, self.data[int(angle)], "FRC at angle %s" % str(angle))
 
-    ax.plot(xs, ys, 'x--', lw=5, color='red', ms=10)
-    ax.text(x0, y0 + 0.10, 'RESOL-FREQ', fontsize=12)
+        plt.show()
 
-    # Add legend
-    plt.legend(loc='best')
+    def __make_frc_subplot(self, ax, frc, title):
+        """
+        Creates a plot of the FRC curves in the curve_list. Single or multiple vurves can
+        be plotted.
+        """
+        assert isinstance(frc, FourierCorrelationData)
 
-    plt.show()
+        # Font setting
+        font0 = FontProperties()
+        font1 = font0.copy()
+        font1.set_size('medium')
+        font = font1.copy()
+        font.set_family('sans')
+        rc('text', usetex=True)
+
+        # Enable grid
+        gridLineWidth = 0.2
+        ax.yaxis.grid(True, linewidth=gridLineWidth, linestyle='-', color='0.05')
+
+        # Marker setup
+        colorArray = ['blue', 'green', 'red', 'orange', 'brown', 'black', 'violet', 'pink']
+        marker_array = ['^', 's', 'o', 'd', '1', 'v', '*', 'p']
+
+        # Axis labelling
+        xlabel = 'Spatial frequencies'
+        ylabel = 'Fourier Ring Correlation (FRC)'
+        ax.set_xlabel(xlabel, fontsize=12, position=(0.5, -0.2))
+        ax.set_ylabel(ylabel, fontsize=12, position=(0.5, 0.5))
+        ax.set_ylim([0, 1.2])
+
+        # Title
+        ax.set_title(title, fontsize=14)
+
+        # Plot calculated FRC values as xy scatter.
+        y = frc.correlation["correlation"]
+        x = frc.correlation["frequency"]
+        ax.plot(x, y, marker_array[0], markersize=6, color=colorArray[0],
+                 label='FRC')
+
+        # Plot polynomial fit as a line plot over the FRC scatter
+        y = frc.correlation["curve-fit"]
+        ax.plot(x, y, linewidth=3, color=colorArray[1],
+                 label='Least-squares fit')
+
+        # Plot the resolution threshold curve
+        y = frc.resolution["threshold"]
+        res_crit = frc.resolution["criterion"]
+        if res_crit == 'one-bit':
+            label = 'One-bit curve'
+        elif res_crit == 'half-bit':
+            label = 'Half-bit curve'
+        elif res_crit == 'fixed':
+            label = 'y = %f' % y[0]
+        else:
+            raise AttributeError()
+        ax.plot(x, y, marker_array[3], color=colorArray[3], markersize=7,
+                 label=label)
+
+        # Plot resolution point
+        y0 = frc.resolution["resolution-point"][0]
+        x0 = frc.resolution["resolution-point"][1]
+
+        ax.plot(x0, y0, 'ro', markersize=8, label='Resolution point')
+
+        verts = [(x0, 0), (x0, y0)]
+        xs, ys = zip(*verts)
+
+        ax.plot(xs, ys, 'x--', lw=5, color='red', ms=10)
+        #ax.text(x0, y0 + 0.10, 'RESOL-FREQ', fontsize=12)
+
+        resolution = "The resolution is %f nm." % frc.resolution["resolution"]
+        ax.text(0.5, -0.25, resolution, ha="center", fontsize=12)
+
+        # Add legend
+        ax.legend(loc='best')
+
+
+

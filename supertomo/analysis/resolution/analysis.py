@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.optimize as optimize
 from supertomo.data.containers.fourier_correlation_data import FourierCorrelationData, FourierCorrelationDataCollection
-import scipy.signal as signal
+import scipy.ndimage as ndimage
 
 class FourierCorrelationAnalysis(object):
     def __init__(self, data, args):
@@ -12,7 +12,7 @@ class FourierCorrelationAnalysis(object):
         self.args = args
         self.data_set = None
 
-    def __fit_least_squares(self):
+    def __fit_least_squares(self, minimum=True):
         """
         Calculate a least squares curve fit to the FRC Data
         :param frc: A FourierCorrelationData structure
@@ -22,7 +22,10 @@ class FourierCorrelationAnalysis(object):
         # Calculate least-squares fit
 
         degree = self.args.frc_curve_fit_degree
-        data = signal.medfilt(self.data_set.correlation["correlation"], 5)
+        if minimum:
+            data = ndimage.minimum_filter1d(self.data_set.correlation["correlation"], 3)
+        else:
+            data = self.data_set.correlation["correlation"]
         coeff = np.polyfit(self.data_set.correlation["frequency"],
                            data,
                            degree,
@@ -90,8 +93,8 @@ class FourierCorrelationAnalysis(object):
             self.__fit_least_squares()
             self.__calculate_resolution_threshold()
 
-            frc_eq = self.data_set.correlation["curve-fit-coefficients"]
-            two_sigma_eq = self.data_set.resolution["resolution-threshold-coefficients"]
+            frc_eq = np.poly1d(self.data_set.correlation["curve-fit-coefficients"])
+            two_sigma_eq = np.poly1d(self.data_set.resolution["resolution-threshold-coefficients"])
 
             if criterion == 'one-bit' or criterion == 'half-bit':
                 for x0 in self.data_set.correlation["frequency"]:
