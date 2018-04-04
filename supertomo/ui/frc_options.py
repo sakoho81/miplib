@@ -18,7 +18,7 @@ def get_frc_options_group(parser):
 
     group = parser.add_argument_group("Fourier ring correlation analysis", "Options for FRC analysis")
 
-    group.add_argument('--ring-width', dest='width_ring', type=float, default=5,
+    group.add_argument('--bin-delta', dest='d_bin', type=float, default=5,
                        help='Set thickness of the ring for FRC calculation')
 
     group.add_argument('--square', dest='resol_square', action='store_true',
@@ -55,5 +55,21 @@ def get_frc_options_group(parser):
                        default=0.01,
                        help="The maximum difference between the value of the FRC and threshold"
                             "curves at the intersection. ")
+
+    group.add_argument('--angle-delta',
+                       dest='d_angle',
+                       type=int,
+                       default=20,
+                       help="The size of angle increment in directional FSC analysis."
+    )
+
+    group.add_argument('--curve-fit-min',
+                       dest='min_filter',
+                       action='store_true',
+                       help="Enable min filtering for Correlation curve fitting. This will help"
+                            "with saturation artefacts, but doesn't behave nicely with very few"
+                            "data points."
+                       )
+
 
     return parser

@@ -1,23 +1,26 @@
 import SimpleITK as sitk
 from supertomo.data.io import tiffile
-from supertomo.utils import itkutils
+import supertomo.processing.itk as itkutils
+from supertomo.data.containers.image import Image
 
 
-def image(path, image, spacing):
+def image(path, image):
     """
     A wrapper for the various image writing functions. The consumers
     should only call this function
 
     :param path:    A full path to the image.
     :param image:   An image as :type image: numpy.ndarray or sitk.image.
-    :param spacing: Pixel size ZXY, as a :type spacing: list.
 
     :return:
     """
+
+    assert isinstance(image, Image)
+
     if path.endswith(('.mha', '.mhd')):
-        __itk_image(path, image, spacing)
+        __itk_image(path, image, image.spacing)
     elif path.endswith(('.tiff', '.tif')):
-        __tiff(path, image, spacing)
+        __tiff(path, image, image.spacing)
 
 
 def __itk_image(path, image, spacing):

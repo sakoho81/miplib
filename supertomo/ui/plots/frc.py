@@ -3,6 +3,8 @@ from matplotlib import rc
 from matplotlib.font_manager import FontProperties
 from supertomo.data.containers.fourier_correlation_data import FourierCorrelationData, FourierCorrelationDataCollection
 
+from supertomo.processing.converters import degrees_to_radians
+
 
 class FourierDataPlotter(object):
     def __init__(self, data):
@@ -30,16 +32,23 @@ class FourierDataPlotter(object):
         # rect = fig.patch
         # rect.set_facecolor('white')
 
-        fig.tight_layout()
+        fig.tight_layout(pad=0.4, w_pad=2, h_pad=6)
 
-        for dataset, plot in zip(self.data, plots):
+        angles = list()
+        datasets = list()
 
-            angle = dataset[0]
-            data = dataset[1]
+        # Sort datasets by angle.
+        for dataset in self.data:
+            angles.append((int(dataset[0])))
+            datasets.append(dataset[1])
 
-            title = "FRC @ angle %s" % angle
+        angles, datasets = zip(*sorted(zip(angles, datasets)))
 
-            self.__make_frc_subplot(plot, data, title)
+        # Make subplots
+        for angle, dataset, plot in zip(angles, datasets, plots.flatten()):
+
+            title = "FRC @ angle %i" % angle
+            self.__make_frc_subplot(plot, dataset, title)
 
         plt.show()
 
@@ -51,7 +60,40 @@ class FourierDataPlotter(object):
 
         plt.show()
 
-    def __make_frc_subplot(self, ax, frc, title):
+    def plot_polar(self):
+        """
+        Show the resolution as a 2D polar plot in which the resolution values are plotted
+        as a function of rotatino angle.
+        """
+
+        angles = list()
+        radii = list()
+
+        for dataset in self.data:
+            angles.append(degrees_to_radians(float(dataset[0])))
+            radii.append(dataset[1].resolution["resolution"])
+
+        angles, radii = zip(*sorted(zip(angles, radii)))
+        angles = list(angles)
+        radii = list(radii)
+        angles.append(angles[0])
+        radii.append(radii[0])
+
+        radii = list(i/max(radii) for i in radii)
+        plt.figure(figsize=(5,4))
+        ax = plt.subplot(111, projection="polar")
+        ax.plot(angles, radii)
+        ax.set_rmax(1.2)
+        ax.set_rticks([0.2, 0.4, 0.6, 0.8, 1.0])
+        ax.set_rlabel_position(-22.5)  # get radial labels away from plotted line
+        ax.grid(True)
+
+        ax.set_title("The image resolution as a function of rotation angle")
+
+
+
+    @staticmethod
+    def __make_frc_subplot(ax, frc, title):
         """
         Creates a plot of the FRC curves in the curve_list. Single or multiple vurves can
         be plotted.
