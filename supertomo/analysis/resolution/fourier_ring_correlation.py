@@ -37,7 +37,7 @@ class FRC(object):
         image2 = ops_image.zero_pad_to_cube(image2)
 
         self.iterator = iterators.FourierRingIterator(image1.shape,
-                                                      d_bin=args.width_ring)
+                                                      d_bin=args.d_bin)
         # Calculate power spectra for the input images.
         self.fft_image1 = np.fft.fftshift(np.fft.fft2(image1)).real
         self.fft_image2 = np.fft.fftshift(np.fft.fft2(image2)).real
@@ -73,8 +73,8 @@ class FRC(object):
         :return: Returns the FRC results. They are also saved inside the class.
                  The return value is just for convenience.
         """
-        width_ring = self.args.width_ring
-        radii = np.arange(0, self.freq_nyq, width_ring)
+        d_bin = self.args.d_bin
+        radii = np.arange(0, self.freq_nyq, d_bin)
         c1 = np.zeros(radii.shape, dtype=np.float32)
         c2 = np.zeros(radii.shape, dtype=np.float32)
         c3 = np.zeros(radii.shape, dtype=np.float32)

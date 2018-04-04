@@ -36,6 +36,12 @@ class FourierCorrelationDataCollection(object):
     def __len__(self):
         return len(self._data)
 
+    def clear(self):
+        self._data.clear()
+
+    def items(self):
+        return self._data.items()
+
 
 class FourierCorrelationData(object):
     """

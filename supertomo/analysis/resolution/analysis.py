@@ -12,7 +12,7 @@ class FourierCorrelationAnalysis(object):
         self.args = args
         self.data_set = None
 
-    def __fit_least_squares(self, minimum=True):
+    def __fit_least_squares(self):
         """
         Calculate a least squares curve fit to the FRC Data
         :param frc: A FourierCorrelationData structure
@@ -22,14 +22,15 @@ class FourierCorrelationAnalysis(object):
         # Calculate least-squares fit
 
         degree = self.args.frc_curve_fit_degree
-        if minimum:
+        if self.args.min_filter:
             data = ndimage.minimum_filter1d(self.data_set.correlation["correlation"], 3)
         else:
             data = self.data_set.correlation["correlation"]
+
         coeff = np.polyfit(self.data_set.correlation["frequency"],
                            data,
                            degree,
-                           w=np.sqrt(self.data_set.correlation["correlation"]))
+                           w=1-self.data_set.correlation["frequency"]**2)
         equation = np.poly1d(coeff)
 
         self.data_set.correlation["curve-fit"] = equation(self.data_set.correlation["frequency"])

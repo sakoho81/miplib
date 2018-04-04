@@ -1,25 +1,10 @@
 import numpy as np
-import supertomo.processing.ndarray as ops_array
+import supertomo.processing.converters as converters
 from math import floor
-from abc import ABCMeta, abstractmethod
 
 
-class IteratorBase(object):
-    __metaclass__ = ABCMeta
-
-    @abstractmethod
-    def __init__(self, shape, d_bin, **kwargs):
-        pass
-    @abstractmethod
-    def __iter__(self):
-        pass
-    @abstractmethod
-    def next(self):
-        pass
-
-
-class FourierRingIterator(IteratorBase):
-    def __init__(self, shape, d_bin, **kwargs):
+class FourierRingIterator(object):
+    def __init__(self, shape, d_bin):
 
         assert len(shape) == 2
 
@@ -60,44 +45,36 @@ class FourierRingIterator(IteratorBase):
         return np.where(ring), self.current_ring-1
 
 
-class FourierShellIterator(IteratorBase):
-
-    def __init__(self, shape, d_bin, **kwargs):
+class FourierShellIterator(object):
+    """
+    An iterator for 3D images. Includes the option section a single shell into rotational
+    sections.
+    """
+    def __init__(self, shape, d_bin, d_angle):
         """
-        Generate a coordinate system for spherical indexing of 3D Fourier domain
-        images and iterate through it.
-
         :param shape: Shape of the image
-        :param kwargs: Should contain at least the terms "d_theta" and
-                      "d_bin", for angluar and radial bin sizes.
-
+        :param d_bin: The radius increment size (pixels)
+        :param d_angle: The angle increment size (degrees)
         """
-        # Check that all the necessary inputs are present
-        if "d_theta" in kwargs:
-            self.d_rotation = kwargs["d_theta"]
-            self.rotation_axis = "theta"
 
-        elif "d_phi" in kwargs:
-            self.d_rotation = kwargs["d_phi"]
-            self.rotation_axis = "phi"
-        else:
-            raise ValueError("You must specify a value for rotation angle increments")
-
+        self.d_angle = converters.degrees_to_radians(d_angle)
         self.d_bin = d_bin
 
         # Create Fourier grid
         axes = (np.arange(-np.floor(i / 2.0), np.ceil(i / 2.0)) for i in shape)
-        z, x, y = np.meshgrid(*axes)
+        z, y, x = np.meshgrid(*axes)
 
         # Create OP vector array
         self.r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
 
         # Create inclination and azimuth angle arrays
-        self.phi = np.arctan2(y, x)
-        self.theta = np.arccos(ops_array.safe_divide(z, self.r))
+        self.phi = np.arctan2(y, z) + np.pi
+
+        self.phi += self.d_angle/2
+        self.phi[self.phi >= 2*np.pi] -= 2*np.pi
 
         self.rotation_start = 0
-        self.rotation_stop = 360 / self.d_rotation - 1
+        self.rotation_stop = 360 / d_angle - 1
 
         self.shell_start = 0
         self.shell_stop = floor(shape[0] / (2 * self.d_bin)) - 1
@@ -105,18 +82,39 @@ class FourierShellIterator(IteratorBase):
         self.current_rotation = self.rotation_start
         self.current_shell = self.shell_start
 
-    def __get_inclination_sector(self, theta_min, theta_max):
+        self.freq_nyq = int(np.floor(shape[0] / 2.0))
 
-        arr_inf = self.theta >= theta_min
-        arr_sup = self.theta < theta_max
+        self.angles = np.arange(0, 360, d_angle, dtype=int)
+        self.radii = np.arange(0, self.freq_nyq, self.d_bin)
 
-        return arr_inf*arr_sup
+    @property
+    def steps(self):
+        return self.radii, self.angles
 
-    def __get_azimuthal_sector(self, phi_min, phi_max):
+    @property
+    def nyquist(self):
+        return self.freq_nyq
+
+    def __get_angle_sector(self, phi_min, phi_max):
+        """
+        Assuming a classical spherical coordinate system the azimutahl
+        angle is the angle between the x- and y- axes. Use this to extract
+        a conical section from a sphere that is defined by start and stop azimuth
+        angles.
+
+        :param phi_min: the angle at which to start the section, in radians
+        :param phi_max: the angle at which to stop the section, in radians
+        :return:
+
+        """
+
         arr_inf = self.phi >= phi_min
-        arr_sup = self.theta < phi_max
+        arr_sup = self.phi < phi_max
 
-        return arr_inf * arr_sup
+        arr_inf_neg = self.phi >= phi_min + np.pi
+        arr_sup_neg = self.phi < phi_max + np.pi
+
+        return arr_inf * arr_sup + arr_inf_neg * arr_sup_neg
 
     def __get_points_on_shell(self, shell_start, shell_stop):
 
@@ -125,26 +123,46 @@ class FourierShellIterator(IteratorBase):
 
         return arr_inf*arr_sup
 
+    def __getitem__(self, (shell_start, shell_stop, angle_min, angle_max)):
+        """
+        Get a single conical section of a 3D shell.
+
+        :param shell_start: The start of the shell (0 ... Nyquist)
+        :param shell_stop:  The end of the shell
+        :param angle_min:   The start of the cone (degrees 0-360)
+        :param angle_max:   The end of the cone
+        :param axis:        Rotation axis: inclination or azimuth
+        :return:            Returns the coordinates of the points that are located inside
+                            the portion of a shell that intersects with the points on the
+                            cone.
+        """
+
+        angle_min = converters.degrees_to_radians(angle_min)
+        angle_max = converters.degrees_to_radians(angle_max)
+
+        shell = self.__get_points_on_shell(shell_start, shell_stop)
+        cone = self.__get_angle_sector(angle_min, angle_max)
+
+        return np.where(shell*cone)
+
     def __iter__(self):
         return self
 
     def next(self):
-        try:
-            shell = self.__get_points_on_shell(self.current_shell * self.d_bin,
-                                               (self.current_shell + 1) * self.d_bin)
-            if self.rotation_axis == "theta":
-                cone = self.__get_inclination_sector(self.current_rotation * self.d_rotation,
-                                                 (self.current_rotation + 1) * self.d_rotation)
-            else:
-                cone = self.__get_azimuthal_sector(self.current_rotation * self.d_rotation,
-                                                     (self.current_rotation + 1) * self.d_rotation)
-        except IndexError:
-            raise StopIteration
 
         rotation_idx = self.current_rotation
         shell_idx = self.current_shell
 
-        if self.current_rotation >= self.rotation_stop:
+        if rotation_idx <= self.rotation_stop and shell_idx <= self.shell_stop:
+            shell = self.__get_points_on_shell(self.current_shell * self.d_bin,
+                                              (self.current_shell + 1) * self.d_bin)
+
+            cone = self.__get_angle_sector(self.current_rotation * self.d_angle,
+                                          (self.current_rotation + 1) * self.d_angle)
+        else:
+            raise StopIteration
+
+        if rotation_idx >= self.rotation_stop:
             self.current_rotation = 0
             self.current_shell += 1
         else:
