@@ -53,13 +53,7 @@ class MultiViewFusionRLCuda(supertomo.processing.fusion.MultiViewFusionRL):
 
         FFTPlan(padded_block_size, itype=numpy.complex64, otype=numpy.complex64)
 
-        # Select views to fuse
-        if self.options.fuse_views == -1:
-            self.views = xrange(self.n_views)
-        else:
-            self.views = self.options.fuse_views
 
-        self.n_views = len(self.views)
 
         #yself.scaler = numpy.full(self.image_size, 1.0/self.n_views,
         # dtype=numpy.float32)
@@ -81,14 +75,14 @@ class MultiViewFusionRLCuda(supertomo.processing.fusion.MultiViewFusionRL):
         else:
             self.estimate_new[:] = numpy.zeros(self.image_size, dtype=numpy.float32)
 
-        # Iterate over blocks
         stream1 = cuda.stream()
         stream2 = cuda.stream()
 
+        # Iterate over views
         for idx, view in enumerate(self.views):
+
             psf_fft = self.psfs_fft[idx]
             adj_psf_fft = self.adj_psfs_fft[idx]
-            #print "The current view is %i" % view
 
             self.data.set_active_image(view, self.options.channel,
                                        self.options.scale, "registered")
@@ -275,11 +269,11 @@ class MultiViewFusionRLCuda(supertomo.processing.fusion.MultiViewFusionRL):
             self.adj_psfs_fft = numpy.memmap(adj_psfs_fft_f, dtype='complex64',
                                              mode='w+', shape=tuple(memmap_shape))
 
-        for idx, view in enumerate(self.views):
+        for idx in range(self.n_views):
             self.psfs_fft[idx] = ops_array.expand_to_shape(
-                self.psfs[view], padded_block_size).astype(numpy.complex64)
+                self.psfs[idx], padded_block_size).astype(numpy.complex64)
             self.adj_psfs_fft[idx] = ops_array.expand_to_shape(
-                self.adj_psfs[view], padded_block_size).astype(numpy.complex64)
+                self.adj_psfs[idx], padded_block_size).astype(numpy.complex64)
             self.psfs_fft[idx] = numpy.fft.fftshift(self.psfs_fft[idx])
             self.adj_psfs_fft[idx] = numpy.fft.fftshift(self.adj_psfs_fft[idx])
 

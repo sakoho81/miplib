@@ -52,8 +52,16 @@ class MultiViewFusionRL:
 
         self.data = data
         self.options = options
-        self.n_views = self.data.get_number_of_images("registered")
 
+        # Select views to fuse
+        if self.options.fuse_views == -1:
+            self.views = xrange(self.data.get_number_of_images("registered"))
+        else:
+            self.views = self.options.fuse_views
+
+        self.n_views = len(self.views)
+
+        # Get image size
         self.data.set_active_image(0, self.options.channel, self.options.scale,
                                    "registered")
         self.image_size = numpy.array(self.data.get_image_size())
@@ -126,46 +134,53 @@ class MultiViewFusionRL:
         else:
             self.estimate_new[:] = numpy.float32(0)
 
-        # Iterate over blocks
-        block_nr = 1
-        for x, y, z in itertools.product(xrange(0, self.image_size[0], self.block_size[0]),
-                                         xrange(0, self.image_size[1], self.block_size[1]),
-                                         xrange(0, self.image_size[2], self.block_size[2])):
+        # Iterate over views
+        for idx, view in enumerate(self.views):
 
-            index = numpy.array((x, y, z), dtype=int)
-            if self.options.block_pad > 0:
-                estimate_block = self.get_padded_block(index.copy())
+            # Get PSFs for view
+            psf = self.psfs[idx]
+
+            if "opt" in self.options.fusion_method:
+                adj_psf = self.virtual_psfs[idx]
             else:
-                estimate_block = self.estimate[index[0]:index[0]+self.block_size[0],
-                                               index[1]:index[1]+self.block_size[1],
-                                               index[2]:index[2]+self.block_size[2]]
+                adj_psf = self.adj_psfs[idx]
 
-            #print "The current block is %i" % block_nr
-            block_nr += 1
+            self.data.set_active_image(view, self.options.channel,
+                                       self.options.scale, "registered")
 
-            # Iterate over views
-            for view in xrange(self.n_views):
+            weighting = float(self.data.get_max()) / 255
+
+            # Iterate over blocks
+            for x, y, z in itertools.product(xrange(0, self.image_size[0], self.block_size[0]),
+                                             xrange(0, self.image_size[1], self.block_size[1]),
+                                             xrange(0, self.image_size[2], self.block_size[2])):
+
+                index = numpy.array((x, y, z), dtype=int)
+                if self.options.block_pad > 0:
+                    estimate_block = self.get_padded_block(index.copy())
+                else:
+                    estimate_block = self.estimate[index[0]:index[0]+self.block_size[0],
+                                                   index[1]:index[1]+self.block_size[1],
+                                                   index[2]:index[2]+self.block_size[2]]
 
                 # Execute: cache = convolve(PSF, estimate), non-normalized
-                cache = fftconvolve(estimate_block, self.psfs[view], mode='same')
+                estimate_block_new = fftconvolve(estimate_block, psf, mode='same')
+                estimate_block_new *= weighting
 
                 # Execute: cache = data/cache
-                self.data.set_active_image(view, self.options.channel, self.options.scale, "registered")
-                block = self.data.get_registered_block(self.block_size, self.options.block_pad, index.copy())
+                block = self.data.get_registered_block(self.block_size,
+                                                       self.options.block_pad,
+                                                       index.copy())
 
-                #ops_ext.inverse_division_inplace(cache, block)
                 with numpy.errstate(divide="ignore"):
-                    cache = block / cache
-                    cache[cache == numpy.inf] = 0.0
-                    cache = numpy.nan_to_num(cache)
+                    estimate_block_new = block / estimate_block_new
+                    estimate_block_new[estimate_block_new == numpy.inf] = 0.0
+                    estimate_block_new = numpy.nan_to_num(estimate_block_new)
 
                 # Execute: cache = convolve(PSF(-), cache), inverse of non-normalized
                 # Convolution with virtual PSFs is performed here as well, if
                 # necessary
-                if "opt" in self.options.fusion_method:
-                    cache = fftconvolve(cache, self.virtual_psfs[view], mode='same')
-                else:
-                    cache = fftconvolve(cache, self.adj_psfs[view], mode='same')
+                estimate_block_new = fftconvolve(estimate_block_new, adj_psf, mode='same')
 
                 # Update the contribution from a single view to the new estimate
                 if self.options.block_pad == 0:
@@ -174,13 +189,13 @@ class MultiViewFusionRL:
                             index[0]:index[0] + self.block_size[0],
                             index[1]:index[1] + self.block_size[1],
                             index[2]:index[2] + self.block_size[2]
-                        ] *= cache
+                        ] *= estimate_block_new
                     else:
                         self.estimate_new[
                             index[0]:index[0] + self.block_size[0],
                             index[1]:index[1] + self.block_size[1],
                             index[2]:index[2] + self.block_size[2]
-                        ] += cache
+                        ] += estimate_block_new
                 else:
                     pad = self.options.block_pad
 
@@ -189,7 +204,7 @@ class MultiViewFusionRL:
                             index[0]:index[0] + self.block_size[0],
                             index[1]:index[1] + self.block_size[1],
                             index[2]:index[2] + self.block_size[2]
-                        ] *= cache[pad:pad + self.block_size[0],
+                        ] *= estimate_block_new[pad:pad + self.block_size[0],
                                    pad:pad + self.block_size[1],
                                    pad:pad + self.block_size[2]]
 
@@ -199,7 +214,7 @@ class MultiViewFusionRL:
                             index[0]:index[0] + self.block_size[0],
                             index[1]:index[1] + self.block_size[1],
                             index[2]:index[2] + self.block_size[2]
-                        ] += cache[pad:pad + self.block_size[0],
+                        ] += estimate_block_new[pad:pad + self.block_size[0],
                                    pad:pad + self.block_size[1],
                                    pad:pad + self.block_size[2]]
 
@@ -208,7 +223,7 @@ class MultiViewFusionRL:
             self.estimate_new *= (1.0 / self.n_views)
         else:
             self.estimate_new[:] = ops_array.nroot(self.estimate_new,
-                                                  self.n_views)
+                                                   self.n_views)
 
         return ops_ext.update_estimate_poisson(self.estimate,
                                                self.estimate_new,
@@ -388,7 +403,7 @@ class MultiViewFusionRL:
                                    self.options.scale, "registered")
         image_spacing = self.data.get_voxel_size()
 
-        for i in range(0, self.n_views):
+        for i in self.views:
             self.data.set_active_image(i, 0, 100, "psf")
             psf_orig = self.data[:]
             psf_spacing = self.data.get_voxel_size()
