@@ -1,7 +1,7 @@
 import numpy as np
 from supertomo.data.containers.image import Image
 import ndarray
-
+from scipy.ndimage import interpolation
 
 def zoom_to_isotropic_spacing(image, order=3):
     """
@@ -14,14 +14,15 @@ def zoom_to_isotropic_spacing(image, order=3):
     assert isinstance(image, Image)
 
     spacing = image.spacing
-    shape = image.shape
+    old_shape = image.shape
     min_spacing = min(spacing)
     zoom = tuple(pixel_spacing/min_spacing for pixel_spacing in spacing)
-    if all(zoom) == 1:
+    new_shape = tuple(int(pixels * dim_zoom) for (pixels, dim_zoom) in zip(old_shape, zoom))
+
+    if new_shape == old_shape:
         return image
     else:
-        new_shape = tuple(int(pixels*dim_zoom)for (pixels, dim_zoom) in zip(shape, zoom))
-        return Image(resize(image, new_shape, order=order), tuple(min_spacing)*image.ndim)
+        return resize(image, new_shape, order)
 
 
 def resize(image, size, order=3):  # type: (Image, tuple) -> Image
@@ -39,10 +40,10 @@ def resize(image, size, order=3):  # type: (Image, tuple) -> Image
     zoom = [float(a)/b for a, b in zip(size, image.shape)]
     print "The zoom is %s" % zoom
 
-    image = np.zoom(image, tuple(zoom), order=order)
-    image.spacing(i/j for i, j in zip(image.get_spacing(), zoom))
+    array = interpolation.zoom(image, tuple(zoom), order=order)
+    spacing = tuple(i/j for i, j in zip(image.spacing, zoom))
 
-    return image
+    return Image(array, spacing)
 
 
 def apply_hanning(image):  # type: (Image) -> Image

@@ -192,7 +192,6 @@ def __bioformats(filename, series=0, return_itk = False):
     if len(image.axes) == 2:
         spacing = (image.metadata.PixelsPhysicalSizeY(0),
                    image.metadata.PixelsPhysicalSizeX(0))
-        image = image[0]
     else:
         spacing = (image.metadata.PixelsPhysicalSizeZ(0),
                    image.metadata.PixelsPhysicalSizeY(0),
@@ -200,7 +199,7 @@ def __bioformats(filename, series=0, return_itk = False):
     if return_itk:
         return itkutils.convert_from_numpy(image, spacing)
     else:
-        return image, spacing
+        return image[0], spacing
 
 
 
