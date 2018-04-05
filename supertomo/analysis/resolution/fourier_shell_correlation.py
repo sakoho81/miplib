@@ -36,13 +36,13 @@ class DirectionalFSC(object):
                   "to match the shapes."
             image1, image2 = ops_myimage.zero_pad_to_matching_shape(image1, image2)
 
-        # Zoom to isotropic spacing if necessary
-        image1 = ops_myimage.zoom_to_isotropic_spacing(image1, order=1)
-        image2 = ops_myimage.zoom_to_isotropic_spacing(image2, order=1)
-
-        # Pad to uniform shape
-        image1 = ops_myimage.zero_pad_to_cube(image1)
-        image2 = ops_myimage.zero_pad_to_cube(image2)
+        # # Zoom to isotropic spacing if necessary
+        # image1 = ops_myimage.zoom_to_isotropic_spacing(image1, order=1)
+        # image2 = ops_myimage.zoom_to_isotropic_spacing(image2, order=1)
+        #
+        # # Pad to uniform shape
+        # image1 = ops_myimage.zero_pad_to_cube(image1)
+        # image2 = ops_myimage.zero_pad_to_cube(image2)
 
         # Create an Iterator
         self.iterator = iterators.FourierShellIterator(image1.shape,

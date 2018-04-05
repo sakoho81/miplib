@@ -6,6 +6,7 @@ import scipy.ndimage as ndimage
 import supertomo.processing.itk as itkutils
 from supertomo.data.definitions import *
 import supertomo.ui.utils as uiutils
+from supertomo.data.containers.image import Image
 
 
 class ImageData():
@@ -680,7 +681,7 @@ class ImageData():
         return name in self.data
 
     def __getitem__(self, item):
-        return self.data[self.active_image][item]
+        return Image(self.data[self.active_image][item], self.get_voxel_size())
 
     def __setitem__(self, key, value):
         self.data[self.active_image][key] = value
