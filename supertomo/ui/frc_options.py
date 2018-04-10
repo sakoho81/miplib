@@ -63,6 +63,19 @@ def get_frc_options_group(parser):
                        help="The size of angle increment in directional FSC analysis."
     )
 
+    group.add_argument('--extract-angle-delta',
+                       dest='d_extract_angle',
+                       type=float,
+                       default=5.0,
+                       help="The size of the angle when using hollow sphere iterator."
+                       )
+
+    group.add_argument('--enable-hollow-iterator',
+                       dest='hollow_iterator',
+                       action='store_true',
+                       help="Enable hollow iterator"
+                       )
+
     group.add_argument('--curve-fit-min',
                        dest='min_filter',
                        action='store_true',
