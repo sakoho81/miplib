@@ -45,9 +45,15 @@ class DirectionalFSC(object):
         # image2 = ops_myimage.zero_pad_to_cube(image2)
 
         # Create an Iterator
-        self.iterator = iterators.FourierShellIterator(image1.shape,
-                                                       d_bin=args.d_bin,
-                                                       d_angle=args.d_angle)
+        if args.hollow_iterator:
+            self.iterator = iterators.HollowFourierShellIterator(image1.shape,
+                                                                 d_bin=args.d_bin,
+                                                                 d_angle=args.d_angle,
+                                                                 d_extract_angle=args.d_extract_angle)
+        else:
+            self.iterator = iterators.FourierShellIterator(image1.shape,
+                                                           d_bin=args.d_bin,
+                                                           d_angle=args.d_angle)
 
         # FFT transforms of the input images
         self.fft_image1 = np.fft.fftshift(np.fft.fftn(image1)).real

@@ -95,7 +95,7 @@ class FourierShellIterator(object):
     def nyquist(self):
         return self.freq_nyq
 
-    def __get_angle_sector(self, phi_min, phi_max):
+    def get_angle_sector(self, phi_min, phi_max):
         """
         Assuming a classical spherical coordinate system the azimutahl
         angle is the angle between the x- and y- axes. Use this to extract
@@ -107,7 +107,6 @@ class FourierShellIterator(object):
         :return:
 
         """
-
         arr_inf = self.phi >= phi_min
         arr_sup = self.phi < phi_max
 
@@ -141,7 +140,7 @@ class FourierShellIterator(object):
         angle_max = converters.degrees_to_radians(angle_max)
 
         shell = self.__get_points_on_shell(shell_start, shell_stop)
-        cone = self.__get_angle_sector(angle_min, angle_max)
+        cone = self.get_angle_sector(angle_min, angle_max)
 
         return np.where(shell*cone)
 
@@ -157,7 +156,7 @@ class FourierShellIterator(object):
             shell = self.__get_points_on_shell(self.current_shell * self.d_bin,
                                               (self.current_shell + 1) * self.d_bin)
 
-            cone = self.__get_angle_sector(self.current_rotation * self.d_angle,
+            cone = self.get_angle_sector(self.current_rotation * self.d_angle,
                                           (self.current_rotation + 1) * self.d_angle)
         else:
             raise StopIteration
@@ -170,3 +169,52 @@ class FourierShellIterator(object):
 
         return np.where(shell*cone), shell_idx, rotation_idx
 
+
+class HollowFourierShellIterator(FourierShellIterator):
+
+    def __init__(self,  shape, d_bin, d_angle, d_extract_angle=5):
+
+        FourierShellIterator.__init__(self, shape, d_bin, d_angle)
+
+        self.d_extract_angle = converters.degrees_to_radians(d_extract_angle)
+
+    def get_angle_sector(self, phi_min, phi_max):
+        """
+        Assuming a classical spherical coordinate system the azimutahl
+        angle is the angle between the x- and y- axes. Use this to extract
+        a conical section from a sphere that is defined by start and stop azimuth
+        angles.
+
+        In the hollow implementation a small slice in the center of the section is
+        removed to avoid the effect of resampling when calculating the resolution
+        along the lowest resolution axis (z), on images with very isotropic resolution
+        (e.g. STED).
+
+        :param phi_min: the angle at which to start the section, in radians
+        :param phi_max: the angle at which to stop the section, in radians
+        :return:
+
+        """
+        # Calculate angular sector
+        arr_inf = self.phi >= phi_min
+        arr_sup = self.phi < phi_max
+
+        arr_inf_neg = self.phi >= phi_min + np.pi
+        arr_sup_neg = self.phi < phi_max + np.pi
+
+        full_section = arr_inf * arr_sup + arr_inf_neg * arr_sup_neg
+
+        # Calculate part of the section to exclude
+        sector_center = phi_min + (phi_max-phi_min)/2
+        phi_min_ext = sector_center - self.d_extract_angle
+        phi_max_ext = sector_center + self.d_extract_angle
+
+        arr_inf_ext = self.phi >= phi_min_ext
+        arr_sup_ext = self.phi < phi_max_ext
+
+        arr_inf_neg_ext = self.phi >= phi_min_ext + np.pi
+        arr_sup_neg_ext = self.phi < phi_max_ext + np.pi
+
+        extract_section = arr_inf_ext * arr_sup_ext + arr_inf_neg_ext * arr_sup_neg_ext
+
+        return full_section - extract_section
