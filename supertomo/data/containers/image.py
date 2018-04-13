@@ -49,8 +49,6 @@ class Image(numpy.ndarray):
 
     # endregion
 
-
-
 # region Command Line Arguments (refactor)
 def get_options(parser):
     """

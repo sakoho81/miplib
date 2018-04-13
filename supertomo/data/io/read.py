@@ -11,14 +11,16 @@ from supertomo.data.containers.image import Image
 scale_c = 1.0e6
 
 
-def get_image(filename, return_type='image', bioformats=True):
+def get_image(filename, series=0, channel=0, return_type='image', bioformats=True):
     """
     A wrapper for the image read functions.
     Parameters
+    :param series: The index of an image in a time series
+    :param channel: The color channel in  a multi-channel image.
     :param bioformats: Toggle to disable bioformats reader.
     :param filename The full path to an image
-    :param return_type Return the image as numpy.ndarray. sitk.Image.
-           the return type can be chosen with a string ('numpy, 'itk').
+    :param return_type Return the image as supertomo Image. sitk.Image.
+           the return type can be chosen with a string ('image, 'itk').
 
     """
     assert return_type in ('numpy', 'itk', 'image')
@@ -26,15 +28,13 @@ def get_image(filename, return_type='image', bioformats=True):
     if filename.endswith(".mha") or not bioformats:
         data = __itk_image(filename, return_type == 'itk')
     else:
-        data = __bioformats(filename, return_type == 'itk')
+        data = __bioformats(filename, series, channel, return_type == 'itk')
 
     if return_type == "image":
         images, spacing = data
         return Image(images, spacing)
 
     return data
-
-
 
 def __itk_image(filename, return_itk=True):
     """
@@ -177,7 +177,7 @@ def open_carma_file(filename):
     return images, spacing
 
 
-def __bioformats(filename, series=0, return_itk = False):
+def __bioformats(filename, series=0, channel=0, return_itk = False):
     """
     Read an image using the Bioformats importer. Good for most microscopy formats.
 
@@ -189,6 +189,8 @@ def __bioformats(filename, series=0, return_itk = False):
     assert pims.bioformats.available(), "Please install jpype in order to use " \
                                         "the bioformats reader."
     image = pims.bioformats.BioformatsReader(filename, series=series)
+
+    # Get Pixel/Voxel size information
     if len(image.axes) == 2:
         spacing = (image.metadata.PixelsPhysicalSizeY(0),
                    image.metadata.PixelsPhysicalSizeX(0))
@@ -196,10 +198,19 @@ def __bioformats(filename, series=0, return_itk = False):
         spacing = (image.metadata.PixelsPhysicalSizeZ(0),
                    image.metadata.PixelsPhysicalSizeY(0),
                    image.metadata.PixelsPhysicalSizeX(0))
+
+    # Get color channel
+    if image.sizes.has_key('c'):
+        image.iter_axes = 'c'
+        assert len(image) > channel
+        image = image[channel]
+    else:
+        image = image[0]
+
     if return_itk:
         return itkutils.convert_from_numpy(image, spacing)
     else:
-        return image[0], spacing
+        return image, spacing
 
 
 
