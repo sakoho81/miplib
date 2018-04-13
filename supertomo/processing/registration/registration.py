@@ -84,7 +84,7 @@ def plot_values(registration_method):
 #                             be calculated. Same requirements as above.
 #     :param options:
 #                             Options provided by the user via CLI or the
-#                             included GUI. See script_options.py.
+#                             included GUI. See image_quality_options.py.
 #     :param initial_transform:
 #                             Initial transform may be provided by the user
 #                             instead of calculating it with an initializer.
@@ -356,7 +356,7 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
     :param moving_image:    The image for which the spatial transform will
                             be calculated. Same requirements as above.
     :param options:         Options provided by the user via CLI or the
-                            included GUI. See script_options.py.
+                            included GUI. See image_quality_options.py.
     :return:
                             The final transform as a sitk.Euler2DTransform
     """

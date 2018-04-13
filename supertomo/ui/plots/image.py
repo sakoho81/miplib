@@ -161,3 +161,46 @@ def display_2d_image_overlay(image1, image2, image3=None):
     plt.show()
 
 
+def show_pics_from_disk(filenames, title="Image collage"):
+    """
+    A utility for creating a collage of images, to be shown
+    in a single plot. The images are loaded from disk according
+    to the provided filenames:
+    :param filenames:   A list containing the image filenames
+    :param title:       Name of the plot
+    :return:            Nothing
+    """
+    if len(filenames) > 1:
+        if 4 < len(filenames) <= 9:
+            fig, subplots = plt.subplots(3, 3)
+        elif 9 < len(filenames) <= 16:
+            fig, subplots = plt.subplots(4, 4)
+        elif 16 < len(filenames) <= 25:
+            fig, subplots = plt.subplots(5, 5)
+        elif 25 < len(filenames) <= 36:
+            fig, subplots = plt.subplots(6, 6)
+        else:
+            fig, subplots = plt.subplots(2, 2)
+
+        # fig.title(title)
+        i = 0
+        j = 0
+        k = 0
+        while k < len(filenames):
+            j = 0
+            while j < subplots.shape[1] and k < len(filenames):
+                print filenames[i + j]
+                subplots[i, j].imshow(plt.imread(filenames[k]), cmap=plt.cm.hot)
+                subplots[i, j].set_title(os.path.basename(filenames[k]))
+                subplots[i, j].axis("off")
+                k += 1
+                j += 1
+            i += 1
+        plt.subplots_adjust(wspace=-0.5, hspace=0.2)
+        plt.suptitle(title, size=16)
+        plt.show()
+
+    else:
+        plt.imshow(plt.imread(filenames))
+        plt.axis("off")
+        plt.show()

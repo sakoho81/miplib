@@ -3,6 +3,7 @@ from supertomo.data.containers.image import Image
 import ndarray
 from scipy.ndimage import interpolation
 
+
 def zoom_to_isotropic_spacing(image, order=3):
     """
     Resize an Image to isotropic pixel spacing.
@@ -117,7 +118,7 @@ def checkerboard_split(image):
         image1 = image[odd_index[0], :, :][:, odd_index[1], :][:, :, odd_index[2]]
         image2 = image[even_index[0], :, :][:, even_index[1], :][:, :, even_index[2]]
 
-    image1.spacing = image.spacing
+    image1.spacing = tuple(i*2 for i in image.spacing)
     image2.spacing = image1.spacing
 
     return image1, image2
@@ -141,6 +142,14 @@ def zero_pad_to_cube(image):
         return image
 
 
+def crop_to_rectangle(image):
+    assert isinstance(image, Image)
+    assert image.ndim < 4
+
+    shape = [min(image.shape), ] * image.ndim
+    return crop_to_shape(image, shape)
+
+
 def crop_to_shape(image, shape):
     """
     Crop image to shape. The new image will be centered at the geometric center
@@ -158,3 +167,52 @@ def crop_to_shape(image, shape):
     assert all((x >= y for x, y in zip(image.shape, shape)))
 
     return Image(ndarray.contract_to_shape(image,shape), image.spacing)
+
+
+def noisy(image, noise_type):
+    """
+    Parameters
+    ----------
+    image :
+        Input image data. Will be converted to float.
+    mode : str
+        One of the following strings, selecting the type of noise to add:
+
+        'gauss'     Gaussian-distributed additive noise.
+        'poisson'   Poisson-distributed noise generated from the data.
+        's&p'       Replaces random pixels with 0  or 1.
+        'speckle'   Multiplicative noise using out = image + n*image,where
+                    n is uniform noise with specified mean & variance.
+    """
+    assert isinstance(image, Image)
+    assert image.ndim < 4
+
+    if noise_type == "gauss":
+        mean = 0
+        var = 0.1
+        sigma = var ** 0.5
+        gauss = np.random.normal(mean, sigma, image.shape)
+        gauss = gauss.reshape(image.shape)
+        return image + gauss
+    elif noise_type == "s&p":
+        s_vs_p = 0.5
+        amount = 0.004
+        out = np.copy(image)
+        # Salt mode
+        num_salt = np.ceil(amount * image.size * s_vs_p)
+        coords = [np.random.randint(0, i - 1, int(num_salt))
+                  for i in image.shape]
+        out[coords] = 1
+
+        # Pepper mode
+        num_pepper = np.ceil(amount * image.size * (1. - s_vs_p))
+        coords = [np.random.randint(0, i - 1, int(num_pepper))
+                  for i in image.shape]
+        out[coords] = 0
+        return out
+    elif noise_type == "poisson":
+        vals = 2 ** np.ceil(np.log2(len(np.unique(image))))
+        return np.random.poisson(image * vals) / float(vals)
+    elif noise_type == "speckle":
+        gauss = np.random.standard_normal(image.shape).reshape(image.shape)
+        return image + image * gauss

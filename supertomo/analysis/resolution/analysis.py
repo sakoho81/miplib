@@ -1,7 +1,9 @@
 import numpy as np
 import scipy.optimize as optimize
 from supertomo.data.containers.fourier_correlation_data import FourierCorrelationData, FourierCorrelationDataCollection
+import supertomo.processing.ndarray as arrayutils
 import scipy.ndimage as ndimage
+
 
 class FourierCorrelationAnalysis(object):
     def __init__(self, data, args):
@@ -27,6 +29,9 @@ class FourierCorrelationAnalysis(object):
         else:
             data = self.data_set.correlation["correlation"]
 
+        if data[-1] > data[-2]:
+            data[-1] = data[-2]
+
         coeff = np.polyfit(self.data_set.correlation["frequency"],
                            data,
                            degree,
@@ -48,11 +53,27 @@ class FourierCorrelationAnalysis(object):
         degree = self.args.resolution_threshold_curve_fit_degree
 
         if criterion == 'one-bit':
-            points = (0.5 + 2.4142 / np.sqrt(self.data_set.correlation["points-x-bin"])) / \
-                     (1.5 + 1.4142 / np.sqrt(self.data_set.correlation["points-x-bin"]))
+            nominator = 0.5 + arrayutils.safe_divide(
+                2.4142,
+                np.sqrt(self.data_set.correlation["points-x-bin"])
+            )
+            denominator = 1.5 + arrayutils.safe_divide(
+                1.4142,
+                np.sqrt(self.data_set.correlation["points-x-bin"])
+            )
+            points = arrayutils.safe_divide(nominator, denominator)
+
         elif criterion == 'half-bit':
-            points = (0.2071 + 1.9102 / np.sqrt(self.data_set.correlation["points-x-bin"])) / \
-                     (1.2071 + 0.9102 / np.sqrt(self.data_set.correlation["points-x-bin"]))
+            nominator = 0.2071 + arrayutils.safe_divide(
+                1.9102,
+                np.sqrt(self.data_set.correlation["points-x-bin"])
+            )
+            denominator = 1.2071 + arrayutils.safe_divide(
+                0.9102,
+                np.sqrt(self.data_set.correlation["points-x-bin"])
+            )
+            points = arrayutils.safe_divide(nominator, denominator)
+
         elif criterion == 'fixed':
             points = threshold * np.ones(len(self.data_set.correlation["points-x-bin"]))
         else:
@@ -97,35 +118,19 @@ class FourierCorrelationAnalysis(object):
             frc_eq = np.poly1d(self.data_set.correlation["curve-fit-coefficients"])
             two_sigma_eq = np.poly1d(self.data_set.resolution["resolution-threshold-coefficients"])
 
-            if criterion == 'one-bit' or criterion == 'half-bit':
-                for x0 in self.data_set.correlation["frequency"]:
-                    root, infodict, ier, mesg = optimize.fsolve(pdiff1, x0,
-                                                                full_output=True)
-                    if (ier == 1) and (0 < root < self.data_set.correlation["frequency"][-1]):
-                        root = root[0]
-                        break
+            # Find intersection
+            root, result = optimize.brentq(
+                pdiff2 if criterion == 'fixed' else pdiff1,
+                0.0, 0.9, xtol=tolerance, full_output=True)
 
-                if np.abs(frc_eq(root) - two_sigma_eq(root)) > tolerance:
-                    success = False
-                else:
-                    success = True
-
-            else:
-                if pdiff2(0.0) * pdiff2(self.data_set.correlation["frequency"][-1]) < 0:
-                    root = optimize.bisect(pdiff2, 0.0, self.data_set.correlation["frequency"][-1])
-                    success = True
-                else:
-                    success = False
-
-            if success:
+            # Save result, if intersection was found
+            if result.converged is True:
                 self.data_set.resolution["resolution-point"] = (frc_eq(root), root)
                 self.data_set.resolution["criterion"] = criterion
                 resolution = 2 * pixel_size / root
                 self.data_set.resolution["resolution"] = resolution
-
+                self.data_collection[int(key)] = self.data_set
             else:
                 print "Could not find an intersection for the curves for the dataset %s." % key
-
-            self.data_collection[int(key)] = self.data_set
 
         return self.data_collection

@@ -6,7 +6,7 @@ setup(
     version='0.1',
     packages=find_packages(),
     install_requires=['numpy', 'scipy', 'h5py', 'SuperTomo', 'SimpleITK',
-                      'matplotlib', 'accelerate', 'numba', 'pyculib'],
+                      'matplotlib', 'accelerate', 'numba', 'pyculib', 'pandas'],
     entry_points={
         'console_scripts': [
             'supertomo.import = supertomo.bin.import:main',
@@ -16,7 +16,12 @@ setup(
             'supertomo.register = supertomo.bin.register:main',
             'supertomo.deconvolve = supertomo.bin.deconvolve:main',
             'supertomo.resolution = supertomo.bin.resolution:main',
-            'supertomo.3dfrc = supertomo.bin.threedfrc:main'
+            'supertomo.3dfrc = supertomo.bin.threedfrc:main',
+            'pyimq.main = supertomo.bin.pyimq:main',
+            'pyimq.util.blurseq = supertomo.bin.utils.create_blur_sequence:main',
+            'pyimq.util.imseq = supertomo.bin.utils.create_photo_test_set:main',
+            'pyimq.subjective = supertomo.bin.subjective:main',
+            'pyimq.power = supertomo.bin.power:main'
         ]
     },
     platforms=["any"],
