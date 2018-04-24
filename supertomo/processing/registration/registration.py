@@ -51,6 +51,8 @@ def end_plot(fixed, moving, transform):
 
     fixed = sitk.Cast(fixed, sitk.sitkUInt8)
     resampled = sitk.Cast(resampled, sitk.sitkUInt8)
+    fixed = sitk.RescaleIntensity(fixed, 0, 255)
+    resampled = sitk.RescaleIntensity(resampled, 0, 255)
     plt.subplot(1, 2, 2)
     plt.title("Overlay")
     show.display_2d_image_overlay(fixed, resampled)
@@ -368,7 +370,6 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
     fixed_image = sitk.Cast(fixed_image, sitk.sitkFloat32)
     moving_image = sitk.Cast(moving_image, sitk.sitkFloat32)
 
-
     # REGISTRATION COMPONENTS SETUP
     # ========================================================================
 
@@ -376,15 +377,15 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
 
     # OPTIMIZER
     registration.SetOptimizerAsRegularStepGradientDescent(
-        options.max_step_length,
+        options.learning_rate,
         options.min_step_length,
         options.registration_max_iterations,
-        relaxationFactor=options.relaxation_factor
+        relaxationFactor=options.relaxation_factor,
+        estimateLearningRate=registration.EachIteration
     )
+
     translation_scale = 1.0/options.translation_scale
-
     registration.SetOptimizerScales([1.0, translation_scale, translation_scale])
-
 
     # INTERPOLATOR
     registration.SetInterpolator(sitk.sitkLinear)
@@ -394,9 +395,6 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
         registration.SetMetricAsMattesMutualInformation(
             numberOfHistogramBins=options.mattes_histogram_bins
         )
-        registration.SetMetricSamplingStrategy(registration.RANDOM)
-        registration.SetMetricSamplingPercentage(options.sampling_percentage)
-
     elif options.registration_method == 'correlation':
         registration.SetMetricAsCorrelation()
 
@@ -405,28 +403,35 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
     else:
         raise ValueError("Unknown metric: %s" % options.registration_method)
 
-    tx = sitk.Euler2DTransform()
-    tx.SetAngle(options.set_rotation)
+    registration.SetMetricSamplingStrategy(registration.RANDOM)
+    registration.SetMetricSamplingPercentage(options.sampling_percentage)
 
-    if options.initializer:
-        print 'Calculating initial registration parameters'
-        transform = sitk.CenteredTransformInitializer(
-            fixed_image,
-            moving_image,
-            tx,
-            sitk.CenteredTransformInitializerFilter.MOMENTS
-        )
-        registration.SetInitialTransform(transform)
-
+    if options.reg_translate_only:
+        tx = sitk.TranslationTransform(2)
     else:
-        tx.SetTranslation([options.y_offset, options.x_offset])
 
-        tx.SetCenter(ops_itk.calculate_center_of_image(moving_image))
-        registration.SetInitialTransform(tx)
+        tx = sitk.Euler2DTransform()
+        tx.SetAngle(options.set_rotation)
+        if options.initializer:
+            print 'Calculating initial registration parameters'
+            transform = sitk.CenteredTransformInitializer(
+                fixed_image,
+                moving_image,
+                tx,
+                sitk.CenteredTransformInitializerFilter.GEOMETRY
+            )
+            registration.SetInitialTransform(transform)
 
-    # OBSERVERS
-    registration.AddCommand(sitk.sitkStartEvent, start_plot)
-    registration.AddCommand(sitk.sitkIterationEvent, lambda: plot_values(registration))
+        else:
+            tx.SetTranslation([options.y_offset, options.x_offset])
+
+            tx.SetCenter(ops_itk.calculate_center_of_image(moving_image))
+    registration.SetInitialTransform(tx)
+
+    if options.reg_enable_observers:
+        # OBSERVERS
+        registration.AddCommand(sitk.sitkStartEvent, start_plot)
+        registration.AddCommand(sitk.sitkIterationEvent, lambda: plot_values(registration))
 
     # START
     # ========================================================================
@@ -437,7 +442,8 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
     print('Final metric value: {0}'.format(registration.GetMetricValue()))
     print('Optimizer\'s stopping condition, {0}'.format(registration.GetOptimizerStopConditionDescription()))
 
-    end_plot(fixed_image, moving_image, final_transform)
+    if options.reg_enable_observers:
+        end_plot(fixed_image, moving_image, final_transform)
 
     return final_transform
 

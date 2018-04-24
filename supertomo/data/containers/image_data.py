@@ -396,7 +396,7 @@ class ImageData():
                 image = self.get_itk_image()
                 angle = self.get_rotation_angle(radians=False)
                 spacing = self.get_voxel_size()
-                result = itkutils.convert_to_numpy(
+                result = itkutils.convert_from_itk_image(
                     itkutils.resample_image(image, transform, reference=reference)
                 )[0]
                 self.add_registered_image(result, to_scale, view, channel, angle,

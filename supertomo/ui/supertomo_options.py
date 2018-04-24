@@ -1,5 +1,6 @@
 import argparse
 
+from supertomo.ui.deconvolution_options import get_deconvolution_options
 from supertomo.ui.options_parsers import parseRangeList, parseFromToString, parseCommaSeparatedList
 
 
@@ -34,6 +35,21 @@ def get_import_script_options(arguments):
         '--normalize-inputs',
         action='store_true'
     )
+
+    return parser.parse_args(arguments)
+
+
+def get_ism_script_options(arguments):
+    parser = argparse.ArgumentParser(
+        description="Command line arguments for the "
+                    "SuperTomo2 image scanning microscopy"
+                    "reconstruction script."
+    )
+    parser.add_argument('data_file')
+    parser = get_common_options(parser)
+    parser = get_registration_options(parser)
+    parser = get_deconvolution_options(parser)
+    parser = get_ism_options(parser)
 
     return parser.parse_args(arguments)
 
@@ -90,6 +106,22 @@ def get_transform_script_options(arguments):
 
 
 # Argument groups
+
+def get_ism_options(parser):
+    assert isinstance(parser, argparse.ArgumentParser)
+
+    group = parser.add_argument_group('ISM', 'Options specific to ISM reconstruciton')
+
+    group.add_argument(
+        '--reconstruction-mode',
+        choices=['fast', 'normal', 'deconvolution'],
+        default='fast'
+    )
+
+    return parser
+
+
+
 
 def get_common_options(parser):
     assert isinstance(parser, argparse.ArgumentParser)
@@ -481,6 +513,15 @@ def get_registration_options(parser):
     group.add_argument(
         '--reg-print-prog',
         dest='print_registration_progress',
+        action='store_true'
+    )
+    group.add_argument(
+        '--reg-enable-observers',
+        action='store_true'
+    )
+
+    group.add_argument(
+        '--reg-translate-only',
         action='store_true'
     )
     group.add_argument(

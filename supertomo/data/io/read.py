@@ -7,6 +7,7 @@ import pims
 
 import supertomo.processing.itk as itkutils
 from supertomo.data.containers.image import Image
+from scipy.io import loadmat
 
 scale_c = 1.0e6
 
@@ -51,7 +52,7 @@ def __itk_image(filename, return_itk=True):
     if return_itk:
         return image
     else:
-        return itkutils.convert_to_numpy(image)
+        return itkutils.convert_from_itk_image(image)
 
 
 def __tiff(filename, memmap=False, return_itk=False):
@@ -145,36 +146,6 @@ def __itk_transform(path, return_itk=False):
         params = transform.GetParameters()
         fixed_params = transform.GetFixedParameters()
         return transform_type, params, fixed_params
-
-
-def open_carma_file(filename):
-    """
-    A simple implementation for the carma file import in Python
-    :param filename:
-    :return:
-    """
-    assert filename.endswith(".mat")
-    measurement = "meas_" + filename.split('/')[-1].split('.')[0]
-    data = loadmat(filename)[measurement]
-
-    spacing = data['PixelSize'][0][0][0]
-    spacing[0], spacing[2] = spacing[2], spacing[0]
-
-    shape = data['Size'][0][0][0]
-
-    images = numpy.zeros(shape, dtype=numpy.float32)
-
-    # For now only single detector is expected and all the
-    # laser gates are added into one image. When needed the
-    # various detectors and gates can be added as new dimensions
-    # to the array.
-    for i in range(0, int(data['LaserGatesCount'])):
-        name = 'pixel_d0_p' + str(i)
-        images += data[name][0][0]
-
-    images = numpy.swapaxes(images, 0, 2)
-
-    return images, spacing
 
 
 def __bioformats(filename, series=0, channel=0, return_itk = False):

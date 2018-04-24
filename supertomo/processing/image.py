@@ -1,6 +1,6 @@
 import numpy as np
 from supertomo.data.containers.image import Image
-import ndarray
+import ndarray, itk
 from scipy.ndimage import interpolation
 
 
@@ -17,7 +17,7 @@ def zoom_to_isotropic_spacing(image, order=3):
     spacing = image.spacing
     old_shape = image.shape
     min_spacing = min(spacing)
-    zoom = tuple(pixel_spacing/min_spacing for pixel_spacing in spacing)
+    zoom = tuple(pixel_spacing / min_spacing for pixel_spacing in spacing)
     new_shape = tuple(int(pixels * dim_zoom) for (pixels, dim_zoom) in zip(old_shape, zoom))
 
     if new_shape == old_shape:
@@ -38,11 +38,11 @@ def resize(image, size, order=3):  # type: (Image, tuple) -> Image
     assert isinstance(size, tuple)
     assert isinstance(image, Image)
 
-    zoom = [float(a)/b for a, b in zip(size, image.shape)]
+    zoom = [float(a) / b for a, b in zip(size, image.shape)]
     print "The zoom is %s" % zoom
 
     array = interpolation.zoom(image, tuple(zoom), order=order)
-    spacing = tuple(i/j for i, j in zip(image.spacing, zoom))
+    spacing = tuple(i / j for i, j in zip(image.spacing, zoom))
 
     return Image(array, spacing)
 
@@ -53,11 +53,14 @@ def apply_hanning(image):  # type: (Image) -> Image
 
     :return:
     """
-    npix = image.shape[0]
-    window = np.hanning(npix)
-    window = np.outer(window, window)
 
-    return image*window
+    windows = (np.hanning(i) for i in image.shape)
+
+    result = Image(image.astype('float64'), image.spacing)
+    for window in windows:
+        result *= window
+
+    return result
 
 
 def zero_pad_to_shape(image, shape):
@@ -118,7 +121,7 @@ def checkerboard_split(image):
         image1 = image[odd_index[0], :, :][:, odd_index[1], :][:, :, odd_index[2]]
         image2 = image[even_index[0], :, :][:, even_index[1], :][:, :, even_index[2]]
 
-    image1.spacing = tuple(i*2 for i in image.spacing)
+    image1.spacing = tuple(i * 2 for i in image.spacing)
     image2.spacing = image1.spacing
 
     return image1, image2
@@ -166,7 +169,7 @@ def crop_to_shape(image, shape):
     assert image.ndim == len(shape)
     assert all((x >= y for x, y in zip(image.shape, shape)))
 
-    return Image(ndarray.contract_to_shape(image,shape), image.spacing)
+    return Image(ndarray.contract_to_shape(image, shape), image.spacing)
 
 
 def noisy(image, noise_type):
@@ -216,3 +219,4 @@ def noisy(image, noise_type):
     elif noise_type == "speckle":
         gauss = np.random.standard_normal(image.shape).reshape(image.shape)
         return image + image * gauss
+
