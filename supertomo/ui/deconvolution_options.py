@@ -1,5 +1,6 @@
 import argparse
-from pydeconvolution.psf import psfgen
+from supertomo.psf import psfgen
+from supertomo.ui.frc_options import get_frc_options_group
 
 
 def get_deconvolve_script_options(arguments):
@@ -14,9 +15,6 @@ def get_deconvolve_script_options(arguments):
     parser = get_psf_estimation_options(parser)
     parser = get_frc_options_group(parser)
     return parser.parse_args(arguments)
-
-
-
 
 
 def get_common_options(parser):

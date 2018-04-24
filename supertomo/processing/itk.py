@@ -16,9 +16,10 @@ easy to include additional filters.
 import SimpleITK as sitk
 import numpy
 import scipy
+from supertomo.data.containers.image import Image
 
 
-def convert_to_numpy(image):
+def convert_from_itk_image(image):
     """
     A simple conversion function from ITK:Image to a Numpy array. Please notice
     that the pixel size information gets lost in the conversion. If you want
@@ -32,7 +33,12 @@ def convert_to_numpy(image):
     # information.
     spacing = image.GetSpacing()[::-1]
 
-    return array, spacing
+    return Image(array, spacing)
+
+
+def convert_to_itk_image(image):
+    assert isinstance(image, Image)
+    return convert_from_numpy(image, image.spacing)
 
 
 def convert_from_numpy(array, spacing):
@@ -154,7 +160,7 @@ def rotate_psf(psf, transform, spacing=None, return_numpy=False):
     image = resample_image(image, transform)
 
     if return_numpy:
-        return convert_to_numpy(image)
+        return convert_from_itk_image(image)
     else:
         return image
 
@@ -366,7 +372,7 @@ def calculate_center_of_image(image, center_of_mass=False):
     imspacing = image.GetSpacing()
 
     if center_of_mass:
-        np_image, spacing = convert_to_numpy(image)
+        np_image, spacing = convert_from_itk_image(image)
         center = scipy.ndimage.measurements.center_of_mass(np_image)
         center *= numpy.array(spacing)
     else:
@@ -400,11 +406,11 @@ def make_composite_rgb_image(red, green, blue=None, return_numpy=False):
         blue.CopyInformation(red)
         if return_numpy:
             import numpy as np
-            images = (convert_to_numpy(red)[0],
-                      convert_to_numpy(green)[0],
-                      convert_to_numpy(blue)[0])
+            images = (convert_from_itk_image(red)[0],
+                      convert_from_itk_image(green)[0],
+                      convert_from_itk_image(blue)[0])
 
-            spacing = convert_to_numpy(red)[1]
+            spacing = convert_from_itk_image(red)[1]
             return np.concatenate(
                 [aux[..., np.newaxis] for aux in images], axis=-1), spacing
         else:

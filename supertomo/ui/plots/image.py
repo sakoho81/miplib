@@ -89,12 +89,12 @@ def display_2d_images(image1,
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 8))
 
     # draw the fixed image in the first subplot
-    ax1.imshow(image1, cmap=plt.cm.Greys_r)
+    ax1.imshow(image1, cmap="hot")
     ax1.set_title(image1_title)
     ax1.axis('off')
 
     # draw the moving image in the second subplot
-    ax2.imshow(image2, cmap=plt.cm.Greys_r)
+    ax2.imshow(image2, cmap="hot")
     ax2.set_title(image2_title)
     ax2.axis('off')
 
@@ -118,7 +118,7 @@ def display_2d_image(image):
 
     assert image.ndim == 2
 
-    plt.imshow(image)
+    plt.imshow(image, cmap="rainbow")
     plt.axis('off')
     plt.show()
 

@@ -124,7 +124,7 @@ class MultiViewRegistration:
                                          self.options.z_offset])
 
         modified_moving_image = ops_itk.resample_image(moving_image,
-                                                        manual_transform)
+                                                       manual_transform)
 
         # 2. Run Automatic initialization
 
@@ -261,7 +261,7 @@ class MultiViewRegistration:
         self.data.set_active_image(view, channel, scale, "original")
         angle = self.data.get_rotation_angle(radians=False)
         spacing = self.data.get_voxel_size()
-        registered_image = ops_itk.convert_to_numpy(
+        registered_image = ops_itk.convert_from_itk_image(
             self.get_resampled_result())[0]
         self.data.add_registered_image(registered_image, scale, view, channel,
                                        angle, spacing)
