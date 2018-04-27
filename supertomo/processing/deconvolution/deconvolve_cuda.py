@@ -18,11 +18,11 @@ import itertools
 
 import numpy
 import ops_ext
-from pyculib.fft import FFTPlan, fft_inplace, ifft_inplace
 from numba import cuda, vectorize
-import supertomo.processing.ndarray as ops_array
+from pyculib.fft import FFTPlan, fft_inplace, ifft_inplace
 
 import deconvolve
+import supertomo.processing.ndarray as ops_array
 
 
 class DeconvolutionRLCuda(deconvolve.DeconvolutionRL):
@@ -39,7 +39,8 @@ class DeconvolutionRLCuda(deconvolve.DeconvolutionRL):
     """
     def __init__(self, image, psf, options):
         """
-        :param data:    a ImageData object
+        :param image:   the image as a Image object
+        :param psf:     the psf as an Image object
 
         :param options: command line options that control the behavior
                         of the fusion algorithm

@@ -1,13 +1,11 @@
 import os
 
 import SimpleITK as sitk
-import tiffile
-import numpy
 import pims
 
 import supertomo.processing.itk as itkutils
+import tiffile
 from supertomo.data.containers.image import Image
-from scipy.io import loadmat
 
 scale_c = 1.0e6
 

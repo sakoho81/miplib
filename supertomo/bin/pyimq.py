@@ -61,12 +61,13 @@ of packages in scientific articles by citing the corresponding papers:
 **citation here**
 """
 
-import sys
-import os
-import datetime
-
 import csv
+import datetime
+import os
+import sys
+
 import pandas
+
 from supertomo.analysis.image_quality import filters
 from supertomo.data.io import read
 from supertomo.ui import image_quality_options

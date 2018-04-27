@@ -6,12 +6,12 @@ re
 """
 
 import numpy as np
-from supertomo.data.containers.image import Image
-from supertomo.data.containers.fourier_correlation_data import FourierCorrelationData, FourierCorrelationDataCollection
-from supertomo.analysis.resolution.analysis import FourierCorrelationAnalysis
 
 import fourier_shape_iterators as iterators
 import supertomo.processing.image as ops_image
+from supertomo.analysis.resolution.analysis import FourierCorrelationAnalysis
+from supertomo.data.containers.fourier_correlation_data import FourierCorrelationData, FourierCorrelationDataCollection
+from supertomo.data.containers.image import Image
 
 
 class FRC(object):

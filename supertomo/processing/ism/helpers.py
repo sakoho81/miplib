@@ -1,5 +1,7 @@
 import itertools
+
 import numpy as np
+
 from supertomo.data.containers.array_detector_data import ArrayDetectorData
 
 

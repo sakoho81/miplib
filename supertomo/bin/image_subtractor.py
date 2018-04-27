@@ -14,8 +14,8 @@ crosstalk. This is a small utility for doing that; it can
 of course quite easily be modified into any kind of a batch processing task.
 """
 
-import sys
 import os
+import sys
 
 from supertomo.data.io import read, write
 

@@ -1,10 +1,9 @@
 import SimpleITK as sitk
 import matplotlib.pyplot as plt
+from ipywidgets import interact
 
-from IPython.html.widgets import interact
-
-from supertomo.utils import itkutils
 from supertomo.ui.plots import image
+from supertomo.processing import itk as itkutils
 
 
 def start_observer():
@@ -41,10 +40,10 @@ def plot_result(self, fixed, moving):
                                      reference=fixed)
 
     plt.subplots(1, 2, figsize=(10, 8))
-    fixed = itkutils.convert_to_numpy(sitk.Cast(fixed, sitk.sitkUInt8))[0]
-    moving = itkutils.convert_to_numpy(
+    fixed = itkutils.convert_from_itk_image(sitk.Cast(fixed, sitk.sitkUInt8))
+    moving = itkutils.convert_from_itk_image(
         sitk.Cast(result, sitk.sitkUInt8)
-    )[0]
+    )
 
     def update(layer):
         # Plot metric values

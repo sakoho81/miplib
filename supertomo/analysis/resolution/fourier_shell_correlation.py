@@ -14,13 +14,12 @@ Cryo-EM through Tilting.” Nature Methods 14, no. 8 (July 3, 2017):
 
 import numpy as np
 
+import fourier_shape_iterators as iterators
+import supertomo.data.containers.fourier_correlation_data as containers
 import supertomo.processing.image as ops_myimage
 import supertomo.processing.ndarray as ndarray
-import fourier_shape_iterators as iterators
-
-from supertomo.data.containers.image import Image
-import supertomo.data.containers.fourier_correlation_data as containers
 from supertomo.analysis.resolution.analysis import FourierCorrelationAnalysis
+from supertomo.data.containers.image import Image
 
 
 class DirectionalFSC(object):

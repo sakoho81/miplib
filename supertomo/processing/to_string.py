@@ -1,8 +1,8 @@
+import hashlib
 import sys
 import time
-import numpy
-import hashlib
 
+import numpy
 
 VERBOSE = False
 

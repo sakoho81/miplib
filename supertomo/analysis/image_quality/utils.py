@@ -8,10 +8,8 @@ Contains all kinds of code snippets that did not find a home in
 the main modules.
 """
 
-from scipy import ndimage
 import numpy
-from matplotlib import pyplot as plt
-import os
+from scipy import ndimage
 
 
 def analyze_accumulation(x, fraction):

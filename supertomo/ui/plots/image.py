@@ -1,10 +1,11 @@
-import subprocess
-import supertomo.data.io.tiffile as tiffile
 import os
+import subprocess
 
-import numpy as np
-import matplotlib.pyplot as plt
 import SimpleITK as sitk
+import matplotlib.pyplot as plt
+import numpy as np
+
+import supertomo.data.io.tiffile as tiffile
 
 vaa3d_bin = "/home/sami/bin/Vaa3D_Ubuntu_64bit_v3.200/vaa3d"
 
@@ -39,13 +40,13 @@ def display_3d_slices(fixed_image_z, moving_image_z, fixed_npa, moving_npa):
 
     # draw the fixed image in the first subplot
     plt.subplot(1, 2, 1)
-    plt.imshow(fixed_npa[fixed_image_z, :, :], cmap=plt.cm.Greys_r)
+    plt.imshow(fixed_npa[fixed_image_z, :, :], cmap='gray')
     plt.title('fixed image')
     plt.axis('off')
 
     # draw the moving image in the second subplot
     plt.subplot(1, 2, 2)
-    plt.imshow(moving_npa[moving_image_z, :, :], cmap=plt.cm.Greys_r)
+    plt.imshow(moving_npa[moving_image_z, :, :], cmap='gray')
     plt.title('moving image')
     plt.axis('off')
 
@@ -55,7 +56,7 @@ def display_3d_slices(fixed_image_z, moving_image_z, fixed_npa, moving_npa):
 
 def display_3d_slice_with_alpha(image_z, alpha, fixed, moving):
     img = (1.0 - alpha) * fixed[:, :, image_z] + alpha * moving[:, :, image_z]
-    plt.imshow(sitk.GetArrayFromImage(img), cmap=plt.cm.Greys_r)
+    plt.imshow(sitk.GetArrayFromImage(img), cmap='gray')
     plt.axis('off')
 
 
@@ -125,7 +126,7 @@ def display_2d_image(image):
 
 def display_2d_slices_with_alpha(alpha, fixed, moving):
     img = (1.0 - alpha) * fixed + alpha * moving
-    plt.imshow(sitk.GetArrayFromImage(img), cmap=plt.cm.Greys_r)
+    plt.imshow(sitk.GetArrayFromImage(img), cmap='gray')
     plt.axis('off')
 
 
@@ -190,7 +191,7 @@ def show_pics_from_disk(filenames, title="Image collage"):
             j = 0
             while j < subplots.shape[1] and k < len(filenames):
                 print filenames[i + j]
-                subplots[i, j].imshow(plt.imread(filenames[k]), cmap=plt.cm.hot)
+                subplots[i, j].imshow(plt.imread(filenames[k]), cmap='hot')
                 subplots[i, j].set_title(os.path.basename(filenames[k]))
                 subplots[i, j].axis("off")
                 k += 1

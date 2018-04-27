@@ -10,7 +10,9 @@ filters.py file
 """
 
 import argparse
+
 import supertomo.analysis.image_quality.filters as filters
+
 
 def get_quality_script_options(arguments):
     parser = argparse.ArgumentParser(
@@ -103,7 +105,6 @@ def get_power_script_options(arguments):
         default=512
     )
     parser = filters.get_common_options(parser)
-    parser = myimage.get_options(parser)
     return parser.parse_args(arguments)
 
 
@@ -160,7 +161,6 @@ def get_resolution_script_options(arguments):
     parser.add_argument('--resolution', dest='resolution_criterion',
                         choices=['one-bit', 'half-bit', 'half-height'],
                         default='half-bit')
-    parser = myimage.get_options(parser)
 
     return parser.parse_args(arguments)
 

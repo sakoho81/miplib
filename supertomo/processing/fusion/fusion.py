@@ -17,25 +17,24 @@ in the Anaconda Accelerate package.
 """
 
 import itertools
-import sys
-import time
-import mkl
-import tempfile
 import os
 import shutil
+import sys
+import tempfile
+import time
 
 import numpy
-from scipy.signal import fftconvolve, medfilt
-from scipy.ndimage.interpolation import zoom
-
-from supertomo.data.io import tiffile
-from supertomo.data.containers import temp_data, image_data
 import ops_ext
+from scipy.ndimage.interpolation import zoom
+from scipy.signal import fftconvolve, medfilt
+
 import supertomo.processing.ndarray as ops_array
 import supertomo.processing.to_string as ops_output
+from supertomo.data.containers import temp_data, image_data
+from supertomo.data.io import tiffile
 
 
-class MultiViewFusionRL:
+class MultiViewFusionRL(object):
     """
     The Richardson-Lucy fusion is a result of simultaneous deblurring of
     several 3D volumes.
@@ -118,8 +117,6 @@ class MultiViewFusionRL:
         self.temp_data = temp_data.TempData()
         self.temp_data.create_data_file("fusion_data.csv", self.data_to_save)
         self.temp_data.write_comment('Fusion Command: %s' % (' '.join(map(str, sys.argv))))
-
-        mkl.set_num_threads(mkl.get_max_threads())
 
     def compute_estimate(self):
         """
@@ -322,7 +319,7 @@ class MultiViewFusionRL:
         max_count = self.options.max_nof_iterations
         initial_photon_count = self.data[:].sum()
 
-        bar = ops_array.ProgressBar(0,
+        bar = ops_output.ProgressBar(0,
                                    max_count,
                                    totalWidth=40,
                                    show_percentage=False)

@@ -1,12 +1,13 @@
 import os
+
 import h5py
 import numpy
 import scipy.ndimage as ndimage
 
 import supertomo.processing.itk as itkutils
-from supertomo.data.definitions import *
 import supertomo.ui.utils as uiutils
 from supertomo.data.containers.image import Image
+from supertomo.data.definitions import *
 
 
 class ImageData():
@@ -248,9 +249,7 @@ class ImageData():
         :param scale            Percentage from full size. It is possible to save
                                 multiple versions of an image in different sizes.
         :param spacing:         Voxel size
-        :param chunk_size:      A specific chunk size can be defined here in
-                                order to optimize the data access, when
-                                working with partial images.
+
         """
         assert isinstance(data, numpy.ndarray), "Invalid data format."
 

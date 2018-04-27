@@ -72,29 +72,29 @@ References
 
 Examples
 --------
->>> import _psf
->>> args = dict(shape=(32,32), dims=(4,4), ex_wavelen=488, em_wavelen=520,
-...             num_aperture=1.2, refr_index=1.333,
-...             pinhole_radius=0.55, pinhole_shape='round')
->>> obsvol = psf.PSF(psf.GAUSSIAN | psf.CONFOCAL, **args)
->>> print("%.5f, %.5f" % obsvol.sigma.ou)
-2.58832, 1.37059
->>> obsvol = psf.PSF(psf.ISOTROPIC | psf.CONFOCAL, **args)
->>> obsvol[0, :3]
-array([ 1.     ,  0.51071,  0.04397])
->>> # save the image plane to file
->>> obsvol.slice(0).tofile("_test_slice.bin")
->>> # save a full 3D PSF volume to file
->>> obsvol.volume().tofile("_test_volume.bin")
+# >>> import _psf
+# >>> args = dict(shape=(32,32), dims=(4,4), ex_wavelen=488, em_wavelen=520,
+# ...             num_aperture=1.2, refr_index=1.333,
+# ...             pinhole_radius=0.55, pinhole_shape='round')
+# >>> obsvol = psf.PSF(psf.GAUSSIAN | psf.CONFOCAL, **args)
+# >>> print("%.5f, %.5f" % obsvol.sigma.ou)
+# 2.58832, 1.37059
+# >>> obsvol = psf.PSF(psf.ISOTROPIC | psf.CONFOCAL, **args)
+# >>> obsvol[0, :3]
+# array([ 1.     ,  0.51071,  0.04397])
+# >>> # save the image plane to file
+# >>> obsvol.slice(0).tofile("_test_slice.bin")
+# >>> # save a full 3D PSF volume to file
+# >>> obsvol.volume().tofile("_test_volume.bin")
 
 """
 
 from __future__ import division, print_function
 
-import sys
 import math
-import time
+import sys
 import threading
+import time
 
 import numpy
 

@@ -18,9 +18,9 @@ import sys
 import SimpleITK as sitk
 
 from supertomo.data.containers import image_data
+from supertomo.processing import itk as itkutils
 from supertomo.processing.registration import registration_mv
 from supertomo.ui import supertomo_options, utils
-from supertomo.processing import itk as itkutils
 
 
 def main():

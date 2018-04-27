@@ -5,7 +5,6 @@ from itertools import izip
 
 import numpy as np
 import pandas
-
 import pydeconvolution.frc.fourier_ring_correlation as frcmeas
 import pydeconvolution.io.myimage as myimage
 import pydeconvolution.options as options

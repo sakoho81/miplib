@@ -25,6 +25,7 @@ import matplotlib.pyplot as plt
 import supertomo.processing.itk as ops_itk
 import supertomo.ui.plots.image as show
 
+
 # PLOTS
 # =============================================================================
 # Plotting functions for showing the registration progress.

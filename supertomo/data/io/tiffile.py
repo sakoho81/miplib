@@ -216,19 +216,19 @@ Examples
 
 from __future__ import division, print_function
 
-import sys
+import collections
+import datetime
+import glob
+import json
+import math
 import os
 import re
-import glob
-import math
-import zlib
-import time
-import json
 import struct
-import warnings
+import sys
 import tempfile
-import datetime
-import collections
+import time
+import warnings
+import zlib
 from fractions import Fraction
 from xml.etree import cElementTree as etree
 
@@ -2186,8 +2186,7 @@ class TiffPage(object):
                 self.shape = (image_depth, image_length, image_width)
                 self.axes = 'ZYX'
         if not self.compression and 'strip_byte_counts' not in tags:
-            self.strip_byte_counts = (
-                product(self.shape) * (self.bits_per_sample // 8),)
+            self.strip_byte_counts = [product(self.shape) * (self.bits_per_sample // 8), ]
 
         assert len(self.shape) == len(self.axes)
 
@@ -4027,15 +4026,15 @@ def decode_floats(data):
     return data
 
 
-def decode_jpeg(encoded, tables=b'', photometric=None,
-                ycbcr_subsampling=None, ycbcr_positioning=None):
-    """Decode JPEG encoded byte string (using _czifile extension module)."""
-    from czifile import _czifile
-    image = _czifile.decode_jpeg(encoded, tables)
-    if photometric == 'rgb' and ycbcr_subsampling and ycbcr_positioning:
-        # TODO: convert YCbCr to RGB
-        pass
-    return image.tostring()
+# def decode_jpeg(encoded, tables=b'', photometric=None,
+#                 ycbcr_subsampling=None, ycbcr_positioning=None):
+#     """Decode JPEG encoded byte string (using _czifile extension module)."""
+#     from czifile import _czifile
+#     image = _czifile.decode_jpeg(encoded, tables)
+#     if photometric == 'rgb' and ycbcr_subsampling and ycbcr_positioning:
+#         # TODO: convert YCbCr to RGB
+#         pass
+#     return image.tostring()
 
 
 @_replace_by('_tifffile.decode_packbits')

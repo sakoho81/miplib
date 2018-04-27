@@ -1,13 +1,6 @@
-
-import os
 import sys
 
-import SimpleITK as sitk
-
-from supertomo.data.io import carma
-from supertomo.processing.registration import registration
-from supertomo.ui import supertomo_options, utils
-from supertomo.processing import itk as itkutils
+from supertomo.ui import supertomo_options
 
 
 def main():

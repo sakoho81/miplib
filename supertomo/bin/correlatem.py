@@ -9,14 +9,15 @@ This software may be modified and distributed under the terms
 of the BSD license.  See the LICENSE file for details.
 """
 
+import datetime
 import os
 import sys
-import datetime
+
 import SimpleITK as sitk
 
-from supertomo.processing import registration
-from supertomo.utils import itkutils
+from supertomo.processing.registration import registration
 from supertomo.ui import supertomo_options
+from supertomo.processing import itk as itkutils
 
 
 def main():
@@ -121,7 +122,8 @@ def main():
         final_transform = registration.itk_registration_rigid_2d(sted_image, em_image, options)
     elif options.tfm_type == "similarity":
         final_transform = registration.itk_registration_similarity_2d(sted_image, em_image, options)
-
+    else:
+        raise ValueError(options.tfm_type)
     em_image = itkutils.resample_image(
         em_original,
         final_transform,

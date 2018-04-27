@@ -1,4 +1,5 @@
 import argparse
+
 from supertomo.psf import psfgen
 from supertomo.ui.frc_options import get_frc_options_group
 
@@ -82,6 +83,26 @@ def get_common_options(parser):
         help='Indicate whether you want to evaluate the registration/fusion '
              'results by eye before they are saved'
              'to the data structure.'
+    )
+
+    parser.add_argument(
+        '--carma-gate-idx',
+        type=int,
+        default=0,
+        help='Carma files contain several images from various detector/laser gate'
+             'combinations. Some scripts only work with single images, so one can'
+             'specify a certain image in the file structure with the --carma-gate-idx'
+             'and --carma-det-idx keywords.'
+    )
+
+    parser.add_argument(
+        '--carma-det-idx',
+        type=int,
+        default=0,
+        help='Carma files contain several images from various detector/laser gate'
+             'combinations. Some scripts only work with single images, so one can'
+             'specify a certain image in the file structure with the --carma-gate-idx'
+             'and --carma-det-idx keywords.'
     )
     return parser
 
