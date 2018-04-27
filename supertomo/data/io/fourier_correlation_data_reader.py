@@ -1,7 +1,9 @@
 import os
+
 import h5py
-from supertomo.data.containers.image import Image
+
 from supertomo.data.containers.fourier_correlation_data import FourierCorrelationDataCollection, FourierCorrelationData
+from supertomo.data.containers.image import Image
 
 
 class FourierCorrelationDataReader(object):

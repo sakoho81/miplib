@@ -9,8 +9,9 @@ made to create a simple class to contain only the
 functionality required by the PyImageQualityRanking software.
 """
 
-import numpy
 import argparse
+
+import numpy
 
 
 class Image(numpy.ndarray):

@@ -53,12 +53,15 @@ psf_scale_<scale>_index_<index>_channel_<channel>_angle_<angle>.<suffix>
 
 
 """
-import sys
 import os
+import sys
+
 import numpy
-from supertomo.data.io import read
+
 from supertomo.data.containers import image_data
 from supertomo.data.definitions import *
+from supertomo.data.io import read
+from supertomo.processing import itk as itkutils
 from ..ui import supertomo_options
 
 
@@ -77,7 +80,7 @@ def main():
         full_path = os.path.join(directory, image_name)
 
         if full_path.endswith((".tiff", ".tif", ".mhd", ".mha")):
-            images, spacing = read.image(full_path)
+            images, spacing = read.get_image(full_path)
         else:
             continue
 

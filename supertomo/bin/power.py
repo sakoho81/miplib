@@ -10,16 +10,17 @@ A utility script for extracting 1D power spectra of all images within
 a defined input directory. The spectra are saved in a single csv
 file, each column denoting a single image.
 """
-import sys
-import os
 import datetime
-import pandas
+import os
+import sys
+
 import numpy
+import pandas
 
 from supertomo.analysis.image_quality import filters
-from supertomo.ui import image_quality_options
 from supertomo.data.io import read
 from supertomo.processing import image as improc
+from supertomo.ui import image_quality_options
 
 
 def main():

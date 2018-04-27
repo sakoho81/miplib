@@ -14,10 +14,12 @@ several ranking results in a single csv file. At every run the data
 is shuffled in order to not repeat the same image sequence twice.
 """
 
-import sys
 import os
-import pandas
+import sys
+
 import matplotlib.pyplot as plt
+import pandas
+
 import supertomo.ui.image_quality_options as script_options
 
 
@@ -66,7 +68,7 @@ def main():
         real_path = os.path.join(path, image_name)
         image = plt.imread(real_path)
 
-        plt.imshow(image, cmap=plt.cm.hot, vmax=image.max(), vmin=image.min())
+        plt.imshow(image, cmap='hot', vmax=image.max(), vmin=image.min())
 
         success = False
         while not success:

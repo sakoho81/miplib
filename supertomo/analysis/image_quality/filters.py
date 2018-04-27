@@ -17,11 +17,12 @@ image quality parameters in the PyImageQuality software.
     as well, based on the two classes above.
 """
 
-import numpy
-from scipy import ndimage, fftpack, stats
-from matplotlib import pyplot as plt
-from math import floor
 import argparse
+from math import floor
+
+import numpy
+from matplotlib import pyplot as plt
+from scipy import ndimage, fftpack, stats
 
 import utils
 from external import radial_profile as radprof
@@ -122,9 +123,7 @@ class LocalImageQuality(Filter):
             assert len(size) == len(self.spacing)
             sizes = size
         elif isinstance(size, float) or isinstance(size, int):
-            sizes = []
-            for i in self.spacing:
-                sizes.append(size)
+            sizes = [size, ] * len(self.spacing)
         else:
             print "Unknown size type"
             return
@@ -327,7 +326,7 @@ class FrequencyQuality(Filter):
         if self.power is not None:
             subplots[0].imshow(numpy.log10(self.power))
         if self.simple_power is not None:
-            index = int(len(self.simple_power[0])*.4)
+            #index = int(len(self.simple_power[0])*.4)
             #subplots[1].plot(self.simple_power[0][index:], self.simple_power[1][index:], linewidth=1)
             subplots[1].plot(self.simple_power[0], self.simple_power[1], linewidth=1)
             subplots[1].set_yscale('log')

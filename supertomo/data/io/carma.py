@@ -1,9 +1,8 @@
-from scipy.io import loadmat
 import numpy as np
-from supertomo.data.containers.image import Image
+from scipy.io import loadmat
+
 from supertomo.data.containers.array_detector_data import ArrayDetectorData
-
-
+from supertomo.data.containers.image import Image
 
 
 def read_carma_mat(filename):

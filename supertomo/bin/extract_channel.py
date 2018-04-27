@@ -11,8 +11,8 @@ images. The results are saved into Extracted sub-folder of the
 original path containing the images.
 """
 
-import sys
 import os
+import sys
 
 from supertomo.data.io import read, write
 

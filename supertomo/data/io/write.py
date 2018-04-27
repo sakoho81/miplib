@@ -1,7 +1,8 @@
 import SimpleITK as sitk
-from supertomo.data.io import tiffile
+
 import supertomo.processing.itk as itkutils
 from supertomo.data.containers.image import Image
+from supertomo.data.io import tiffile
 
 
 def image(path, image):

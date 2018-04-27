@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 
-import sys
-import os
 import datetime
+import os
+import sys
+
 import SimpleITK as sitk
 
-from supertomo.ui import supertomo_options
 from supertomo.data.io import read as ioutils
-from supertomo.utils import itkutils
+from supertomo.ui import supertomo_options
+from supertomo.processing import itk as itkutils
+
 
 def main():
     options = supertomo_options.get_transform_script_options(sys.argv[1:])

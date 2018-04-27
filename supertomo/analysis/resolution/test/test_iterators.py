@@ -2,6 +2,7 @@
 
 import numpy as np
 from mayavi import mlab
+
 from supertomo.analysis.resolution.fourier_shape_iterators import FourierShellIterator
 from supertomo.data.containers.image import Image
 

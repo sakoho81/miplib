@@ -1,10 +1,11 @@
+from math import floor
+
 import numpy as np
 
 from supertomo.data.containers.array_detector_data import ArrayDetectorData
 from supertomo.data.containers.image import Image
-from supertomo.processing.registration import registration
 from supertomo.processing import itk
-from math import floor
+from supertomo.processing.registration import registration
 
 
 def find_image_shifts(data, options, gate=0):

@@ -1,8 +1,8 @@
 import matplotlib.pyplot as plt
 from matplotlib import rc
 from matplotlib.font_manager import FontProperties
-from supertomo.data.containers.fourier_correlation_data import FourierCorrelationData, FourierCorrelationDataCollection
 
+from supertomo.data.containers.fourier_correlation_data import FourierCorrelationData, FourierCorrelationDataCollection
 from supertomo.processing.converters import degrees_to_radians
 
 

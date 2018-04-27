@@ -16,6 +16,7 @@ easy to include additional filters.
 import SimpleITK as sitk
 import numpy
 import scipy
+
 from supertomo.data.containers.image import Image
 
 
@@ -53,7 +54,8 @@ def make_itk_transform(type, dims, parameters, fixed_parameters):
     """
     A function that can be used to construct a ITK spatial transform from
     known transform parameters.
-    :param transform_type:      A string that exactly matches the ITK transform
+    :param type:                A string that exactly matches the ITK transform
+    :param dims:                Number of dimensions
                                 type, eg "VerorRigid3DTransform"
     :param parameters:          The transform parameters tuple
     :param fixed_parameters:    The transform fixed parameters tuple
@@ -171,7 +173,6 @@ def resample_to_isotropic(itk_image):
     which generally has a larger spacing in the z direction.
 
     :param itk_image:   an ITK:Image object
-    :param image_type:  an ITK image type string (e.g. 'IUC3')
     :return:            returns a new ITK:Image object with rescaled
                         axial dimension
     """
@@ -278,7 +279,6 @@ def median_filter(image, kernel_radius):
     Median filter for itk.Image objects
 
     :param image:           an itk.Image object
-    :param image_type:      image type string (e.g. IUC2, IF3)
     :param kernel_radius:   median kernel radius
     :return:                filtered image
     """
@@ -324,9 +324,7 @@ def get_image_statistics(image):
     A utility to calculate basic image statistics (Mean and Variance here)
 
     :param image:       an ITK:Image object
-    :param image_type:  a string describing the image type (e.g. IUC3). The
                         naming convention as in ITK
-    :param verbal:      print results on screen (ON/OFF)
     :return:            returns the image mean and variance in a tuple
     """
     method = sitk.StatisticsImageFilter()
@@ -373,7 +371,7 @@ def calculate_center_of_image(image, center_of_mass=False):
 
     if center_of_mass:
         np_image, spacing = convert_from_itk_image(image)
-        center = scipy.ndimage.measurements.center_of_mass(np_image)
+        center = scipy.ndimage.center_of_mass(np_image)
         center *= numpy.array(spacing)
     else:
         center = map(

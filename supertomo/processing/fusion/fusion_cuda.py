@@ -14,18 +14,19 @@ as the MultiViewFusionRL class, for non-accelerated iterative image fusion.
 
 """
 
-import numpy
 import itertools
 import os
 
-from pyculib.fft import FFTPlan, fft_inplace, ifft_inplace
-from numba import cuda, vectorize
-import supertomo.processing.ndarray as ops_array
-import supertomo.processing.fusion
+import numpy
 import ops_ext
+from numba import cuda, vectorize
+from pyculib.fft import FFTPlan, fft_inplace, ifft_inplace
+
+import supertomo.processing.fusion.fusion as fusion
+import supertomo.processing.ndarray as ops_array
 
 
-class MultiViewFusionRLCuda(supertomo.processing.fusion.MultiViewFusionRL):
+class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
     """
     This class implements GPU accelerated versions of the iterative image
     fusion algorithms discussed in:
@@ -44,7 +45,7 @@ class MultiViewFusionRLCuda(supertomo.processing.fusion.MultiViewFusionRL):
         :param options: command line options that control the behavior
                         of the fusion algorithm
         """
-        supertomo.processing.fusion.MultiViewFusionRL.__init__(self, data, options)
+        fusion.MultiViewFusionRL.__init__(self, data, options)
 
         padded_block_size = self.block_size + 2*self.options.block_pad
         threadpergpublock = 32, 32, 8
@@ -284,7 +285,7 @@ class MultiViewFusionRLCuda(supertomo.processing.fusion.MultiViewFusionRL):
         if not self.options.disable_fft_psf_memmap:
             del self.psfs_fft
             del self.adj_psfs_fft
-        supertomo.processing.fusion.MultiViewFusionRL.close(self)
+        fusion.MultiViewFusionRL.close(self)
 
 
 

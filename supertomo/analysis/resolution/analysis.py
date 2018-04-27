@@ -1,8 +1,9 @@
 import numpy as np
-import scipy.optimize as optimize
-from supertomo.data.containers.fourier_correlation_data import FourierCorrelationData, FourierCorrelationDataCollection
-import supertomo.processing.ndarray as arrayutils
 import scipy.ndimage as ndimage
+import scipy.optimize as optimize
+
+import supertomo.processing.ndarray as arrayutils
+from supertomo.data.containers.fourier_correlation_data import FourierCorrelationDataCollection
 
 
 class FourierCorrelationAnalysis(object):
@@ -17,8 +18,6 @@ class FourierCorrelationAnalysis(object):
     def __fit_least_squares(self):
         """
         Calculate a least squares curve fit to the FRC Data
-        :param frc: A FourierCorrelationData structure
-        :param degree: The degree of the polynomial function
         :return: None. Will modify the frc argument in place
         """
         # Calculate least-squares fit

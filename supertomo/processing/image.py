@@ -1,7 +1,8 @@
 import numpy as np
-from supertomo.data.containers.image import Image
-import ndarray, itk
 from scipy.ndimage import interpolation
+
+import ndarray
+from supertomo.data.containers.image import Image
 
 
 def zoom_to_isotropic_spacing(image, order=3):
@@ -178,7 +179,7 @@ def noisy(image, noise_type):
     ----------
     image :
         Input image data. Will be converted to float.
-    mode : str
+    noise_type : str
         One of the following strings, selecting the type of noise to add:
 
         'gauss'     Gaussian-distributed additive noise.

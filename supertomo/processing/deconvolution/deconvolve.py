@@ -30,7 +30,9 @@ from scipy.signal import fftconvolve, medfilt
 
 import supertomo.analysis.resolution.fourier_ring_correlation as frc
 import supertomo.processing.to_string as ops_output
-from supertomo.data.containers import image, temp_data
+from supertomo.data.containers import temp_data
+from supertomo.data.containers.image import Image
+from supertomo.processing import image as imutils
 
 
 class DeconvolutionRL:
@@ -83,25 +85,25 @@ class DeconvolutionRL:
         # down the fusion process considerably..
         if self.options.memmap_estimates:
             estimate_new_f = os.path.join(self.memmap_directory, "estimate_new.dat")
-            self.estimate_new = numpy.memmap(estimate_new_f, dtype='float32',
-                                             mode='w+',
-                                             shape=tuple(self.image_size))
+            self.estimate_new = Image(numpy.memmap(estimate_new_f, dtype='float32',
+                                      mode='w+',
+                                      shape=tuple(self.image_size)), self.image_spacing)
 
             estimate_f = os.path.join(self.memmap_directory, "estimate.dat")
-            self.estimate = numpy.memmap(estimate_f, dtype=numpy.float32,
-                                         mode='w+',
-                                         shape=tuple(self.image_size))
+            self.estimate = Image(numpy.memmap(estimate_f, dtype=numpy.float32,
+                                  mode='w+',
+                                  shape=tuple(self.image_size)), self.image_spacing)
         else:
-            self.estimate = numpy.zeros(tuple(self.image_size),
-                                        dtype=numpy.float32)
-            self.estimate_new = numpy.zeros(tuple(self.image_size),
-                                            dtype=numpy.float32)
+            self.estimate = Image(numpy.zeros(tuple(self.image_size),
+                                  dtype=numpy.float32), self.image_spacing)
+            self.estimate_new = Image(numpy.zeros(tuple(self.image_size),
+                                      dtype=numpy.float32), self.image_spacing)
 
         if not self.options.disable_tau1:
             prev_estimate_f = os.path.join(self.memmap_directory, "prev_estimate.dat")
-            self.prev_estimate = numpy.memmap(prev_estimate_f, dtype=numpy.float32,
-                                              mode='w+',
-                                              shape=tuple(self.image_size))
+            self.prev_estimate = Image(numpy.memmap(prev_estimate_f, dtype=numpy.float32,
+                                       mode='w+',
+                                       shape=tuple(self.image_size)), self.image_spacing)
 
         print "The fusion will be run with %i blocks" % self.num_blocks
         padded_block_size = tuple(i + 2 * self.options.block_pad for i in self.block_size)
@@ -289,12 +291,12 @@ class DeconvolutionRL:
                 # frc_job = resolution.FRC(myimage.MyImage(self.prev_estimate, self.image_spacing),
                 #                   myimage.MyImage(self.estimate, self.image_spacing),
                 #                   self.options)
-                frc_job = frc.SoloFRC(image.Image(self.estimate, self.image_spacing), self.options)
-                solofrc = frc_job.get_resolution()['resolution']
-                frc_job = frc.FRC(image.Image(self.prev_estimate, self.image_spacing),
-                                  image.Image(self.estimate, self.image_spacing),
-                                  self.options)
-                duofrc = float(frc_job.get_resolution()['resolution'])
+
+                image1, image2 = imutils.checkerboard_split(self.estimate)
+                solo_frc_job = frc.FRC(image1, image2, self.options)
+                solofrc = solo_frc_job.execute()[0].resolution['resolution']
+                frc_job = frc.FRC(self.prev_estimate, self.estimate, self.options)
+                duofrc = frc_job.execute()[0].resolution['resolution']
 
                 # Update UI
                 info_map['E/S/U/N=%s/%s/%s/%s'] = int(e), int(s), int(u), int(n)
@@ -377,7 +379,7 @@ class DeconvolutionRL:
         preferable.
         """
 
-        return image.Image(self.estimate, self.image_spacing)
+        return Image(self.estimate, self.image_spacing)
 
     def __calculate_block_and_image_size(self):
         """

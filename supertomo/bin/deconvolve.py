@@ -4,12 +4,12 @@ import time
 
 from accelerate.cuda import cuda_compatible
 
-from supertomo.ui import deconvolution_options as options
-from supertomo.processing.deconvolution import deconvolve_cuda, deconvolve
-from supertomo.data.containers import image
-from supertomo.psf import psfgen
 import supertomo.processing.to_string as ops_output
 import supertomo.ui.utils as uiutils
+from supertomo.processing.deconvolution import deconvolve_cuda, deconvolve
+from supertomo.psf import psfgen
+from supertomo.ui import deconvolution_options as options
+from supertomo.data.io import read as imread
 
 
 def main():
@@ -20,12 +20,11 @@ def main():
     dir = args.working_directory
     image_path = os.path.join(dir, image_name)
 
-    # Figure out an image type and use the correct loader. It might make sense
-    # to use Bioformats here.
+    # Figure out an image type and use the correct loader.
     if image_path.endswith('.tif'):
-        image = image.Image.get_image_from_imagej_tiff(image_path)
+        image = imread.get_image(image_path)
     elif image_path.endswith('.mat'):
-        image = image.Image.get_image_from_carma_file(image_path)
+        image = imread.get_image(image_path)[args.carma_gate_idx, args.carma_det_idx]
     else:
         raise AttributeError("Unknown image type %s" % image_path.split('.')[-1])
 

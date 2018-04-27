@@ -10,19 +10,19 @@ of the BSD license.  See the LICENSE file for details.
 This is the main program file for the SuperTomo fusion calculation
 """
 
-import sys
 import os
+import sys
 import time
 
 from accelerate.cuda import cuda_compatible
 
-import supertomo.processing.fusion as fusion
-import supertomo.processing.fusion.fusion_cuda as gpufusion
-
 import supertomo.data.containers.image_data as image_data
+import supertomo.processing.fusion.fusion as fusion
+import supertomo.processing.fusion.fusion_cuda as gpufusion
+import supertomo.processing.to_string as genutils
 import supertomo.ui.supertomo_options as arguments
 import supertomo.ui.utils as uiutils
-import supertomo.processing.to_string as genutils
+
 
 def main():
 

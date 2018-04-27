@@ -1,6 +1,8 @@
-import numpy as np
-import supertomo.processing.converters as converters
 from math import floor
+
+import numpy as np
+
+import supertomo.processing.converters as converters
 
 
 class FourierRingIterator(object):
@@ -130,7 +132,6 @@ class FourierShellIterator(object):
         :param shell_stop:  The end of the shell
         :param angle_min:   The start of the cone (degrees 0-360)
         :param angle_max:   The end of the cone
-        :param axis:        Rotation axis: inclination or azimuth
         :return:            Returns the coordinates of the points that are located inside
                             the portion of a shell that intersects with the points on the
                             cone.
