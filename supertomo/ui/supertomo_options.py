@@ -8,6 +8,19 @@ from supertomo.ui.options_parsers import parseRangeList, parseFromToString, pars
 # The supertomo scripts located in the /bin each have their specific
 # argparse functions. Common arguments are added as argument groups.
 
+def get_debug_script_options(arguments):
+    parser = argparse.ArgumentParser(
+        description="Command line arguments for the "
+                    "SuperTomo2 image scanning microscopy"
+                    "reconstruction script."
+    )
+    parser = get_common_options(parser)
+    parser = get_registration_options(parser)
+    parser = get_deconvolution_options(parser)
+    parser = get_ism_options(parser)
+
+    return parser.parse_args(arguments)
+
 def get_import_script_options(arguments):
     parser = argparse.ArgumentParser(
         description="Command line arguments for the"

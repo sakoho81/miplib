@@ -25,9 +25,9 @@ from matplotlib import pyplot as plt
 from scipy import ndimage, fftpack, stats
 
 import utils
-from external import radial_profile as radprof
 from supertomo.data.containers.image import Image
 from supertomo.processing import image as imutils
+from supertomo.data.iterators.fourier_ring_iterators import FourierRingIterator
 
 
 def get_common_options(parser):
@@ -237,21 +237,21 @@ class FrequencyQuality(Filter):
             mean = numpy.mean(self.data[:])
             self.power = self.power/(dims*mean)
 
-
     def calculate_radial_average(self, bin_size=2):
         """
         Convert a 2D centered power spectrum into 1D by averaging spectral
         power at different radiuses from the zero frequency center
         """
-        bin_centers, average = radprof.azimuthalAverage(
-            self.power,
-            binsize=bin_size,
-            returnradii=True,
-        )
-        dx = self.data.spacing[0]
+        iterator = FourierRingIterator(self.power.shape, d_bin=bin_size)
 
-        size = int(float(self.power.shape[0])/2)
-        f_k = (bin_centers/size) * (1.0/(2*dx))
+        average = numpy.zeros(iterator.nbins)
+
+        for idx, ring in enumerate(iterator):
+            subset = self.power[ring]
+            average[idx] = float(subset.sum())/subset.size
+
+        dx = self.data.spacing[0]
+        f_k = numpy.linspace(0, 1, iterator.nbins) * (1.0/(2*dx))
 
         self.simple_power = [f_k, average]
 

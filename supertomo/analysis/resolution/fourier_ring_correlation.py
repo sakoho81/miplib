@@ -7,10 +7,10 @@ re
 
 import numpy as np
 
-import fourier_shape_iterators as iterators
+import supertomo.data.iterators.fourier_ring_iterators as iterators
 import supertomo.processing.image as ops_image
-from supertomo.analysis.resolution.analysis import FourierCorrelationAnalysis
-from supertomo.data.containers.fourier_correlation_data import FourierCorrelationData, FourierCorrelationDataCollection
+from supertomo.data.containers.fourier_correlation_data import FourierCorrelationData, \
+    FourierCorrelationDataCollection
 from supertomo.data.containers.image import Image
 
 
@@ -20,7 +20,7 @@ class FRC(object):
     methods to calculate the FRC as well as to plot the results.
     """
 
-    def __init__(self, image1, image2, args):
+    def __init__(self, image1, image2, d_bin, normalize_power = False):
         assert isinstance(image1, Image)
         assert isinstance(image2, Image)
 
@@ -29,20 +29,18 @@ class FRC(object):
         if image1.ndim != 2:
             raise ValueError("Fourier ring correlation requires 2D images.")
 
-        self.args = args
         self.pixel_size = image1.spacing[0]
 
         # Expand to square
         image1 = ops_image.zero_pad_to_cube(image1)
         image2 = ops_image.zero_pad_to_cube(image2)
 
-        self.iterator = iterators.FourierRingIterator(image1.shape,
-                                                      d_bin=args.d_bin)
+        self.iterator = iterators.FourierRingIterator(image1.shape, d_bin)
         # Calculate power spectra for the input images.
         self.fft_image1 = np.fft.fftshift(np.fft.fft2(image1)).real
         self.fft_image2 = np.fft.fftshift(np.fft.fft2(image2)).real
 
-        if args.normalize_power:
+        if normalize_power:
             pixels = image1.shape[0] * image1.shape[1]
             self.fft_image1 /= (np.array(pixels * np.mean(image1)))
             self.fft_image2 /= (np.array(pixels * np.mean(image2)))
@@ -52,29 +50,13 @@ class FRC(object):
 
         self._result = None
 
-    @property
-    def result(self):
-        """
-        Get the FRC points. In case they have not been calculated already,
-        the FRC calculation will be run first.
-
-        :return: Returns a dictionary {y:frc_values, x:frequencies,
-                 fit:curve fit to the y values, equation:the equation for the
-                 fitted function.
-        """
-        if self._result is None:
-            return self.execute()
-        else:
-            return self._result
-
     def execute(self):
         """
         Calculate the FRC
         :return: Returns the FRC results. They are also saved inside the class.
                  The return value is just for convenience.
         """
-        d_bin = self.args.d_bin
-        radii = np.arange(0, self.freq_nyq, d_bin)
+        radii = self.iterator.radii
         c1 = np.zeros(radii.shape, dtype=np.float32)
         c2 = np.zeros(radii.shape, dtype=np.float32)
         c3 = np.zeros(radii.shape, dtype=np.float32)
@@ -99,10 +81,7 @@ class FRC(object):
         data_set.correlation["frequency"] = spatial_freq
         data_set.correlation["points-x-bin"] = n_points
 
-        data_structure = FourierCorrelationDataCollection()
-        data_structure[0] = data_set
+        collection = FourierCorrelationDataCollection()
+        collection[0] = data_set
 
-        self._result = FourierCorrelationAnalysis(
-            data_structure, self.args).calculate_resolution(self.pixel_size)
-
-        return self._result
+        return collection
