@@ -41,7 +41,7 @@ def get_frc_options_group(parser):
 
     group.add_argument('--resolution-threshold-criterion',
                        dest='resolution_threshold_criterion',
-                       choices=['one-bit', 'half-bit', 'fixed'],
+                       choices=['one-bit', 'half-bit', 'fixed', 'three-sigma'],
                        default='half-bit')
 
     group.add_argument('--resolution-threshold-value',

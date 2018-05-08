@@ -40,13 +40,6 @@ def calculate_entropy(data):
     return -numpy.sum(histogram * numpy.log2(histogram))
 
 
-def isMultidimArray(array):
-    assert isinstance(array, numpy.ndarray)
-    if array.ndim > 2 or array.ndim == 2 and array.shape[1] > 1:
-        return True
-    else:
-        return False
-
 
 
 

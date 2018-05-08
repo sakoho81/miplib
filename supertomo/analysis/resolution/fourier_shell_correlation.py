@@ -14,16 +14,13 @@ Cryo-EM through Tilting.” Nature Methods 14, no. 8 (July 3, 2017):
 
 import numpy as np
 
-import fourier_shape_iterators as iterators
 import supertomo.data.containers.fourier_correlation_data as containers
-import supertomo.processing.image as ops_myimage
 import supertomo.processing.ndarray as ndarray
-from supertomo.analysis.resolution.analysis import FourierCorrelationAnalysis
 from supertomo.data.containers.image import Image
 
 
 class DirectionalFSC(object):
-    def __init__(self, image1, image2, args):
+    def __init__(self, image1, image2, iterator, normalize_power=False):
         assert isinstance(image1, Image)
         assert isinstance(image2, Image)
 
@@ -31,41 +28,22 @@ class DirectionalFSC(object):
             raise ValueError("You should provide a stack for FSC analysis")
 
         if image1.shape != image2.shape:
-            print "The size of the images does not match. Zero padding will be applied" \
-                  "to match the shapes."
-            image1, image2 = ops_myimage.zero_pad_to_matching_shape(image1, image2)
-
-        # # Zoom to isotropic spacing if necessary
-        # image1 = ops_myimage.zoom_to_isotropic_spacing(image1, order=1)
-        # image2 = ops_myimage.zoom_to_isotropic_spacing(image2, order=1)
-        #
-        # # Pad to uniform shape
-        # image1 = ops_myimage.zero_pad_to_cube(image1)
-        # image2 = ops_myimage.zero_pad_to_cube(image2)
+            raise ValueError("Image dimensions do not match")
 
         # Create an Iterator
-        if args.hollow_iterator:
-            self.iterator = iterators.HollowFourierShellIterator(image1.shape,
-                                                                 d_bin=args.d_bin,
-                                                                 d_angle=args.d_angle,
-                                                                 d_extract_angle=args.d_extract_angle)
-        else:
-            self.iterator = iterators.FourierShellIterator(image1.shape,
-                                                           d_bin=args.d_bin,
-                                                           d_angle=args.d_angle)
+        self.iterator = iterator
 
         # FFT transforms of the input images
         self.fft_image1 = np.fft.fftshift(np.fft.fftn(image1)).real
         self.fft_image2 = np.fft.fftshift(np.fft.fftn(image2)).real
 
-        if args.normalize_power:
+        if normalize_power:
             pixels = image1.shape[0]**3
             self.fft_image1 /= (np.array(pixels * np.mean(image1)))
             self.fft_image2 /= (np.array(pixels * np.mean(image2)))
 
         self._result = None
 
-        self.args = args
         self.pixel_size = image1.spacing[0]
 
     @property
@@ -120,7 +98,4 @@ class DirectionalFSC(object):
             # angle
             data_structure[angles[i]] = result
 
-        self._result = FourierCorrelationAnalysis(
-            data_structure, self.args).calculate_resolution(self.pixel_size)
-
-        return self._result
+        return data_structure

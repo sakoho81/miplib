@@ -18,6 +18,7 @@ import numpy
 import scipy
 
 from supertomo.data.containers.image import Image
+from supertomo.processing import converters
 
 
 def convert_from_itk_image(image):
@@ -80,7 +81,7 @@ def get_itk_transform_parameters(transform):
     return tfm_type, params, fixed_params
 
 
-def resample_image(image, transform, reference=None):
+def resample_image(image, transform, reference=None, interpolation="linear"):
     """
     Resampling filter for manipulating data volumes. This function can be
     used to transform an image module or to perform up or down sampling
@@ -96,10 +97,20 @@ def resample_image(image, transform, reference=None):
     assert isinstance(image, sitk.Image)
     if reference is None:
         reference = image
+
+    if interpolation == "nearest":
+        interpolator = sitk.sitkNearestNeighbor
+    elif interpolation == "linear":
+        interpolator = sitk.sitkLinear
+    elif interpolation == "Bspline":
+        interpolator = sitk.sitkBSpline
+    else:
+        raise ValueError("Unknown interpolation type.")
+
     resampler = sitk.ResampleImageFilter()
     resampler.SetTransform(transform)
 
-    resampler.SetInterpolator(sitk.sitkLinear)
+    resampler.SetInterpolator(interpolator)
 
     resampler.SetSize(reference.GetSize())
     resampler.SetOutputOrigin(reference.GetOrigin())
@@ -108,6 +119,37 @@ def resample_image(image, transform, reference=None):
     resampler.SetDefaultPixelValue(0)
 
     return resampler.Execute(image)
+
+
+def rotate_image(image, angle, axis=0, interpolation="linear"):
+    """
+    Rotate an image around the selected axis
+
+    :param interpolation:
+    :param image: a SimpleITK image
+    :param angle: rotation angle in degrees
+    :param axis:  rotation axis
+    :return:
+    """
+
+    assert isinstance(image, sitk.Image)
+
+    radians = converters.degrees_to_radians(angle)
+
+    if image.GetDimension() == 3:
+        transform = sitk.Euler3DTransform()
+        rotation = [0.0, 0.0, 0.0]
+        rotation[axis] = radians
+        transform.SetRotation(*rotation)
+    elif image.GetDimension() == 2:
+        transform = sitk.Euler2DTransform()
+        transform.SetAngle(radians)
+    else:
+        raise ValueError(image)
+
+    transform.SetCenter(calculate_center_of_image(image))
+
+    return resample_image(image, transform, interpolation=interpolation)
 
 
 def rotate_psf(psf, transform, spacing=None, return_numpy=False):
