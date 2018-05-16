@@ -48,13 +48,12 @@ class FRC(object):
         # Get the Nyquist frequency
         self.freq_nyq = int(np.floor(image1.shape[0] / 2.0))
 
-        self._result = None
 
     def execute(self):
         """
         Calculate the FRC
-        :return: Returns the FRC results. They are also saved inside the class.
-                 The return value is just for convenience.
+        :return: Returns the FRC results.
+
         """
         radii = self.iterator.radii
         c1 = np.zeros(radii.shape, dtype=np.float32)

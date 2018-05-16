@@ -26,7 +26,7 @@ class FourierShellIterator(object):
         self.r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
 
         self.shell_start = 0
-        self.shell_stop = floor(shape[0] / (2 * self.d_bin)) - 1
+        self.shell_stop = int(floor(shape[0] / (2 * self.d_bin))) - 1
 
         self.current_shell = self.shell_start
 
@@ -303,17 +303,17 @@ class RotatingFourierShellIterator(FourierShellIterator):
         if shell_idx <= self.shell_stop:
             shell = self.get_points_on_shell(self.current_shell * self.d_bin,
                                              (self.current_shell + 1) * self.d_bin)
-
             self.current_shell += 1
 
         elif rotation_idx <= self.rotation_stop:
 
             rotated_plane = itkutils.convert_from_itk_image(
                 itkutils.rotate_image(self.plane, self.angles[rotation_idx],
-                                      interpolation='nearest'))
+                                      interpolation='linear'))
 
             self.rotated_plane = rotated_plane > 0
             self.current_shell = 0
+            shell_idx = 0
             self.current_rotation += 1
 
             shell = self.get_points_on_shell(self.current_shell * self.d_bin,

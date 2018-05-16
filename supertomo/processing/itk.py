@@ -287,6 +287,7 @@ def gaussian_blurring_filter(image, variance):
     """
 
     filter = sitk.DiscreteGaussianImageFilter()
+    filter.SetUseImageSpacing(False)
     filter.SetVariance(variance)
 
     return filter.Execute(image)
