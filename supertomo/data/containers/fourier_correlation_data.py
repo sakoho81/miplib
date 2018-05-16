@@ -1,10 +1,13 @@
 
 from supertomo.data.core.dictionary import FixedDictionary
 
+import pandas as pd
+import numpy as np
+
 
 class FourierCorrelationDataCollection(object):
     """
-    A container for the directional Fourier shell correlation data
+    A container for the directional Fourier correlation data
     """
     def __init__(self):
         self._data = dict()
@@ -42,6 +45,28 @@ class FourierCorrelationDataCollection(object):
     def items(self):
         return self._data.items()
 
+    def as_dataframe(self):
+        """
+        Convert a FourierCorrelationDataCollection object into a Pandas
+        dataframe. Only returns the raw Fourier correlation data,
+        not the processed results.
+
+        :return: A dataframe with columns: Angle (categorical), Correlation (Y),
+                 Frequency (X) and nPoints (number of points in each bin)
+        """
+        df = pd.DataFrame(columns=['Correlation', 'Frequency', 'nPoints', 'Angle'])
+
+        for key, dataset in self._data.iteritems():
+            df_temp = dataset.as_dataframe()
+
+            angle = np.full(len(df_temp), int(key), dtype=np.int64)
+            df_temp['Angle'] = angle
+
+            df = pd.concat([df, df_temp], ignore_index=True)
+
+        df['Angle'] = df['Angle'].astype('category')
+        return df
+
 
 class FourierCorrelationData(object):
     """
@@ -68,5 +93,19 @@ class FourierCorrelationData(object):
                 else:
                     raise ValueError("Unknown key found in the initialization data")
 
+    def as_dataframe(self):
+        """
+        Convert a FourierCorrelationData object into a Pandas
+        dataframe. Only returns the raw Fourier correlation data,
+        not the processed results.
 
+        :return: A dataframe with columns: Correlation (Y), Frequency (X) and
+                 nPoints (number of points in each bin)
+        """
+        to_df = {
+            'Correlation': self.correlation["correlation"],
+            'Frequency': self.correlation["frequency"],
+            'nPoints': self.correlation["points-x-bin"],
+        }
 
+        return pd.DataFrame(to_df)

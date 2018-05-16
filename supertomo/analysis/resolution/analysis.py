@@ -32,6 +32,9 @@ class FourierCorrelationAnalysis(object):
         if data[-1] > data[-2]:
             data[-1] = data[-2]
 
+        if data[0]-0.5 < 0:
+            data[0] = 1.0
+
         coeff = np.polyfit(self.data_set.correlation["frequency"],
                            data,
                            degree,
