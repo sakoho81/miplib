@@ -62,3 +62,6 @@ target/
 
 .ipynb_checkpoints/
 #scribbles/
+
+# Data directory (needs to be distributed some other way)
+notebooks/data/

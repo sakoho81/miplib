@@ -22,16 +22,12 @@ def get_image(filename, series=0, channel=0, return_type='image', bioformats=Tru
            the return type can be chosen with a string ('image, 'itk').
 
     """
-    assert return_type in ('numpy', 'itk', 'image')
+    assert return_type in ('itk', 'image')
 
     if filename.endswith(".mha") or not bioformats:
         data = __itk_image(filename, return_type == 'itk')
     else:
         data = __bioformats(filename, series, channel, return_type == 'itk')
-
-    if return_type == "image":
-        images, spacing = data
-        return Image(images, spacing)
 
     return data
 
@@ -179,7 +175,7 @@ def __bioformats(filename, series=0, channel=0, return_itk = False):
     if return_itk:
         return itkutils.convert_from_numpy(image, spacing)
     else:
-        return image, spacing
+        return Image(image, spacing)
 
 
 
