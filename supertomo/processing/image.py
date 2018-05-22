@@ -26,6 +26,18 @@ def zoom_to_isotropic_spacing(image, order=3):
     else:
         return resize(image, new_shape, order)
 
+def zoom_to_spacing(image, spacing, order=3):
+
+    assert isinstance(image, Image)
+    assert image.ndim == len(spacing)
+
+    zoom = tuple(i/j for i, j in zip(image.spacing, spacing))
+    print "The zoom is ", zoom
+
+    array = interpolation.zoom(image, zoom, order=order)
+
+    return Image(array, spacing)
+
 
 def resize(image, size, order=3):  # type: (Image, tuple) -> Image
     """
