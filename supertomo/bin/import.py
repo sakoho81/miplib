@@ -80,7 +80,8 @@ def main():
         full_path = os.path.join(directory, image_name)
 
         if full_path.endswith((".tiff", ".tif", ".mhd", ".mha")):
-            images, spacing = read.get_image(full_path)
+            images = read.get_image(full_path)
+            spacing = images.spacing
         else:
             continue
 
@@ -113,7 +114,6 @@ def main():
             print "Creating %s percent downsampled versions of the original images" % scale
             data.create_rescaled_images("original", scale)
 
-
     # Add transforms for registered images.
     for transform_name in os.listdir(directory):
         if not transform_name.endswith(".txt"):
@@ -123,10 +123,10 @@ def main():
             print "Unrecognized transform name %s. Skipping it." % transform_name
             continue
 
-        scale = image_name.split("scale_")[-1].split("_index")[0]
-        index = image_name.split("index_")[-1].split("_channel")[0]
-        channel = image_name.split("channel_")[-1].split("_angle")[0]
-        angle = image_name.split("angle_")[-1].split(".")[0]
+        scale = transform_name.split("scale_")[-1].split("_index")[0]
+        index = transform_name.split("index_")[-1].split("_channel")[0]
+        channel = transform_name.split("channel_")[-1].split("_angle")[0]
+        angle = transform_name.split("angle_")[-1].split(".")[0]
 
         full_path = os.path.join(directory, transform_name)
 
@@ -141,7 +141,8 @@ def main():
             transform = read.__itk_transform(full_path, return_itk=True)
 
             registered = itkutils.resample_image(moving, transform, reference=reference)
-            registered, spacing = itkutils.convert_to_numpy(registered)
+            registered = itkutils.convert_from_itk_image(registered)
+            spacing = registered.spacing
 
             data.add_registered_image(registered, scale, index, channel, angle, spacing)
 

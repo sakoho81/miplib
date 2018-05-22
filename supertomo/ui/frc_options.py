@@ -6,6 +6,8 @@ def get_frc_script_options(arguments):
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('directory')
+    parser.add_argument('--debug',
+                        action='store_true')
     parser.add_argument('--outdir', dest='pathout',
                         help='Select output folder where to save the log file'
                              + ' and the plots')
@@ -84,5 +86,7 @@ def get_frc_options_group(parser):
                             "data points."
                        )
 
+    group.add_argument('--use-splines',
+                       action='store_true')
 
     return parser

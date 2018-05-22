@@ -3,6 +3,7 @@ import os
 
 import SimpleITK as sitk
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 import numpy as np
 
 # import supertomo.data.io.tiffile as tiffile
@@ -58,6 +59,29 @@ def display_3d_slice_with_alpha(image_z, alpha, fixed, moving):
     img = (1.0 - alpha) * fixed[:, :, image_z] + alpha * moving[:, :, image_z]
     plt.imshow(sitk.GetArrayFromImage(img), cmap='gray')
     plt.axis('off')
+
+
+
+def create_axial_views_plot(image, x_idx, y_idx, z_idx):
+
+    assert issubclass(image.__class__, np.ndarray)
+    assert image.ndim == 3
+
+    xy = image[z_idx, :, :]
+    xz = image[:, y_idx, :]
+    yz = image[:, :, x_idx]
+
+    fig, axes = plt.subplots(2,2, figsize=(10, 8))
+
+    axes[0].imshow(xy, cmap="hot")
+    axes[1].imshow(yz, cmap="hot")
+    axes[2].imshow(xz, cmap="hot")
+
+    plt.axes('off')
+
+    return fig
+
+
 
 
 def display_2d_images(image1,

@@ -3,7 +3,7 @@ import numpy
 
 import supertomo.processing.itk as ops_itk
 from supertomo.data.containers import image_data
-
+import registration
 
 class MultiViewRegistration:
     """
@@ -158,6 +158,11 @@ class MultiViewRegistration:
         # START
         # ======================================================================
 
+        if self.options.reg_enable_observers:
+            # OBSERVERS
+            self.registration.AddCommand(sitk.sitkStartEvent, registration.start_plot)
+            self.registration.AddCommand(sitk.sitkIterationEvent, lambda: registration.plot_values(self.registration))
+
         print "Starting registration of views " \
               "%i (fixed) & %i (moving)" % (self.fixed_index, self.moving_index)
 
@@ -197,6 +202,9 @@ class MultiViewRegistration:
             'Optimizer\'s stopping condition, {0}'.format(
                 self.registration.GetOptimizerStopConditionDescription()))
         print self.final_transform
+
+        if self.options.reg_enable_observers:
+            registration.end_plot(fixed_image, moving_image, self.final_transform)
 
     def set_moving_image(self, index):
         """
