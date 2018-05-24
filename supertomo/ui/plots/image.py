@@ -71,16 +71,33 @@ def create_axial_views_plot(image, x_idx, y_idx, z_idx):
     xz = image[:, y_idx, :]
     yz = image[:, :, x_idx]
 
-    fig, axes = plt.subplots(2,2, figsize=(10, 8))
+    yz = np.transpose(yz)
 
-    axes[0].imshow(xy, cmap="hot")
-    axes[1].imshow(yz, cmap="hot")
-    axes[2].imshow(xz, cmap="hot")
+    width_ratio = xy.shape[1]/yz.shape[1]
+    height_ratio = xy.shape[0]/xz.shape[0]
 
-    plt.axes('off')
+    fig = plt.figure(figsize=(8, 8))
+    gs = gridspec.GridSpec(2, 2,
+                           width_ratios=[width_ratio, 1],
+                           height_ratios=[height_ratio, 1])
 
+    ax0 = plt.subplot(gs[0, 0])
+    ax0.imshow(xy, cmap="hot")
+    ax0.set_title("XY")
+    ax0.axis('off')
+
+    ax1 = plt.subplot(gs[0, 1])
+    ax1.imshow(yz, cmap="hot")
+    ax1.set_title("YZ")
+    ax1.axis('off')
+
+    ax2 = plt.subplot(gs[1,0])
+    ax2.imshow(xz, cmap="hot")
+    ax2.set_title("XZ")
+    ax2.axis('off')
+
+    #fig.delaxes(axes[1, 1])
     return fig
-
 
 
 

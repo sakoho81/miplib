@@ -202,6 +202,14 @@ def get_common_options(parser):
              'results by eye before they are saved'
              'to the data structure.'
     )
+
+    group.add_argument(
+        '--temp-dir',
+        help="Specify a custom directory for Temp data. By default it will"
+             "be saved into an automatically generated directory in the "
+             "system's temp file directory (/temp on *nix)",
+        default=None
+    )
     return parser
 
 
