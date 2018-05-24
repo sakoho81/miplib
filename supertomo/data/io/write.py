@@ -1,5 +1,5 @@
 import SimpleITK as sitk
-
+import pims
 import supertomo.processing.itk as itkutils
 from supertomo.data.containers.image import Image
 from supertomo.data.io import tiffile
@@ -66,3 +66,4 @@ def __tiff(path, image, spacing):
                    image,
                    resolution=(1.0/spacing[1], 1.0/spacing[2]),
                    metadata={'spacing': 1.0/spacing[0], 'unit': 'um'})
+

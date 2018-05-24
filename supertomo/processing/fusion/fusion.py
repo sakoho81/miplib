@@ -15,7 +15,7 @@ used in this file, can take advantage of MKL optimizations available
 in the Anaconda Accelerate package.
 
 """
-
+import datetime
 import itertools
 import os
 import shutil
@@ -24,13 +24,13 @@ import tempfile
 import time
 
 import numpy
-import ops_ext
+import supertomo.processing.ops_ext as ops_ext
 from scipy.ndimage.interpolation import zoom
 from scipy.signal import fftconvolve, medfilt
 
 import supertomo.processing.ndarray as ops_array
 import supertomo.processing.to_string as ops_output
-from supertomo.data.containers import temp_data, image_data
+from supertomo.data.containers import temp_data, image_data, image
 from supertomo.data.io import tiffile
 
 
@@ -114,8 +114,15 @@ class MultiViewFusionRL(object):
         # Create temporary directory and data file.
         self.data_to_save = ('count', 't', 'mn', 'mx', 'tau1', 'tau2', 'leak', 'e',
                              's', 'u', 'n', 'u_esu')
-        self.temp_data = temp_data.TempData()
-        self.temp_data.create_data_file("fusion_data.csv", self.data_to_save)
+
+        if self.options.temp_dir is None:
+            self.temp_data = temp_data.TempData()
+        else:
+            self.temp_data = temp_data.TempData(directory=self.options.temp_dir)
+
+        date_now = datetime.datetime.now().strftime("%H_%M_%S_")
+        tempfile_name = '{}_fusion_data.csv'.format(date_now)
+        self.temp_data.create_data_file(tempfile_name, self.data_to_save)
         self.temp_data.write_comment('Fusion Command: %s' % (' '.join(map(str, sys.argv))))
 
     def compute_estimate(self):
@@ -559,13 +566,13 @@ class MultiViewFusionRL(object):
         to the full 0-255 range.
         """
         if denoise:
-            image = medfilt(self.estimate)
+            result = medfilt(self.estimate)
         else:
-            image = self.estimate
+            result = self.estimate
 
-        image *= (255.0 / image.max())
-        image[image < 0] = 0
-        return image.astype(numpy.uint8)
+        result *= (255.0 / result.max())
+        result[result < 0] = 0
+        return image.Image(result.astype(numpy.uint8), self.voxel_size)
 
     def close(self):
         if self.options.memmap_estimates:

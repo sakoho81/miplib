@@ -17,7 +17,7 @@ as the MultiViewFusionRL class, for non-accelerated iterative image fusion.
 import itertools
 
 import numpy
-import ops_ext
+import supertomo.processing.ops_ext as ops_ext
 from numba import cuda, vectorize
 from pyculib.fft import FFTPlan, fft_inplace, ifft_inplace
 

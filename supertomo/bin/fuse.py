@@ -14,8 +14,6 @@ import os
 import sys
 import time
 
-from accelerate.cuda import cuda_compatible
-
 import supertomo.data.containers.image_data as image_data
 import supertomo.processing.fusion.fusion as fusion
 import supertomo.processing.fusion.fusion_cuda as gpufusion
@@ -48,9 +46,8 @@ def main():
               "original STED PSF (that is assumed to be at index 0)."
         data.calculate_missing_psfs()
 
-    if cuda_compatible() and not options.disable_cuda:
-        print "Found a compatible GPU. The image fusion will be run with " \
-              "hardware acceleration."
+    if not options.disable_cuda:
+        print "Trying to run the image fusion with GPU acceleration."
         task = gpufusion.MultiViewFusionRLCuda(data, options)
     else:
         task = fusion.MultiViewFusionRL(data, options)

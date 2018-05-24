@@ -270,7 +270,7 @@ class MultiViewRegistration:
         angle = self.data.get_rotation_angle(radians=False)
         spacing = self.data.get_voxel_size()
         registered_image = ops_itk.convert_from_itk_image(
-            self.get_resampled_result())[0]
+            self.get_resampled_result())
         self.data.add_registered_image(registered_image, scale, view, channel,
                                        angle, spacing)
         # Add transform

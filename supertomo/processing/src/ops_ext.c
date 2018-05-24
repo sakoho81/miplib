@@ -10,14 +10,11 @@
 #define M_PI 3.1415926535897932384626433832795
 #endif
 
-#ifndef _GNU_SOURCE
 void sincos(double x, double *sn, double *cs)
 {
   *sn = sin(x);
   *cs = cos(x);
 }
-
-#endif
 
 #ifndef PyMODINIT_FUNC	/* declarations for DLL import/export */
 #define PyMODINIT_FUNC void

@@ -24,7 +24,7 @@ import tempfile
 import time
 
 import numpy
-import ops_ext
+import supertomo.processing.ops_ext as ops_ext
 from scipy.ndimage.interpolation import zoom
 from scipy.signal import fftconvolve, medfilt
 

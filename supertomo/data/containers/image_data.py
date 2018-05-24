@@ -342,7 +342,7 @@ class ImageData():
                     psf_new = itkutils.rotate_psf(psf_orig,
                                                   transform,
                                                   image_spacing,
-                                                  return_numpy=True)[0]
+                                                  return_numpy=True)
                     self.add_psf(psf_new, 100, index, channel,
                                  self.get_rotation_angle(), image_spacing,
                                  calculated=True)
@@ -430,7 +430,7 @@ class ImageData():
         -------
         Voxel size as a three element tuple (assuming 3D image).
         """
-        return self.data[self.active_image].attrs["spacing"]
+        return list(self.data[self.active_image].attrs["spacing"])
 
     def get_max(self):
         return self.data[self.active_image][:].max()
@@ -680,7 +680,7 @@ class ImageData():
         return name in self.data
 
     def __getitem__(self, item):
-        return Image(self.data[self.active_image][item], self.get_voxel_size())
+        return self.data[self.active_image][item]
 
     def __setitem__(self, key, value):
         self.data[self.active_image][key] = value

@@ -1,3 +1,4 @@
+import datetime
 import os
 import tempfile
 
@@ -6,8 +7,14 @@ import supertomo.data.io.tiffile
 
 class TempData():
 
-    def __init__(self):
-        self.dir = tempfile.mkdtemp('-supertomo.temp.data')
+    def __init__(self, directory=None):
+        if directory is None:
+            self.dir = tempfile.mkdtemp('-supertomo.temp.data')
+        else:
+            date_now = datetime.datetime.now().strftime("%y_%m_%d_")
+            self.dir = '{}_supertomo_temp_data'.format(date_now)
+            if not os.path.exists(self.dir):
+                os.mkdir(self.dir)
         self.data_file = None
 
     def create_data_file(self, filename, col_names, append=False):
