@@ -93,7 +93,7 @@ class FourierCorrelationData(object):
                 else:
                     raise ValueError("Unknown key found in the initialization data")
 
-    def as_dataframe(self):
+    def as_dataframe(self, include_results=False):
         """
         Convert a FourierCorrelationData object into a Pandas
         dataframe. Only returns the raw Fourier correlation data,
@@ -102,10 +102,19 @@ class FourierCorrelationData(object):
         :return: A dataframe with columns: Correlation (Y), Frequency (X) and
                  nPoints (number of points in each bin)
         """
-        to_df = {
-            'Correlation': self.correlation["correlation"],
-            'Frequency': self.correlation["frequency"],
-            'nPoints': self.correlation["points-x-bin"],
-        }
+        if include_results is False:
+            to_df = {
+                'Correlation': self.correlation["correlation"],
+                'Frequency': self.correlation["frequency"],
+                'nPoints': self.correlation["points-x-bin"],
+            }
+        else:
+            to_df = {
+                'Correlation': self.correlation["correlation"],
+                'Frequency': self.correlation["frequency"],
+                'nPoints': self.correlation["points-x-bin"],
+                'Resolution': self.resolution["resolution"],
+
+            }
 
         return pd.DataFrame(to_df)

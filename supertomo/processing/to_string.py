@@ -7,6 +7,13 @@ import numpy
 VERBOSE = False
 
 
+def concatenate_to_csv(values):
+    assert isinstance(values, tuple) or \
+           isinstance(values, list)
+
+    return ",".join('%.6f' % s for s in values)
+
+
 def argument_string(obj):
     if isinstance(obj, (str,)):
         return repr(obj)

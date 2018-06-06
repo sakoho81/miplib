@@ -124,7 +124,7 @@ def display_2d_images(image1,
 
     if vertical:
         fig, (ax1, ax2) = plt.subplots(
-            2, 1, figsize=(10, 8),
+            2, 1, figsize=(13, 10),
             gridspec_kw = {'height_ratios':[3, 1], 'width_ratios':[1, 1]}
         )
     else:

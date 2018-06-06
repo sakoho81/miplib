@@ -18,13 +18,15 @@ def image(path, image):
 
     assert isinstance(image, Image)
 
-    if path.endswith(('.mha', '.mhd')):
-        __itk_image(path, image, image.spacing)
-    elif path.endswith(('.tiff', '.tif')):
-        __tiff(path, image, image.spacing)
+    __itk_image(path, image)
+    #
+    # if path.endswith(('.mha', '.mhd')):
+    #     __itk_image(path, image, image.spacing)
+    # elif path.endswith(('.tiff', '.tif')):
+    #     __tiff(path, image, image.spacing)
 
 
-def __itk_image(path, image, spacing):
+def __itk_image(path, image):
     """
     A writer for ITK supported image formats.
 
@@ -32,11 +34,10 @@ def __itk_image(path, image, spacing):
     :param image:   An image as :type image: numpy.ndarray.
     :param spacing: Pixel size ZXY, as a :type spacing: list.
     """
-    sitk.ImageFileWriter()
-    if not isinstance(image, sitk.Image):
-        image = itkutils.convert_from_numpy(image, spacing)
-    image.SetSpacing(spacing)
-    sitk.WriteImage(path, image)
+    assert isinstance(image, Image)
+
+    image = itkutils.convert_to_itk_image(image)
+    sitk.WriteImage(image, path)
 
 
 def __imagej_tiff(path, image, spacing):

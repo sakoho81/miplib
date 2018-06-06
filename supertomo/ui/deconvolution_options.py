@@ -26,6 +26,8 @@ def get_common_options(parser):
         '--verbose',
         action='store_true'
     )
+    group.add_argument('--debug',
+                        action='store_true')
     group.add_argument(
         '--dir',
         dest='working_directory',

@@ -143,11 +143,7 @@ class MultiViewFusionRL(object):
 
             # Get PSFs for view
             psf = self.psfs[idx]
-
-            if "opt" in self.options.fusion_method:
-                adj_psf = self.virtual_psfs[idx]
-            else:
-                adj_psf = self.adj_psfs[idx]
+            adj_psf = self.adj_psfs[idx]
 
             self.data.set_active_image(view, self.options.channel,
                                        self.options.scale, "registered")
