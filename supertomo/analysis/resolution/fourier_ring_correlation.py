@@ -80,7 +80,4 @@ class FRC(object):
         data_set.correlation["frequency"] = spatial_freq
         data_set.correlation["points-x-bin"] = n_points
 
-        collection = FourierCorrelationDataCollection()
-        collection[0] = data_set
-
-        return collection
+        return data_set

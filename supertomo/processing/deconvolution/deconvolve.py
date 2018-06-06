@@ -22,17 +22,17 @@ import shutil
 import sys
 import tempfile
 import time
+import pandas
 
 import numpy
 import supertomo.processing.ops_ext as ops_ext
 from scipy.ndimage.interpolation import zoom
 from scipy.signal import fftconvolve, medfilt
 
-import supertomo.analysis.resolution.fourier_ring_correlation as frc
 import supertomo.processing.to_string as ops_output
 from supertomo.data.containers import temp_data
 from supertomo.data.containers.image import Image
-from supertomo.processing import image as imutils
+from supertomo.data.wrappers.image_writer_wrappers import ImageWriterBase
 
 
 class DeconvolutionRL:
@@ -41,34 +41,26 @@ class DeconvolutionRL:
     several 3D volumes.
     """
 
-    def __init__(self, image, psf, options):
+    def __init__(self, image, psf, writer, options):
         """
         :param image:    a MyImage object
 
         :param options: command line options that control the behavior
                         of the fusion algorithm
         """
-        assert isinstance(image, image.Image)
-        assert isinstance(psf, image.Image)
+        assert isinstance(image, Image)
+        assert isinstance(psf, Image)
+        assert issubclass(writer.__class__, ImageWriterBase)
 
         self.image = image
         self.psf = psf
         self.options = options
+        self.writer = writer
 
-        self.image_size = self.image.get_dimensions()
-        self.image_spacing = self.image.get_spacing()
-        self.psf_spacing = self.psf.get_spacing()
-
-        if self.image.get_dimensions()[0] == 1:
-            self.imdims = 2
-            self.image = self.image[0]
-            assert self.psf.get_dimensions()[0] == 1, "The dimensions of the image and PSF do not match"
-            self.psf = self.psf[0]
-            self.image_spacing = self.image_spacing[1:]
-            self.psf_spacing = self.psf_spacing[1:]
-            self.image_size = self.image_size[1:]
-        else:
-            self.imdims = 3
+        self.image_size = self.image.shape
+        self.image_spacing = self.image.spacing
+        self.psf_spacing = self.psf.spacing
+        self.imdims = image.ndim
 
         self.__get_psfs()
 
@@ -86,35 +78,34 @@ class DeconvolutionRL:
         if self.options.memmap_estimates:
             estimate_new_f = os.path.join(self.memmap_directory, "estimate_new.dat")
             self.estimate_new = Image(numpy.memmap(estimate_new_f, dtype='float32',
-                                      mode='w+',
-                                      shape=tuple(self.image_size)), self.image_spacing)
+                                                   mode='w+',
+                                                   shape=tuple(self.image_size)), self.image_spacing)
 
             estimate_f = os.path.join(self.memmap_directory, "estimate.dat")
             self.estimate = Image(numpy.memmap(estimate_f, dtype=numpy.float32,
-                                  mode='w+',
-                                  shape=tuple(self.image_size)), self.image_spacing)
+                                               mode='w+',
+                                               shape=tuple(self.image_size)), self.image_spacing)
         else:
             self.estimate = Image(numpy.zeros(tuple(self.image_size),
-                                  dtype=numpy.float32), self.image_spacing)
+                                              dtype=numpy.float32), self.image_spacing)
             self.estimate_new = Image(numpy.zeros(tuple(self.image_size),
-                                      dtype=numpy.float32), self.image_spacing)
+                                                  dtype=numpy.float32), self.image_spacing)
 
         if not self.options.disable_tau1:
             prev_estimate_f = os.path.join(self.memmap_directory, "prev_estimate.dat")
             self.prev_estimate = Image(numpy.memmap(prev_estimate_f, dtype=numpy.float32,
-                                       mode='w+',
-                                       shape=tuple(self.image_size)), self.image_spacing)
+                                                    mode='w+',
+                                                    shape=tuple(self.image_size)), self.image_spacing)
 
-        print "The fusion will be run with %i blocks" % self.num_blocks
+        print "The deconvolution will be run with %i blocks" % self.num_blocks
         padded_block_size = tuple(i + 2 * self.options.block_pad for i in self.block_size)
         print "The internal block size is %s" % (padded_block_size,)
 
         # Create temporary directory and data file.
-        self.data_to_save = ('t', 'tau1', 'leak', 'e',
-                             's', 'u', 'n', 'u_esu', 'duofrc', 'solofrc')
-        self.temp_data = temp_data.TempData()
-        self.temp_data.create_data_file("deconvolution_data.csv", self.data_to_save)
-        self.temp_data.write_comment('Deconvolution Command: %s' % (' '.join(map(str, sys.argv))))
+        self.column_headers = ('t', 'tau1', 'leak', 'e',
+                             's', 'u', 'n', 'u_esu')
+        self._temp_data = numpy.zeros((self.options.max_nof_iterations, len(self.column_headers)),
+                                      dtype=numpy.float32)
 
     def compute_estimate(self):
         """
@@ -135,13 +126,16 @@ class DeconvolutionRL:
 
                 index = numpy.array((x, y), dtype=int)
                 if self.options.block_pad > 0:
-                    estimate_block = self.get_padded_block(self.estimate, index.copy())
+                    estimate_block = self.get_padded_block(
+                        self.estimate, index.copy())
                     image_block = self.get_padded_block(self.image, index.copy())
                 else:
-                    estimate_block = self.estimate[index[0]:index[0] + self.block_size[0],
-                                                   index[1]:index[1] + self.block_size[1]]
-                    image_block = self.image[index[0]:index[0] + self.block_size[0],
-                                             index[1]:index[1] + self.block_size[1]]
+                    estimate_block = self.estimate[
+                                         index[0]:index[0] + self.block_size[0],
+                                         index[1]:index[1] + self.block_size[1]]
+                    image_block = self.image[
+                                      index[0]:index[0] + self.block_size[0],
+                                      index[1]:index[1] + self.block_size[1]]
 
                 # print "The current block is %i" % block_nr
                 block_nr += 1
@@ -179,14 +173,14 @@ class DeconvolutionRL:
                     image_block = self.get_padded_block(self.image, index.copy())
                 else:
                     estimate_block = self.estimate[
-                                        index[0]:index[0] + self.block_size[0],
-                                        index[1]:index[1] + self.block_size[1],
-                                        index[2]:index[2] + self.block_size[2]
+                                     index[0]:index[0] + self.block_size[0],
+                                     index[1]:index[1] + self.block_size[1],
+                                     index[2]:index[2] + self.block_size[2]
                                      ]
                     image_block = self.image[
-                                    index[0]:index[0] + self.block_size[0],
-                                    index[1]:index[1] + self.block_size[1],
-                                    index[2]:index[2] + self.block_size[2]
+                                  index[0]:index[0] + self.block_size[0],
+                                  index[1]:index[1] + self.block_size[1],
+                                  index[2]:index[2] + self.block_size[2]
                                   ]
 
                 # print "The current block is %i" % block_nr
@@ -267,7 +261,11 @@ class DeconvolutionRL:
                                      totalWidth=40,
                                      show_percentage=False)
 
-        duofrc_prev = 0
+        self._temp_data = numpy.zeros((self.options.max_nof_iterations, len(self.column_headers)),
+                                      dtype=numpy.float32)
+
+
+        # duofrc_prev = 0
         # The Fusion calculation starts here
         # ====================================================================
         try:
@@ -292,37 +290,43 @@ class DeconvolutionRL:
                 #                   myimage.MyImage(self.estimate, self.image_spacing),
                 #                   self.options)
 
-                image1, image2 = imutils.checkerboard_split(self.estimate)
-                solo_frc_job = frc.FRC(image1, image2, self.options)
-                solofrc = solo_frc_job.execute()[0].resolution['resolution']
-                frc_job = frc.FRC(self.prev_estimate, self.estimate, self.options)
-                duofrc = frc_job.execute()[0].resolution['resolution']
+                # image1, image2 = imutils.checkerboard_split(self.estimate)
+                # solo_frc_job = frc.FRC(image1, image2, self.options)
+                # solofrc = solo_frc_job.execute()[0].resolution['resolution']
+                # frc_job = frc.FRC(self.prev_estimate, self.estimate, self.options)
+                # duofrc = frc_job.execute()[0].resolution['resolution']
+
+                t = time.time() - ittime
+                leak = 100 * photon_leak
 
                 # Update UI
                 info_map['E/S/U/N=%s/%s/%s/%s'] = int(e), int(s), int(u), int(n)
-                info_map['LEAK=%s%%'] = 100 * photon_leak
+                info_map['LEAK=%s%%'] = leak
                 info_map['U/ESU=%s'] = u_esu
-                info_map['TIME=%ss'] = time.time() - ittime
-                info_map['SoloFRC=%s'] = solofrc
-                info_map['FRC=%s'] = duofrc
+                info_map['TIME=%ss'] = t
 
-                frc_diff = duofrc - duofrc_prev
-                duofrc_prev = duofrc
+                # info_map['SoloFRC=%s'] = solofrc
+                # info_map['FRC=%s'] = duofrc
+
+                # frc_diff = duofrc - duofrc_prev
+
+
 
                 bar.updateComment(' ' + ', '.join([k % (ops_output.tostr(info_map[k])) for k in sorted(info_map)]))
                 bar(self.iteration_count)
                 print
 
                 # Save parameters to file
-                # self.temp_data.write_row(', '.join(self.data_to_save))
-                exec 'self.temp_data.write_row(%s)' % (', '.join(self.data_to_save))
+                self._temp_data[self.iteration_count - 1] = (t, tau1, leak, e, s, u, n, u_esu)
+
 
                 # Save intermediate image
                 if save_intermediate_results:
-                    self.temp_data.save_image(
-                        self.estimate,
-                        'result_%s.tif' % self.iteration_count
-                    )
+                    # self.temp_data.save_image(
+                    #     self.estimate,
+                    #     'result_%s.tif' % self.iteration_count
+                    # )
+                    self.writer.write(Image(self.estimate, self.image_spacing))
 
                 # Check if it's time to stop:
                 if int(u) == 0 and int(n) == 0:
@@ -497,14 +501,17 @@ class DeconvolutionRL:
 
             if ndims == 2:
                 block[block_start[0]:block_end[0],
-                block_start[1]:block_end[1]] = image[image_start[0]:end_index[0],
-                                               image_start[1]:end_index[1]]
+                block_start[1]:block_end[1]] = image[
+                                                   image_start[0]:end_index[0],
+                                                   image_start[1]:end_index[1]]
             else:
-                block[block_start[0]:block_end[0],
-                block_start[1]:block_end[1],
-                block_start[2]:block_end[2]] = image[image_start[0]:end_index[0],
-                                               image_start[1]:end_index[1],
-                                               image_start[2]:end_index[2]]
+                block[
+                    block_start[0]:block_end[0],
+                    block_start[1]:block_end[1],
+                    block_start[2]:block_end[2]] = image[
+                                                        image_start[0]:end_index[0],
+                                                        image_start[1]:end_index[1],
+                                                        image_start[2]:end_index[2]]
             return block
 
     def get_8bit_result(self, denoise=True):
@@ -522,7 +529,7 @@ class DeconvolutionRL:
         return image.astype(numpy.uint8)
 
     def get_saved_data(self):
-        return self.temp_data.read_data_file()
+        return pandas.DataFrame(columns=self.column_headers, data=self._temp_data)
 
     def close(self):
         if self.options.memmap_estimates:

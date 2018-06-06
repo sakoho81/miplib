@@ -19,7 +19,7 @@ class FourierRingIterator(object):
         # Get bin size
         self.d_bin = d_bin
         self.ring_start = 0
-        self._nbins = floor(shape[0] / (2 * self.d_bin))
+        self._nbins = int(floor(shape[0] / (2 * self.d_bin)))
         # Create Fourier grid
         axes = (np.arange(-np.floor(i / 2.0), np.ceil(i / 2.0)) for i in shape)
         x, y = np.meshgrid(*axes)

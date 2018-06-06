@@ -134,6 +134,43 @@ def checkerboard_split(image):
         image1 = image[odd_index[0], :, :][:, odd_index[1], :][:, :, odd_index[2]]
         image2 = image[even_index[0], :, :][:, even_index[1], :][:, :, even_index[2]]
 
+    image1.spacing = tuple(i * np.sqrt(2) for i in image.spacing)
+    image2.spacing = image1.spacing
+
+    return image1, image2
+
+
+def summed_checkerboard_split(image):
+    """
+    Splits an image in two, by using a checkerboard pattern and diagonal pixels
+    in each 4 pixel group (2D) case and orthogonal diagonal groups (never adjacent)
+    in 3D case.
+
+    :param image:   a SuperTomo Image
+    :return:        two Supertomo Images
+    """
+    assert isinstance(image, Image)
+
+    # Make an index chess board structure
+    shape = image.shape
+    odd_index = list(np.arange(1, shape[i], 2) for i in range(len(shape)))
+    even_index = list(np.arange(0, shape[i], 2) for i in range(len(shape)))
+
+    # Create the two pseudo images
+    if image.ndim == 2:
+        image1 = image[odd_index[0], :][:, odd_index[1]] + image[even_index[0], :][:, even_index[1]]
+        image2 = image[odd_index[0], :][:, even_index[1]] + image[even_index[0], :][:, odd_index[1]]
+    else:
+        image1 = image.astype(np.uint32)[even_index[0], :, :][:, odd_index[1], :][:, :, odd_index[2]] + \
+                 image.astype(np.uint32)[even_index[0], :, :][:, even_index[1], :][:, :, even_index[2]] + \
+                 image.astype(np.uint32)[odd_index[0], :, :][:, even_index[1], :][:, :, odd_index[2]] + \
+                 image.astype(np.uint32)[odd_index[0], :, :][:, odd_index[1], :][:, :, even_index[2]]
+
+        image2 = image.astype(np.uint32)[even_index[0], :, :][:, odd_index[1], :][:, :, even_index[2]] + \
+                 image.astype(np.uint32)[even_index[0], :, :][:, even_index[1], :][:, :, odd_index[2]] + \
+                 image.astype(np.uint32)[odd_index[0], :, :][:, even_index[1], :][:, :, even_index[2]] + \
+                 image.astype(np.uint32)[odd_index[0], :, :][:, odd_index[1], :][:, :, odd_index[2]]
+
     image1.spacing = tuple(i * 2 for i in image.spacing)
     image2.spacing = image1.spacing
 

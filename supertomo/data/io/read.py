@@ -156,7 +156,7 @@ def __bioformats(filename, series=0, channel=0, return_itk = False):
     image = pims.bioformats.BioformatsReader(filename, series=series)
 
     # Get Pixel/Voxel size information
-    if len(image.axes) == 2:
+    if 'z' not in image.axes:
         spacing = (image.metadata.PixelsPhysicalSizeY(0),
                    image.metadata.PixelsPhysicalSizeX(0))
     else:

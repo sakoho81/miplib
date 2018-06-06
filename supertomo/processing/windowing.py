@@ -22,10 +22,10 @@ def _nd_window(data, filter_function):
         window = filter_function(axis_size).reshape(filter_shape)
         # scale the window intensities to maintain image intensity
         np.power(window, (1.0/data.ndim), out=window)
-        data *= window
+        return data * window
 
 
 def apply_hamming_window(data):
     assert issubclass(data.__class__, np.ndarray)
 
-    _nd_window(data, np.hamming)
+    return _nd_window(data, np.hamming)

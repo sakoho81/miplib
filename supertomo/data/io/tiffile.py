@@ -2842,7 +2842,7 @@ class TiffTag(object):
     def _fix_lsm_bitspersample(self, parent):
         """Correct LSM bitspersample tag.
 
-        Old LSM writers may use a separate region for two 16-bit values,
+        Old LSM wrappers may use a separate region for two 16-bit values,
         although they fit into the tag value element of the tag.
 
         """

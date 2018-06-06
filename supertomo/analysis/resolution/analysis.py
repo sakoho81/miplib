@@ -15,24 +15,14 @@ def fit_frc_curve(data_set, degree, use_splines=False):
     """
     assert isinstance(data_set, FourierCorrelationData)
 
-
-
     data = data_set.correlation["correlation"]
 
-    # if data[-1] > data[-2]:
-    #     data[-1] = data[-2]
-    #
-    # if data[0] - 0.5 < 0:
-    #     data[0] = 1.0
-
-
     #data = ndimage.median_filter(data, 1)
-
 
     if use_splines:
         equation = interp1d(data_set.correlation["frequency"],
                             data,
-                            kind='cubic')
+                            kind='slinear')
 
     else:
 
@@ -131,6 +121,9 @@ class FourierCorrelationAnalysis(object):
         def pdiff2(x):
             return abs(frc_eq(x) - threshold)
 
+        def first_guess(x, y):
+            return x[np.argmin(np.abs(y - 0.5))]
+
         for key, data_set in self.data_collection:
 
             if debug:
@@ -138,8 +131,17 @@ class FourierCorrelationAnalysis(object):
             frc_eq = fit_frc_curve(data_set, degree, use_splines)
             two_sigma_eq = calculate_resolution_threshold_curve(data_set, criterion, threshold)
 
+            """
+            Todo: Make the first quess adaptive. For example find the data point at which FRC
+            value is closest to the mean of the threshold
+            """
+
+
             # Find intersection
-            root = optimize.fmin(pdiff2 if criterion == 'fixed' else pdiff1, 0.5)[0]
+            fit_start = first_guess(data_set.correlation["frequency"],
+                                    data_set.correlation["correlation"])
+
+            root = optimize.fmin(pdiff2 if criterion == 'fixed' else pdiff1, fit_start)[0]
             data_set.resolution["resolution-point"] = (frc_eq(root), root)
             data_set.resolution["criterion"] = criterion
             resolution = 2 * self.spacing / root
@@ -147,7 +149,7 @@ class FourierCorrelationAnalysis(object):
             self.data_collection[int(key)] = data_set
 
 
-            # # Find intersection
+            # # # Find intersection
             # root, result = optimize.brentq(
             #     pdiff2 if criterion == 'fixed' else pdiff1,
             #     0.0, 1.0, xtol=tolerance, full_output=True)

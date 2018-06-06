@@ -163,7 +163,8 @@ class FourierDataPlotter(object):
         ax.plot(xs, ys, 'x--', lw=5, color='red', ms=10)
         #ax.text(x0, y0 + 0.10, 'RESOL-FREQ', fontsize=12)
 
-        resolution = "The resolution is %f nm." % frc.resolution["resolution"]
+        resolution = "The resolution is {} nm.".format(
+            frc.resolution["resolution"])
         ax.text(0.5, -0.25, resolution, ha="center", fontsize=12)
 
         # Add legend

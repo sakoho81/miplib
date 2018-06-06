@@ -14,8 +14,14 @@ def read_carma_mat(filename):
              Detectors count
     """
     assert filename.endswith(".mat")
-    measurement = "meas_" + filename.split('/')[-1].split('.')[0]
-    data = loadmat(filename)[measurement]
+    #measurement = "meas_" + filename.split('/')[-1].split('.')[0]
+    data = loadmat(filename)
+
+    # Find measurement name (in case someone renamed the file)
+    for key in data.keys():
+        if 'meas_' in key:
+            data = data[key]
+            break
 
     # Get necessary metadata
     spacing = list(data['PixelSize'][0][0][0][::-1])
