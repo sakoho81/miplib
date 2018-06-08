@@ -121,8 +121,8 @@ class FourierCorrelationAnalysis(object):
         def pdiff2(x):
             return abs(frc_eq(x) - threshold)
 
-        def first_guess(x, y):
-            return x[np.argmin(np.abs(y - 0.5))]
+        def first_guess(x, y, threshold):
+            return x[np.argmin(np.abs(y - threshold))]
 
         for key, data_set in self.data_collection:
 
@@ -139,8 +139,10 @@ class FourierCorrelationAnalysis(object):
 
             # Find intersection
             fit_start = first_guess(data_set.correlation["frequency"],
-                                    data_set.correlation["correlation"])
-
+                                    data_set.correlation["correlation"],
+                                    np.mean(data_set.resolution["threshold"])
+            )
+            print "Fit starts at {}".format(fit_start)
             root = optimize.fmin(pdiff2 if criterion == 'fixed' else pdiff1, fit_start)[0]
             data_set.resolution["resolution-point"] = (frc_eq(root), root)
             data_set.resolution["criterion"] = criterion

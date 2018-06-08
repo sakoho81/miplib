@@ -73,7 +73,12 @@ class FRC(object):
         # Calculate FRC
         spatial_freq = radii.astype(np.float32) / self.freq_nyq
         n_points = np.array(points)
-        frc = np.abs(c1) / np.sqrt(c2 * c3)
+
+        with np.errstate(divide="ignore"):
+            frc = np.abs(c1) / np.sqrt(c2 * c3)
+            frc[frc == np.inf] = 0.0
+            frc = np.nan_to_num(frc)
+
 
         data_set = FourierCorrelationData()
         data_set.correlation["correlation"] = frc

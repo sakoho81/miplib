@@ -59,7 +59,10 @@ def expand_to_shape(data, shape, dtype=None, background=None):
     start_index = numpy.array(shape) - data.shape
     data_start = numpy.negative(start_index.clip(max=0))
     data = cast_to_dtype(data, dtype, rescale=False)
-    data = data[data_start[0]:, data_start[1]:, data_start[2]:]
+    if data.ndim == 3:
+        data = data[data_start[0]:, data_start[1]:, data_start[2]:]
+    else:
+        data = data[data_start[0]:, data_start[1]:]
 
     if background is None:
         background = 0
