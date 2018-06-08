@@ -105,6 +105,8 @@ except ImportError:
         "The compiled psf.c extension module could not be found. "
         "Psf.c can be obtained at http://www.lfd.uci.edu/~gohlke/")
 
+from supertomo.data.containers.image import Image
+
 __version__ = '2015.03.19'
 __docformat__ = 'restructuredtext en'
 __all__ = 'PSF', 'Pinhole'
@@ -119,6 +121,45 @@ WIDEFIELD = 64
 CONFOCAL = 128
 TWOPHOTON = 256
 PARAXIAL = 512
+
+
+class PsfFromFwhm(object):
+
+    def __init__(self, fwhm, shape=(128, 128), dims=(4., 4.)):
+        assert isinstance(fwhm, list)
+
+        if len(fwhm) == 1:
+            print ("Only one resolution value given. Assuming the same"
+                   " resolution for the axial direction.")
+            fwhm = [fwhm, ] * 2
+
+        self.shape = int(shape[0]), int(shape[1])
+        self.dims = Dimensions(px=shape, um=(float(dims[0]), float(dims[1])))
+
+        self.spacing = list(x/y for x, y in zip(self.dims.um, self.dims.px))
+        self.sigma_px = list(x/(2*math.sqrt(2*math.log(2))*y) for x, y in zip(fwhm, self.spacing))
+
+        self.data = _psf.gaussian2d(self.dims.px, self.sigma_px)
+
+    def xy(self):
+        """Return a z slice of the PSF with rotational symmetries applied."""
+        data = mirror_symmetry(_psf.zr2zxy(self.data))
+        spacing = (self.spacing[1], self.spacing[1])
+
+        center = self.shape[0] - 1
+        return Image(data[center], spacing)
+
+    def volume(self):
+        """Return a 3D volume of the PSF with all symmetries applied.
+
+        The shape of the returned array is
+            (2*self.shape[0]-1, 2*self.shape[1]-1, 2*self.shape[1]-1)
+
+        """
+        data = mirror_symmetry(_psf.zr2zxy(self.data))
+        spacing = (self.spacing[0], self.spacing[1], self.spacing[1])
+
+        return Image(data, spacing)
 
 
 class PSF(object):

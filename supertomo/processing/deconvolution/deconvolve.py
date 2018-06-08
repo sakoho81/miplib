@@ -103,9 +103,13 @@ class DeconvolutionRL:
 
         # Create temporary directory and data file.
         self.column_headers = ('t', 'tau1', 'leak', 'e',
-                             's', 'u', 'n', 'u_esu')
-        self._temp_data = numpy.zeros((self.options.max_nof_iterations, len(self.column_headers)),
-                                      dtype=numpy.float32)
+                             's', 'u', 'n', 'uesu')
+        self._progress_parameters = numpy.empty((self.options.max_nof_iterations, len(self.column_headers)),
+                                                dtype=numpy.float32)
+
+    @property
+    def progress_parameters(self):
+        return pandas.DataFrame(data=self._progress_parameters, columns=self.column_headers)
 
     def compute_estimate(self):
         """
@@ -261,8 +265,8 @@ class DeconvolutionRL:
                                      totalWidth=40,
                                      show_percentage=False)
 
-        self._temp_data = numpy.zeros((self.options.max_nof_iterations, len(self.column_headers)),
-                                      dtype=numpy.float32)
+        self._progress_parameters = numpy.zeros((self.options.max_nof_iterations, len(self.column_headers)),
+                                                dtype=numpy.float32)
 
 
         # duofrc_prev = 0
@@ -317,7 +321,7 @@ class DeconvolutionRL:
                 print
 
                 # Save parameters to file
-                self._temp_data[self.iteration_count - 1] = (t, tau1, leak, e, s, u, n, u_esu)
+                self._progress_parameters[self.iteration_count - 1] = (t, tau1, leak, e, s, u, n, u_esu)
 
 
                 # Save intermediate image
@@ -514,7 +518,7 @@ class DeconvolutionRL:
                                                         image_start[2]:end_index[2]]
             return block
 
-    def get_8bit_result(self, denoise=True):
+    def get_8bit_result(self, denoise=False):
         """
         Returns the current estimate (the fusion result) as an 8-bit uint, rescaled
         to the full 0-255 range.
@@ -528,8 +532,8 @@ class DeconvolutionRL:
         image[image < 0] = 0
         return image.astype(numpy.uint8)
 
-    def get_saved_data(self):
-        return pandas.DataFrame(columns=self.column_headers, data=self._temp_data)
+    # def get_saved_data(self):
+    #     return pandas.DataFrame(columns=self.column_headers, data=self._progress_parameters)
 
     def close(self):
         if self.options.memmap_estimates:
