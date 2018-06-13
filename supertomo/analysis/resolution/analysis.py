@@ -37,7 +37,20 @@ def fit_frc_curve(data_set, degree, use_splines=False):
     return equation
 
 
-def calculate_resolution_threshold_curve(data_set, criterion, threshold):
+def calculate_snr_threshold_value(points_x_bin, snr):
+    nominator = snr + arrayutils.safe_divide(
+            2*np.sqrt(snr)+1,
+            np.sqrt(points_x_bin)
+        )
+    denominator = snr + 1 + arrayutils.safe_divide(
+        1.4142,
+        np.sqrt(points_x_bin)
+    )
+    return arrayutils.safe_divide(nominator, denominator)
+
+
+
+def calculate_resolution_threshold_curve(data_set, criterion, threshold, snr):
     """
     Calculate the two sigma curve. The FRC should be run first, as the results of the two sigma
     depend on the number of points on the fourier rings.
@@ -76,6 +89,11 @@ def calculate_resolution_threshold_curve(data_set, criterion, threshold):
 
     elif criterion == 'fixed':
         points = threshold * np.ones(len(data_set.correlation["points-x-bin"]))
+    elif criterion == 'snr':
+        points = calculate_snr_threshold_value(points_x_bin, snr)
+
+
+
     else:
         raise AttributeError()
 
@@ -110,6 +128,7 @@ class FourierCorrelationAnalysis(object):
 
         criterion = self.args.resolution_threshold_criterion
         threshold = self.args.resolution_threshold_value
+        snr = self.args.resolution_snr_value
         tolerance = self.args.resolution_point_sigma
         degree = self.args.frc_curve_fit_degree
         use_splines = self.args.use_splines
@@ -129,7 +148,7 @@ class FourierCorrelationAnalysis(object):
             if debug:
                 print "Calculating resolution point for dataset {}".format(key)
             frc_eq = fit_frc_curve(data_set, degree, use_splines)
-            two_sigma_eq = calculate_resolution_threshold_curve(data_set, criterion, threshold)
+            two_sigma_eq = calculate_resolution_threshold_curve(data_set, criterion, threshold, snr)
 
             """
             Todo: Make the first quess adaptive. For example find the data point at which FRC

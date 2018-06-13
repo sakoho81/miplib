@@ -32,7 +32,7 @@ from scipy.signal import fftconvolve, medfilt
 import supertomo.processing.to_string as ops_output
 from supertomo.data.containers import temp_data
 from supertomo.data.containers.image import Image
-from supertomo.data.wrappers.image_writer_wrappers import ImageWriterBase
+from supertomo.data.messages.image_writer_wrappers import ImageWriterBase
 
 
 class DeconvolutionRL:
@@ -530,7 +530,7 @@ class DeconvolutionRL:
 
         image *= (255.0 / image.max())
         image[image < 0] = 0
-        return image.astype(numpy.uint8)
+        return Image(image.astype(numpy.uint8), self.image_spacing)
 
     # def get_saved_data(self):
     #     return pandas.DataFrame(columns=self.column_headers, data=self._progress_parameters)

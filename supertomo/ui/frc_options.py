@@ -43,7 +43,7 @@ def get_frc_options_group(parser):
 
     group.add_argument('--resolution-threshold-criterion',
                        dest='resolution_threshold_criterion',
-                       choices=['one-bit', 'half-bit', 'fixed', 'three-sigma'],
+                       choices=['one-bit', 'half-bit', 'fixed', 'three-sigma', 'snr'],
                        default='half-bit')
 
     group.add_argument('--resolution-threshold-value',
@@ -57,6 +57,11 @@ def get_frc_options_group(parser):
                        default=0.01,
                        help="The maximum difference between the value of the FRC and threshold"
                             "curves at the intersection. ")
+
+    group.add_argument('--resolution-snr-value',
+                       type=float,
+                       default=0.5,
+                       help="The target SNR value for the resolution measurement.")
 
     group.add_argument('--angle-delta',
                        dest='d_angle',

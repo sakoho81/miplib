@@ -133,8 +133,11 @@ def checkerboard_split(image):
         image1 = image[odd_index[0], :][:, odd_index[1]]
         image2 = image[even_index[0], :][:, even_index[1]]
     else:
-        image1 = image[odd_index[0], :, :][:, odd_index[1], :][:, :, odd_index[2]]
-        image2 = image[even_index[0], :, :][:, even_index[1], :][:, :, even_index[2]]
+        image1 = image.astype(np.uint32)[even_index[0], :, :][:, odd_index[1], :][:, :, odd_index[2]] + \
+                 image.astype(np.uint32)[odd_index[0], :, :][:, odd_index[1], :][:, :, odd_index[2]]
+
+        image2 = image.astype(np.uint32)[even_index[0], :, :][:, even_index[1], :][:, :, even_index[2]] + \
+                 image.astype(np.uint32)[odd_index[0], :, :][:, even_index[1], :][:, :, even_index[2]]
 
     image1.spacing = tuple(i * np.sqrt(2) for i in image.spacing)
     image2.spacing = image1.spacing
@@ -162,19 +165,23 @@ def summed_checkerboard_split(image):
     if image.ndim == 2:
         image1 = image[odd_index[0], :][:, odd_index[1]] + image[even_index[0], :][:, even_index[1]]
         image2 = image[odd_index[0], :][:, even_index[1]] + image[even_index[0], :][:, odd_index[1]]
+
+        image1.spacing = tuple(i * 2 for i in image.spacing)
+        image2.spacing = image1.spacing
     else:
         image1 = image.astype(np.uint32)[even_index[0], :, :][:, odd_index[1], :][:, :, odd_index[2]] + \
+                 image.astype(np.uint32)[odd_index[0], :, :][:, odd_index[1], :][:, :, odd_index[2]] + \
                  image.astype(np.uint32)[even_index[0], :, :][:, even_index[1], :][:, :, even_index[2]] + \
-                 image.astype(np.uint32)[odd_index[0], :, :][:, even_index[1], :][:, :, odd_index[2]] + \
-                 image.astype(np.uint32)[odd_index[0], :, :][:, odd_index[1], :][:, :, even_index[2]]
+                 image.astype(np.uint32)[odd_index[0], :, :][:, even_index[1], :][:, :, even_index[2]]
 
         image2 = image.astype(np.uint32)[even_index[0], :, :][:, odd_index[1], :][:, :, even_index[2]] + \
-                 image.astype(np.uint32)[even_index[0], :, :][:, even_index[1], :][:, :, odd_index[2]] + \
-                 image.astype(np.uint32)[odd_index[0], :, :][:, even_index[1], :][:, :, even_index[2]] + \
-                 image.astype(np.uint32)[odd_index[0], :, :][:, odd_index[1], :][:, :, odd_index[2]]
+                 image.astype(np.uint32)[odd_index[0], :, :][:, odd_index[1], :][:, :, even_index[2]] + \
+                 image.astype(np.uint32)[even_index[0], :, :][:, even_index[1], :][:, :, odd_index[2]] +\
+                 image.astype(np.uint32)[odd_index[0], :, :][:, even_index[1], :][:, :, odd_index[2]]
 
-    image1.spacing = tuple(i * 2 for i in image.spacing)
-    image2.spacing = image1.spacing
+        image1.spacing = tuple(i * 2 for i in image.spacing)
+        image2.spacing = image1.spacing
+
 
     return image1, image2
 
@@ -271,4 +278,40 @@ def noisy(image, noise_type):
     elif noise_type == "speckle":
         gauss = np.random.standard_normal(image.shape).reshape(image.shape)
         return image + image * gauss
+
+
+def enhance_contrast(image, percent_saturated=0.3, out_type=np.uint8):
+    assert isinstance(image, Image)
+
+    percent_saturated /= 100
+
+    spacing = image.spacing
+
+    if out_type == np.uint8:
+        out_max = 255
+        out_min = 0
+    else:
+        raise ValueError("Not supported output type {}".format(out_type))
+
+    # Get Input Image Min/Max from histogram
+    histogram, bin_edges = np.histogram(image, bins=250, density=True)
+    cumulative = np.cumsum(histogram * np.diff(bin_edges))
+
+    in_max = bin_edges[1:][cumulative >= 1.0 - percent_saturated].min()
+
+    to_zero = cumulative <= percent_saturated
+    if not np.any(to_zero):
+        in_min = image.min()
+    else:
+        in_min = bin_edges[1:][to_zero].max()
+
+    # Trim and rescale
+    image = np.clip(image, in_min, in_max)
+    image *= (out_max-out_min)/image.max()
+    return Image(image.astype(out_type), spacing)
+
+
+
+
+
 

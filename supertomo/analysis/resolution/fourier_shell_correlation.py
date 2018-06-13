@@ -34,8 +34,8 @@ class DirectionalFSC(object):
         self.iterator = iterator
 
         # FFT transforms of the input images
-        self.fft_image1 = np.fft.fftshift(np.fft.fftn(image1)).real
-        self.fft_image2 = np.fft.fftshift(np.fft.fftn(image2)).real
+        self.fft_image1 = np.fft.fftshift(np.fft.fftn(image1))
+        self.fft_image2 = np.fft.fftshift(np.fft.fftn(image2))
 
         if normalize_power:
             pixels = image1.shape[0]**3
@@ -74,7 +74,7 @@ class DirectionalFSC(object):
             subset1 = self.fft_image1[ind_ring]
             subset2 = self.fft_image2[ind_ring]
 
-            c1[rotation_idx, shell_idx] = np.sum(subset1 * np.conjugate(subset2))
+            c1[rotation_idx, shell_idx] = np.sum(subset1 * np.conjugate(subset2)).real
             c2[rotation_idx, shell_idx] = np.sum(np.abs(subset1) ** 2)
             c3[rotation_idx, shell_idx] = np.sum(np.abs(subset2) ** 2)
 
@@ -87,7 +87,7 @@ class DirectionalFSC(object):
             # Calculate FRC for every orientation
             spatial_freq = radii.astype(np.float32) / freq_nyq
             n_points = np.array(points[i])
-            frc = ndarray.safe_divide(np.abs(c1[i]), np.sqrt(c2[i] * c3[i]))
+            frc = ndarray.safe_divide(c1[i], np.sqrt(c2[i] * c3[i]))
 
             result = containers.FourierCorrelationData()
             result.correlation["correlation"] = frc
