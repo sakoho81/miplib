@@ -233,6 +233,70 @@ class HollowConicalFourierShellIterator(ConicalFourierShellIterator):
         return full_section - extract_section
 
 
+class AxialExcludeHollowConicalFourierShellIterator(HollowConicalFourierShellIterator):
+    """
+    A conical Fourier shell iterator with the added possibility to remove
+    a central section of the cone, to better deal with interpolation artefacts etc.
+    """
+
+    def __init__(self,  shape, d_bin, d_angle, d_extract_angle=5):
+
+        HollowConicalFourierShellIterator.__init__(self, shape, d_bin, d_angle)
+
+
+    def get_angle_sector(self, phi_min, phi_max):
+        """
+        Assuming a classical spherical coordinate system the azimutahl
+        angle is the angle between the x- and y- axes. Use this to extract
+        a conical section from a sphere that is defined by start and stop azimuth
+        angles.
+
+        In the hollow implementation a small slice in the center of the section is
+        removed to avoid the effect of resampling when calculating the resolution
+        along the lowest resolution axis (z), on images with very isotropic resolution
+        (e.g. STED).
+
+        :param phi_min: the angle at which to start the section, in radians
+        :param phi_max: the angle at which to stop the section, in radians
+        :return:
+
+        """
+        # Calculate angular sector
+        arr_inf = self.phi >= phi_min
+        arr_sup = self.phi < phi_max
+
+        arr_inf_neg = self.phi >= phi_min + np.pi
+        arr_sup_neg = self.phi < phi_max + np.pi
+
+        full_section = arr_inf * arr_sup + arr_inf_neg * arr_sup_neg
+
+        axis_pos = converters.degrees_to_radians(90) + self.d_angle/2
+        axis_neg = converters.degrees_to_radians(270) + self.d_angle/2
+
+        if phi_min <= axis_pos <= phi_max:
+            phi_min_ext = axis_pos - self.d_extract_angle
+            phi_max_ext = axis_pos + self.d_extract_angle
+
+        elif phi_min <= axis_neg <= phi_max:
+
+            # Calculate part of the section to exclude
+            phi_min_ext = axis_neg - self.d_extract_angle
+            phi_max_ext = axis_neg + self.d_extract_angle
+
+        else:
+            return full_section
+
+        arr_inf_ext = self.phi >= phi_min_ext
+        arr_sup_ext = self.phi < phi_max_ext
+
+        arr_inf_neg_ext = self.phi >= phi_min_ext + np.pi
+        arr_sup_neg_ext = self.phi < phi_max_ext + np.pi
+
+        extract_section = arr_inf_ext * arr_sup_ext + arr_inf_neg_ext * arr_sup_neg_ext
+
+        return full_section - extract_section
+
+
 class RotatingFourierShellIterator(FourierShellIterator):
     """
     A 3D Fourier Ring Iterator -- not a Fourier Shell Iterator, but rather

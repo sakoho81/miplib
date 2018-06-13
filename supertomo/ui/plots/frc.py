@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
+plt.style.use("ggplot")
 from matplotlib import rc
 from matplotlib.font_manager import FontProperties
-
 from supertomo.data.containers.fourier_correlation_data import FourierCorrelationData, FourierCorrelationDataCollection
 from supertomo.processing.converters import degrees_to_radians
 
@@ -53,6 +53,7 @@ class FourierDataPlotter(object):
         plt.show()
 
     def plot_one(self, angle):
+
         plt.figure(figsize=(5, 4))
         ax = plt.subplot(111)
 
@@ -110,7 +111,7 @@ class FourierDataPlotter(object):
 
         # Enable grid
         gridLineWidth = 0.2
-        ax.yaxis.grid(True, linewidth=gridLineWidth, linestyle='-', color='0.05')
+        #ax.yaxis.grid(True, linewidth=gridLineWidth, linestyle='-', color='0.05')
 
         # Marker setup
         colorArray = ['blue', 'green', 'red', 'orange', 'brown', 'black', 'violet', 'pink']
@@ -147,9 +148,9 @@ class FourierDataPlotter(object):
         elif res_crit == 'fixed':
             label = 'y = %f' % y[0]
         else:
-            raise AttributeError()
-        ax.plot(x, y, marker_array[3], color=colorArray[3], markersize=7,
-                 label=label)
+            label = "Threshold"
+        ax.plot(x, y, color=colorArray[3],
+                 label=label, lw=3, linestyle='--')
 
         # Plot resolution point
         y0 = frc.resolution["resolution-point"][0]
@@ -160,15 +161,13 @@ class FourierDataPlotter(object):
         verts = [(x0, 0), (x0, y0)]
         xs, ys = zip(*verts)
 
-        ax.plot(xs, ys, 'x--', lw=5, color='red', ms=10)
+        ax.plot(xs, ys, 'x--', lw=4, color='red', ms=10)
         #ax.text(x0, y0 + 0.10, 'RESOL-FREQ', fontsize=12)
 
-        resolution = "The resolution is {} nm.".format(
+        resolution = "The resolution is {} um.".format(
             frc.resolution["resolution"])
-        ax.text(0.5, -0.25, resolution, ha="center", fontsize=12)
+        ax.text(0.5, -0.3, resolution, ha="center", fontsize=12)
 
         # Add legend
-        ax.legend(loc='best')
-
-
+        ax.legend()
 

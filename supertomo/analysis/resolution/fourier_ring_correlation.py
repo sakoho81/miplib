@@ -37,8 +37,8 @@ class FRC(object):
 
         self.iterator = iterators.FourierRingIterator(image1.shape, d_bin)
         # Calculate power spectra for the input images.
-        self.fft_image1 = np.fft.fftshift(np.fft.fft2(image1)).real
-        self.fft_image2 = np.fft.fftshift(np.fft.fft2(image2)).real
+        self.fft_image1 = np.fft.fftshift(np.fft.fft2(image1))
+        self.fft_image2 = np.fft.fftshift(np.fft.fft2(image2))
 
         if normalize_power:
             pixels = image1.shape[0] * image1.shape[1]
@@ -64,7 +64,7 @@ class FRC(object):
         for ind_ring, idx in self.iterator:
             subset1 = self.fft_image1[ind_ring]
             subset2 = self.fft_image2[ind_ring]
-            c1[idx] = np.sum(subset1 * np.conjugate(subset2))
+            c1[idx] = np.sum(subset1 * np.conjugate(subset2)).real
             c2[idx] = np.sum(np.abs(subset1) ** 2)
             c3[idx] = np.sum(np.abs(subset2) ** 2)
 
@@ -74,7 +74,7 @@ class FRC(object):
         spatial_freq = radii.astype(np.float32) / self.freq_nyq
         n_points = np.array(points)
 
-        with np.errstate(divide="ignore"):
+        with np.errstate(divide="ignore", invalid="ignore"):
             frc = np.abs(c1) / np.sqrt(c2 * c3)
             frc[frc == np.inf] = 0.0
             frc = np.nan_to_num(frc)

@@ -125,10 +125,10 @@ def display_2d_images(image1,
     if vertical:
         fig, (ax1, ax2) = plt.subplots(
             2, 1, figsize=(13, 10),
-            gridspec_kw = {'height_ratios':[3, 1], 'width_ratios':[1, 1]}
+            gridspec_kw = {'height_ratios':[3, 1], 'width_ratios': [1, 1]}
         )
     else:
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 8))
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 10))
 
     # draw the fixed image in the first subplot
     ax1.imshow(image1, cmap="hot")
