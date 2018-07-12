@@ -18,12 +18,10 @@ def image(path, image):
 
     assert isinstance(image, Image)
 
-    __itk_image(path, image)
-    #
-    # if path.endswith(('.mha', '.mhd')):
-    #     __itk_image(path, image, image.spacing)
-    # elif path.endswith(('.tiff', '.tif')):
-    #     __tiff(path, image, image.spacing)
+    if path.endswith(('.tiff', '.tif')):
+        __tiff(path, image, image.spacing)
+    else:
+        __itk_image(path, image)
 
 
 def __itk_image(path, image):
@@ -63,8 +61,18 @@ def __tiff(path, image, spacing):
     :param image:   An image as Numpy.ndarray.
     :param spacing: Pixel size ZXY, as a list.
     """
-    tiffile.imsave(path,
-                   image,
-                   resolution=(1.0/spacing[1], 1.0/spacing[2]),
-                   metadata={'spacing': 1.0/spacing[0], 'unit': 'um'})
+
+    if image.ndim == 3:
+        image_description = "images={} slices={} unit=micron spacing={}".format(image.shape[0],
+                                                                                image.shape[0],
+                                                                                spacing[0])
+        tiffile.imsave(path,
+                       image,
+                       resolution=(1.0/spacing[1], 1.0/spacing[2]),
+                       metadata={'description': image_description})
+    else:
+        tiffile.imsave(path,
+                       image,
+                       imagej=True,
+                       resolution=(1.0 / spacing[0], 1.0 / spacing[1]))
 

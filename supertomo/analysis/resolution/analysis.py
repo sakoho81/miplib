@@ -7,7 +7,6 @@ import supertomo.processing.ndarray as arrayutils
 from supertomo.data.containers.fourier_correlation_data import FourierCorrelationDataCollection, FourierCorrelationData
 import supertomo.processing.converters as converters
 
-
 def fit_frc_curve(data_set, degree, use_splines=False):
     """
     Calculate a least squares curve fit to the FRC Data
@@ -22,7 +21,7 @@ def fit_frc_curve(data_set, degree, use_splines=False):
     if use_splines:
         equation = interp1d(data_set.correlation["frequency"],
                             data,
-                            kind='slinear')
+                    kind='slinear')
 
     else:
 
@@ -43,7 +42,7 @@ def calculate_snr_threshold_value(points_x_bin, snr):
             np.sqrt(points_x_bin)
         )
     denominator = snr + 1 + arrayutils.safe_divide(
-        1.4142,
+        2 * np.sqrt(snr),
         np.sqrt(points_x_bin)
     )
     return arrayutils.safe_divide(nominator, denominator)
@@ -118,7 +117,7 @@ class FourierCorrelationAnalysis(object):
         self.args = args
         self.spacing = spacing
 
-    def execute(self):
+    def execute(self, z_correction=1):
         """
         Calculate the spatial resolution as a cross-section of the FRC and Two-sigma curves.
 
@@ -165,8 +164,14 @@ class FourierCorrelationAnalysis(object):
             root = optimize.fmin(pdiff2 if criterion == 'fixed' else pdiff1, fit_start)[0]
             data_set.resolution["resolution-point"] = (frc_eq(root), root)
             data_set.resolution["criterion"] = criterion
-            resolution = 2 * self.spacing / root
+
+            angle = converters.degrees_to_radians(int(key))
+            z_correction_multiplier = (1+(z_correction-1)*np.abs(np.sin(angle)))
+            resolution =z_correction_multiplier*(2 * self.spacing / root)
+
             data_set.resolution["resolution"] = resolution
+            data_set.resolution["spacing"] = self.spacing*z_correction_multiplier
+
             self.data_collection[int(key)] = data_set
 
 

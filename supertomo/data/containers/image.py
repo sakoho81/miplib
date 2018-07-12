@@ -32,21 +32,21 @@ class Image(numpy.ndarray):
 
     def __array__finalize__(self, obj):
 
-        self._spacing = getattr(obj, 'spacing')
+        self.spacing = getattr(obj, 'spacing')
         self.filename = getattr(obj, 'filename', None)
     # endregion
 
     # region Properties
 
-    @property
-    def spacing(self): return self._spacing
-
-    @spacing.setter
-    def spacing(self, value):
-        if len(value) != len(self.shape):
-            raise ValueError("You should define spacing for every dimension")
-        else:
-            self._spacing = value
+    # @property
+    # def spacing(self): return self._spacing
+    #
+    # @spacing.setter
+    # def spacing(self, value):
+    #     if len(value) != len(self.shape):
+    #         raise ValueError("You should define spacing for every dimension")
+    #     else:
+    #         self._spacing = value
 
     # endregion
 

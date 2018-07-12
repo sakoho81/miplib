@@ -114,7 +114,23 @@ def zero_pad_to_matching_shape(image1, image2):
     return image1, image2
 
 
-def checkerboard_split(image):
+def remove_zero_padding(image, shape):
+    """
+
+    :param image: The zero padded image
+    :param shape: The original image size (before padding)
+    :return:
+    """
+
+    assert isinstance(image, Image)
+    assert len(shape) == image.ndim
+
+
+
+    return Image(ndarray.contract_to_shape(image, shape), image.spacing)
+
+
+def checkerboard_split(image, disable_3d_sum = False):
     """
     Splits an image in two, by using a checkerboard pattern.
 
@@ -133,11 +149,16 @@ def checkerboard_split(image):
         image1 = image[odd_index[0], :][:, odd_index[1]]
         image2 = image[even_index[0], :][:, even_index[1]]
     else:
-        image1 = image.astype(np.uint32)[even_index[0], :, :][:, odd_index[1], :][:, :, odd_index[2]] + \
-                 image.astype(np.uint32)[odd_index[0], :, :][:, odd_index[1], :][:, :, odd_index[2]]
+        if disable_3d_sum:
+            image1 = image[odd_index[0], :, :][:, odd_index[1], :][:, :, odd_index[2]]
+            image2 = image[even_index[0], :, :][:, even_index[1], :][:, :, even_index[2]]
 
-        image2 = image.astype(np.uint32)[even_index[0], :, :][:, even_index[1], :][:, :, even_index[2]] + \
-                 image.astype(np.uint32)[odd_index[0], :, :][:, even_index[1], :][:, :, even_index[2]]
+        else:
+            image1 = image.astype(np.uint32)[even_index[0], :, :][:, odd_index[1], :][:, :, odd_index[2]] + \
+                     image.astype(np.uint32)[odd_index[0], :, :][:, odd_index[1], :][:, :, odd_index[2]]
+
+            image2 = image.astype(np.uint32)[even_index[0], :, :][:, even_index[1], :][:, :, even_index[2]] + \
+                     image.astype(np.uint32)[odd_index[0], :, :][:, even_index[1], :][:, :, even_index[2]]
 
     image1.spacing = tuple(i * np.sqrt(2) for i in image.spacing)
     image2.spacing = image1.spacing
@@ -311,7 +332,15 @@ def enhance_contrast(image, percent_saturated=0.3, out_type=np.uint8):
     return Image(image.astype(out_type), spacing)
 
 
+def flip_image(image):
 
+    assert isinstance(image, Image)
+
+    temp = image.copy()
+    for i in range(image.ndim):
+        temp = np.flip(temp, i)
+
+    return Image(temp, image.spacing)
 
 
 

@@ -40,10 +40,10 @@ class FRC(object):
         self.fft_image1 = np.fft.fftshift(np.fft.fft2(image1))
         self.fft_image2 = np.fft.fftshift(np.fft.fft2(image2))
 
-        if normalize_power:
-            pixels = image1.shape[0] * image1.shape[1]
-            self.fft_image1 /= (np.array(pixels * np.mean(image1)))
-            self.fft_image2 /= (np.array(pixels * np.mean(image2)))
+        # if normalize_power:
+        #     pixels = image1.shape[0] * image1.shape[1]
+        #     self.fft_image1 /= (np.array(pixels * np.mean(image1)))
+        #     self.fft_image2 /= (np.array(pixels * np.mean(image2)))
 
         # Get the Nyquist frequency
         self.freq_nyq = int(np.floor(image1.shape[0] / 2.0))

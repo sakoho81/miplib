@@ -20,7 +20,7 @@ def get_frc_options_group(parser):
 
     group = parser.add_argument_group("Fourier ring correlation analysis", "Options for FRC analysis")
 
-    group.add_argument('--bin-delta', dest='d_bin', type=float, default=5,
+    group.add_argument('--bin-delta', dest='d_bin', type=int, default=5,
                        help='Set thickness of the ring for FRC calculation')
 
     group.add_argument('--square', dest='resol_square', action='store_true',
@@ -29,7 +29,7 @@ def get_frc_options_group(parser):
     group.add_argument('--hanning', dest='hanning', action='store_true',
                        help='Enable multiplication of the images with a hanning window')
 
-    group.add_argument("--normalize-power", dest="normalize_power", action="store_true")
+    #group.add_argument("--normalize-power", dest="normalize_power", action="store_true")
 
     group.add_argument('--frc-curve-fit-degree',
                        dest='frc_curve_fit_degree',
