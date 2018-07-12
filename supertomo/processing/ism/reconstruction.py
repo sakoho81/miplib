@@ -28,13 +28,16 @@ def find_image_shifts(data, options, gate=0):
     return x, y, transforms
 
 
-def shift_and_sum(data, transforms, gate=0):
+def shift_and_sum(data, transforms, gate=0, detectors=None):
     assert isinstance(data, ArrayDetectorData)
     assert isinstance(transforms, list) and len(transforms) == data.ndetectors
 
     output = Image(np.zeros(data[gate, 0].shape, dtype=np.float64), data[gate, 0].spacing)
 
-    for i in range(data.ndetectors):
+    if detectors is None:
+        detectors = range(data.ndetectors)
+
+    for i in detectors:
         image = itk.resample_image(
             itk.convert_to_itk_image(data[gate, i]),
             transforms[i])

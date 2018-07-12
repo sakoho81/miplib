@@ -12,7 +12,7 @@ filters.py file
 import argparse
 
 import supertomo.analysis.image_quality.filters as filters
-
+import supertomo.ui.frc_options as frc
 
 def get_quality_script_options(arguments):
     parser = argparse.ArgumentParser(
@@ -25,6 +25,8 @@ def get_quality_script_options(arguments):
         help="Defines a path to the image files",
         default=None
     )
+    parser.add_argument('--debug',
+                        action='store_true')
     parser.add_argument(
         "--file-filter",
         dest="file_filter",
@@ -79,6 +81,7 @@ def get_quality_script_options(arguments):
     )
 
     parser = filters.get_common_options(parser)
+    parser = frc.get_frc_options_group(parser)
     return parser.parse_args(arguments)
 
 

@@ -77,7 +77,7 @@ class FourierCorrelationData(object):
         correlation_keys = "correlation frequency points-x-bin curve-fit " \
                            "curve-fit-coefficients"
         resolution_keys = "threshold criterion resolution-point " \
-                          "resolution-threshold-coefficients resolution"
+                          "resolution-threshold-coefficients resolution spacing"
 
         self.resolution = FixedDictionary(resolution_keys.split())
         self.correlation = FixedDictionary(correlation_keys.split())
@@ -109,11 +109,25 @@ class FourierCorrelationData(object):
                 'nPoints': self.correlation["points-x-bin"],
             }
         else:
+            resolution = np.full(self.correlation["correlation"].shape,
+                                 self.resolution["resolution"],
+                                 dtype=np.float32)
+            resolution_point_x = np.full(self.correlation["correlation"].shape,
+                                         self.resolution["resolution-point"][0],
+                                         dtype=np.float32)
+            resolution_point_y = np.full(self.correlation["correlation"].shape,
+                                         self.resolution["resolution-point"][1],
+                                         dtype=np.float32)
+            threshold = self.resolution["threshold"],
+
             to_df = {
                 'Correlation': self.correlation["correlation"],
                 'Frequency': self.correlation["frequency"],
                 'nPoints': self.correlation["points-x-bin"],
-                'Resolution': self.resolution["resolution"],
+                'Resolution': resolution,
+                'Resolution_X': resolution_point_x,
+                'Resolution_Y': resolution_point_y,
+                'Threshold': threshold
 
             }
 

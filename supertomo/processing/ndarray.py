@@ -37,8 +37,10 @@ def contract_to_shape(data, shape):
     Remove padding from input data array. The function
     expects the padding to be symmetric on all sides
     """
+    assert shape <= data.shape
 
     if shape != data.shape:
+
         slices = []
         for s1, s2 in zip(data.shape, shape):
             slices.append(slice((s1 - s2) // 2, (s1 + s2) // 2))
