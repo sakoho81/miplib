@@ -2,7 +2,7 @@
 Sami Koho 01/2017
 
 Image resolution measurement by Fourier Ring Correlation.
-re
+
 """
 
 import numpy as np
@@ -20,7 +20,7 @@ class FRC(object):
     methods to calculate the FRC as well as to plot the results.
     """
 
-    def __init__(self, image1, image2, iterator, normalize_power = False):
+    def __init__(self, image1, image2, iterator):
         assert isinstance(image1, Image)
         assert isinstance(image2, Image)
 
@@ -40,14 +40,8 @@ class FRC(object):
         self.fft_image1 = np.fft.fftshift(np.fft.fft2(image1))
         self.fft_image2 = np.fft.fftshift(np.fft.fft2(image2))
 
-        # if normalize_power:
-        #     pixels = image1.shape[0] * image1.shape[1]
-        #     self.fft_image1 /= (np.array(pixels * np.mean(image1)))
-        #     self.fft_image2 /= (np.array(pixels * np.mean(image2)))
-
         # Get the Nyquist frequency
         self.freq_nyq = int(np.floor(image1.shape[0] / 2.0))
-
 
     def execute(self):
         """
