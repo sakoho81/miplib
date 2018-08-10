@@ -20,7 +20,7 @@ class FRC(object):
     methods to calculate the FRC as well as to plot the results.
     """
 
-    def __init__(self, image1, image2, d_bin, normalize_power = False):
+    def __init__(self, image1, image2, iterator, normalize_power = False):
         assert isinstance(image1, Image)
         assert isinstance(image2, Image)
 
@@ -35,7 +35,7 @@ class FRC(object):
         image1 = ops_image.zero_pad_to_cube(image1)
         image2 = ops_image.zero_pad_to_cube(image2)
 
-        self.iterator = iterators.FourierRingIterator(image1.shape, d_bin)
+        self.iterator = iterator
         # Calculate power spectra for the input images.
         self.fft_image1 = np.fft.fftshift(np.fft.fft2(image1))
         self.fft_image2 = np.fft.fftshift(np.fft.fft2(image2))
