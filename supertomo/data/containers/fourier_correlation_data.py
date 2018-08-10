@@ -71,7 +71,10 @@ class FourierCorrelationDataCollection(object):
 class FourierCorrelationData(object):
     """
     A datatype for FRC data
+
     """
+    #todo: the dictionary format here is a bit clumsy. Maybe change to a simpler structure
+
     def __init__(self, data=None):
 
         correlation_keys = "correlation frequency points-x-bin curve-fit " \

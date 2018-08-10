@@ -1,12 +1,9 @@
 """
-File:        myimage.py
+File:        image.py
 Author:      Sami Koho (sami.koho@gmail.com)
 
 Description:
 This file contains a simple class for storing image data.
-There's really nothing groundbreaking here. An attempt was
-made to create a simple class to contain only the
-functionality required by the PyImageQualityRanking software.
 """
 
 import argparse

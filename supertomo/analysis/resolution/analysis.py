@@ -37,6 +37,15 @@ def fit_frc_curve(data_set, degree, use_splines=False):
 
 
 def calculate_snr_threshold_value(points_x_bin, snr):
+    """
+    A function to calculate a SNR based resolution threshold, as described
+    in ...
+
+    :param points_x_bin: a 1D Array containing the numbers of points at each
+    FRC/FSC ring/shell
+    :param snr: the expected SNR value
+    :return:
+    """
     nominator = snr + arrayutils.safe_divide(
             2*np.sqrt(snr)+1,
             np.sqrt(points_x_bin)
@@ -90,8 +99,6 @@ def calculate_resolution_threshold_curve(data_set, criterion, threshold, snr):
         points = threshold * np.ones(len(data_set.correlation["points-x-bin"]))
     elif criterion == 'snr':
         points = calculate_snr_threshold_value(points_x_bin, snr)
-
-
 
     else:
         raise AttributeError()
