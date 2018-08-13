@@ -1,4 +1,5 @@
 
+#define _VERSION_ "2018.08.13"
 
 #include <Python.h>
 //#define PY_ARRAY_UNIQUE_SYMBOL PyArray_API
@@ -1022,6 +1023,10 @@ static PyObject *fourier_sphere(PyObject *self, PyObject *args)
   return Py_BuildValue("N", result);
 }
 
+char module_doc[] =
+    "Python C extension module Richardson Lucy deconvolution algorithm.\n";
+
+
 static PyMethodDef module_methods[] = {
   {"inverse_division_inplace",  inverse_division_inplace, METH_VARARGS, "inverse_division_inplace(a,b) == `a = b/a if a!=0 else 0`"},
   {"inverse_subtraction_inplace",  inverse_subtraction_inplace, METH_VARARGS, "inverse_subtraction_inplace(a,b,c) == `a = b-c*a`"},
@@ -1037,12 +1042,100 @@ static PyMethodDef module_methods[] = {
   {NULL}  /* Sentinel */
 };
 
+//PyMODINIT_FUNC
+//initops_ext(void)
+//{
+//  PyObject* m = NULL;
+//  import_array();
+//  if (PyErr_Occurred())
+//    {PyErr_SetString(PyExc_ImportError, "can't initialize module ops_ext (failed to import numpy)"); return;}
+//  m = Py_InitModule3("ops_ext", module_methods, "Provides operations in C.");
+//}
+
+#if PY_MAJOR_VERSION >= 3
+
+struct module_state {
+    PyObject *error;
+};
+
+#define GETSTATE(m) ((struct module_state*)PyModule_GetState(m))
+
+static int module_traverse(PyObject *m, visitproc visit, void *arg) {
+    Py_VISIT(GETSTATE(m)->error);
+    return 0;
+}
+
+static int module_clear(PyObject *m) {
+    Py_CLEAR(GETSTATE(m)->error);
+    return 0;
+}
+
+static struct PyModuleDef moduledef = {
+        PyModuleDef_HEAD_INIT,
+        "ops_ext",
+        NULL,
+        sizeof(struct module_state),
+        module_methods,
+        NULL,
+        module_traverse,
+        module_clear,
+        NULL
+};
+
+#define INITERROR return NULL
+
 PyMODINIT_FUNC
-initops_ext(void) 
+PyInit_ops_ext(void)
+
+#else
+
+#define INITERROR return
+
+PyMODINIT_FUNC
+initops_ext(void)
+#endif
 {
-  PyObject* m = NULL;
-  import_array();
-  if (PyErr_Occurred())
-    {PyErr_SetString(PyExc_ImportError, "can't initialize module ops_ext (failed to import numpy)"); return;}
-  m = Py_InitModule3("ops_ext", module_methods, "Provides operations in C.");
+    PyObject *module;
+
+    char *doc = (char *)PyMem_Malloc(sizeof(module_doc) + sizeof(_VERSION_));
+    PyOS_snprintf(doc, sizeof(module_doc) + sizeof(_VERSION_),
+                  module_doc, _VERSION_);
+
+#if PY_MAJOR_VERSION >= 3
+    moduledef.m_doc = doc;
+    module = PyModule_Create(&moduledef);
+#else
+    module = Py_InitModule3("ops_ext", module_methods, doc);
+#endif
+
+    PyMem_Free(doc);
+
+    if (module == NULL)
+        INITERROR;
+
+    if (_import_array() < 0) {
+        Py_DECREF(module);
+        INITERROR;
+    }
+
+    {
+#if PY_MAJOR_VERSION < 3
+    PyObject *s = PyString_FromString(_VERSION_);
+#else
+    PyObject *s = PyUnicode_FromString(_VERSION_);
+#endif
+    PyObject *dict = PyModule_GetDict(module);
+    PyDict_SetItemString(dict, "__version__", s);
+    Py_DECREF(s);
+    }
+
+//    if (bessel_init() != 0) {
+//        PyErr_Format(PyExc_ValueError, "bessel_init function failed");
+//        Py_DECREF(module);
+//        INITERROR;
+//    }
+
+#if PY_MAJOR_VERSION >= 3
+    return module;
+#endif
 }
