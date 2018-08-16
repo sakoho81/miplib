@@ -88,26 +88,21 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
             self.data.set_active_image(view, self.options.channel,
                                        self.options.scale, "registered")
 
-            #TODO: Make this somehow more elegantly. Probably the max could be saved with the registration result
-            #or then I could just stretch to the full range after resampling.
             weighting = float(self.data.get_max())/255
-            #print "The weighting is %f" % weighting
+            iterables = (xrange(0, m, n) for m, n in zip(self.image_size, self.block_size))
+            pad = self.options.block_pad
+            block_idx = tuple(slice(pad, pad + block) for block in self.block_size)
 
-            for x, y, z in itertools.product(xrange(0, self.image_size[0], self.block_size[0]),
-                                             xrange(0, self.image_size[1], self.block_size[1]),
-                                             xrange(0, self.image_size[2], self.block_size[2])):
+            for pos in itertools.product(*iterables):
 
-                index = numpy.array((x, y, z), dtype=int)
+                estimate_idx = tuple(slice(j, j + k) for j, k in zip(pos, self.block_size))
+                index = numpy.array(pos, dtype=int)
 
                 if self.options.block_pad > 0:
                     h_estimate_block = self.get_padded_block(
                         index.copy()).astype(numpy.complex64)
                 else:
-                    h_estimate_block = self.estimate[
-                                       index[0]:index[0] + self.block_size[0],
-                                       index[1]:index[1] + self.block_size[1],
-                                       index[2]:index[2] + self.block_size[
-                                           2]].astype(numpy.complex64)
+                    h_estimate_block = self.estimate[estimate_idx].astype(numpy.complex64)
 
                 d_estimate_block = cuda.to_device(h_estimate_block, stream=stream1)
                 d_psf = cuda.to_device(psf_fft, stream=stream2)
@@ -142,42 +137,19 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
                 # Update the contribution from a single view to the new estimate
                 if self.options.block_pad == 0:
                     if "multiplicative" in self.options.fusion_method:
-                        self.estimate_new[
-                            index[0]:index[0] + self.block_size[0],
-                            index[1]:index[1] + self.block_size[1],
-                            index[2]:index[2] + self.block_size[2]
-                        ] *= h_estimate_block_new
+                        self.estimate_new[estimate_idx] *= h_estimate_block_new
                     else:
 
-                        self.estimate_new[
-                            index[0]:index[0] + self.block_size[0],
-                            index[1]:index[1] + self.block_size[1],
-                            index[2]:index[2] + self.block_size[2]
-                        ] += h_estimate_block_new
+                        self.estimate_new[estimate_idx] += h_estimate_block_new
                 else:
-                    pad = self.options.block_pad
 
                     if "multiplicative" in self.options.fusion_method:
-                        self.estimate_new[
-                            index[0]:index[0] + self.block_size[0],
-                            index[1]:index[1] + self.block_size[1],
-                            index[2]:index[2] + self.block_size[2]
-                        ] *= h_estimate_block_new[
-                                 pad:pad + self.block_size[0],
-                                 pad:pad + self.block_size[1],
-                                 pad:pad + self.block_size[2]
-                             ]
+                        self.estimate_new[estimate_idx] *= h_estimate_block_new[block_idx]
+
                     else:
                         # print "The block size is ", self.block_size
-                        self.estimate_new[
-                            index[0]:index[0] + self.block_size[0],
-                            index[1]:index[1] + self.block_size[1],
-                            index[2]:index[2] + self.block_size[2]
-                        ] += h_estimate_block_new[
-                                 pad:pad + self.block_size[0],
-                                 pad:pad + self.block_size[1],
-                                 pad:pad + self.block_size[2]
-                             ]
+                        self.estimate_new[estimate_idx] += h_estimate_block_new[block_idx]
+
         # Divide with the number of projections
         if "summative" in self.options.fusion_method:
             # self.estimate_new[:] = self.float_vmult(self.estimate_new,
@@ -186,7 +158,7 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
         else:
             self.estimate_new[self.estimate_new < 0] = 0
             self.estimate_new[:] = ops_array.nroot(self.estimate_new,
-                                                  self.n_views)
+                                                   self.n_views)
 
         # TV Regularization (doesn't seem to do anything miraculous).
         if self.options.rltv_lambda > 0 and self.iteration_count > 0:

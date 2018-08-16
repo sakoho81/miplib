@@ -35,7 +35,7 @@ from supertomo.data.containers.image import Image
 from supertomo.data.messages.image_writer_wrappers import ImageWriterBase
 
 
-class DeconvolutionRL:
+class DeconvolutionRL(object):
     """
     The Richardson-Lucy fusion is a result of simultaneous deblurring of
     several 3D volumes.
@@ -57,7 +57,7 @@ class DeconvolutionRL:
         self.options = options
         self.writer = writer
 
-        self.image_size = self.image.shape
+        self.image_size = numpy.array(self.image.shape)
         self.image_spacing = self.image.spacing
         self.psf_spacing = self.psf.spacing
         self.imdims = image.ndim
@@ -113,7 +113,7 @@ class DeconvolutionRL:
 
     def compute_estimate(self):
         """
-        Calculates a single RL fusion estimate. There is no reason to call this
+        Calculates a single RL deconvolution estimate. There is no reason to call this
         function -- it is used internally by the class during fusion process.
         """
 
@@ -123,107 +123,42 @@ class DeconvolutionRL:
 
         # Iterate over blocks
         block_nr = 1
+        iterables = (xrange(0, m, n) for m, n in zip(self.image_size, self.block_size))
+        pad = self.options.block_pad
+        cache_idx = tuple(slice(pad, pad + block) for block in self.block_size)
 
-        if self.imdims == 2:
-            for x, y in itertools.product(xrange(0, self.image_size[0], self.block_size[0]),
-                                          xrange(0, self.image_size[1], self.block_size[1])):
+        for idx in itertools.product(*iterables):
 
-                index = numpy.array((x, y), dtype=int)
-                if self.options.block_pad > 0:
-                    estimate_block = self.get_padded_block(
-                        self.estimate, index.copy())
-                    image_block = self.get_padded_block(self.image, index.copy())
-                else:
-                    estimate_block = self.estimate[
-                                         index[0]:index[0] + self.block_size[0],
-                                         index[1]:index[1] + self.block_size[1]]
-                    image_block = self.image[
-                                      index[0]:index[0] + self.block_size[0],
-                                      index[1]:index[1] + self.block_size[1]]
+            estimate_idx = tuple(slice(j, j+k) for j, k in zip(idx, self.block_size))
 
-                # print "The current block is %i" % block_nr
-                block_nr += 1
+            index = numpy.array(idx, dtype=int)
 
-                # Execute: cache = convolve(PSF, estimate), non-normalized
-                cache = fftconvolve(estimate_block, self.psf, mode='same')
+            if self.options.block_pad > 0:
+                estimate_block = self.get_padded_block(
+                    self.estimate, index.copy())
+                image_block = self.get_padded_block(self.image, index.copy())
+            else:
+                estimate_block = self.estimate[estimate_idx]
+                image_block = self.image[estimate_idx]
 
-                # ops_ext.inverse_division_inplace(cache, image_block)
-                with numpy.errstate(divide="ignore"):
-                    cache = image_block.astype(numpy.float32) / cache
-                    cache[cache == numpy.inf] = 0.0
-                    cache = numpy.nan_to_num(cache)
+            # print "The current block is %i" % block_nr
+            block_nr += 1
 
-                # Execute: cache = convolve(PSF(-), cache), inverse of non-normalized
-                # Convolution with virtual PSFs is performed here as well, if
-                # necessary
-                cache = fftconvolve(cache, self.adj_psf, mode='same')
+            # Execute: cache = convolve(PSF, estimate), non-normalized
+            cache = fftconvolve(estimate_block, self.psf, mode='same')
 
-                pad = self.options.block_pad
+            # ops_ext.inverse_division_inplace(cache, image_block)
+            with numpy.errstate(divide="ignore"):
+                cache = image_block.astype(numpy.float32) / cache
+                cache[cache == numpy.inf] = 0.0
+                cache = numpy.nan_to_num(cache)
 
-                self.estimate_new[
-                    index[0]:index[0] + self.block_size[0],
-                    index[1]:index[1] + self.block_size[1]
-                ] = cache[pad:pad + self.block_size[0], pad:pad + self.block_size[1]]
+            # Execute: cache = convolve(PSF(-), cache), inverse of non-normalized
+            # Convolution with virtual PSFs is performed here as well, if
+            # necessary
+            cache = fftconvolve(cache, self.adj_psf, mode='same')
 
-        else:
-
-            for x, y, z in itertools.product(xrange(0, self.image_size[0], self.block_size[0]),
-                                             xrange(0, self.image_size[1], self.block_size[1]),
-                                             xrange(0, self.image_size[2], self.block_size[2])):
-
-                index = numpy.array((x, y, z), dtype=int)
-                if self.options.block_pad > 0:
-                    estimate_block = self.get_padded_block(self.estimate, index.copy())
-                    image_block = self.get_padded_block(self.image, index.copy())
-                else:
-                    estimate_block = self.estimate[
-                                     index[0]:index[0] + self.block_size[0],
-                                     index[1]:index[1] + self.block_size[1],
-                                     index[2]:index[2] + self.block_size[2]
-                                     ]
-                    image_block = self.image[
-                                  index[0]:index[0] + self.block_size[0],
-                                  index[1]:index[1] + self.block_size[1],
-                                  index[2]:index[2] + self.block_size[2]
-                                  ]
-
-                # print "The current block is %i" % block_nr
-                block_nr += 1
-
-                # Execute: cache = convolve(PSF, estimate), non-normalized
-                cache = fftconvolve(estimate_block, self.psf, mode='same')
-
-                # ops_ext.inverse_division_inplace(cache, image_block)
-                with numpy.errstate(divide="ignore"):
-                    cache = image_block.astype(numpy.float32) / cache
-                    cache[cache == numpy.inf] = 0.0
-                    cache = numpy.nan_to_num(cache)
-
-                # Execute: cache = convolve(PSF(-), cache), inverse of non-normalized
-                # Convolution with virtual PSFs is performed here as well, if
-                # necessary
-                cache = fftconvolve(cache, self.adj_psf, mode='same')
-
-                # # Update the contribution from a single view to the new estimate
-                # if self.options.block_pad == 0:
-                #
-                #     self.estimate_new[index[0]:index[0] + self.block_size[0],
-                #                       index[1]:index[1] + self.block_size[1],
-                #                       index[2]:index[2] + self.block_size[2]
-                #                      ] = cache
-                #
-                # else:
-                pad = self.options.block_pad
-
-                self.estimate_new[
-                    index[0]:index[0] + self.block_size[0],
-                    index[1]:index[1] + self.block_size[1],
-                    index[2]:index[2] + self.block_size[2]
-                ] = cache[
-                        pad:pad + self.block_size[0],
-                        pad:pad + self.block_size[1],
-                        pad:pad + self.block_size[2]
-                    ]
+            self.estimate_new[estimate_idx] = cache[cache_idx]
 
         if self.options.tv_lambda > 0 and self.iteration_count > 0:
             dv_est = ops_ext.div_unit_grad(self.estimate, self.image_spacing)
@@ -290,16 +225,6 @@ class DeconvolutionRL:
                     self.prev_estimate).sum()
                 info_map['TAU1=%s'] = tau1
 
-                # frc_job = resolution.FRC(myimage.MyImage(self.prev_estimate, self.image_spacing),
-                #                   myimage.MyImage(self.estimate, self.image_spacing),
-                #                   self.options)
-
-                # image1, image2 = imutils.checkerboard_split(self.estimate)
-                # solo_frc_job = frc.FRC(image1, image2, self.options)
-                # solofrc = solo_frc_job.execute()[0].resolution['resolution']
-                # frc_job = frc.FRC(self.prev_estimate, self.estimate, self.options)
-                # duofrc = frc_job.execute()[0].resolution['resolution']
-
                 t = time.time() - ittime
                 leak = 100 * photon_leak
 
@@ -308,13 +233,6 @@ class DeconvolutionRL:
                 info_map['LEAK=%s%%'] = leak
                 info_map['U/ESU=%s'] = u_esu
                 info_map['TIME=%ss'] = t
-
-                # info_map['SoloFRC=%s'] = solofrc
-                # info_map['FRC=%s'] = duofrc
-
-                # frc_diff = duofrc - duofrc_prev
-
-
 
                 bar.updateComment(' ' + ', '.join([k % (ops_output.tostr(info_map[k])) for k in sorted(info_map)]))
                 bar(self.iteration_count)
@@ -462,21 +380,12 @@ class DeconvolutionRL:
         end_index = block_start_index + self.block_size + block_pad
         start_index = block_start_index - block_pad
 
+        idx = tuple(slice(start, stop) for start, stop in zip(start_index, end_index))
+
         # If the padded block fits within the image boundaries, nothing special
         # is needed to extract it. Normal numpy slicing notation is used.
         if (image_size >= end_index).all() and (start_index >= 0).all():
-            if ndims == 2:
-                block = image[
-                        start_index[0]:end_index[0],
-                        start_index[1]:end_index[1]
-                        ]
-            else:
-                block = image[
-                        start_index[0]:end_index[0],
-                        start_index[1]:end_index[1],
-                        start_index[2]:end_index[2]
-                        ]
-            return block
+            return image[idx]
 
         else:
             block_size = tuple(i + 2 * block_pad for i in self.block_size)
@@ -503,19 +412,11 @@ class DeconvolutionRL:
 
             end_index = start_index + block_end
 
-            if ndims == 2:
-                block[block_start[0]:block_end[0],
-                block_start[1]:block_end[1]] = image[
-                                                   image_start[0]:end_index[0],
-                                                   image_start[1]:end_index[1]]
-            else:
-                block[
-                    block_start[0]:block_end[0],
-                    block_start[1]:block_end[1],
-                    block_start[2]:block_end[2]] = image[
-                                                        image_start[0]:end_index[0],
-                                                        image_start[1]:end_index[1],
-                                                        image_start[2]:end_index[2]]
+            block_idx = tuple(slice(start, stop) for start, stop in zip(block_start, block_end))
+            image_idx = tuple(slice(start, stop) for start, stop in zip(image_start, end_index))
+
+            block[block_idx] = image[image_idx]
+
             return block
 
     def get_8bit_result(self, denoise=False):
@@ -544,4 +445,4 @@ class DeconvolutionRL:
 
         shutil.rmtree(self.memmap_directory)
 
-        self.temp_data.close_data_file()
+        #self.temp_data.close_data_file()

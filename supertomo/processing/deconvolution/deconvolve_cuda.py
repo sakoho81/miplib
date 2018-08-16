@@ -71,25 +71,26 @@ class DeconvolutionRLCuda(deconvolve.DeconvolutionRL):
         print 'Beginning the computation of the %i. estimate' % \
               (self.iteration_count + 1)
 
-
         self.estimate_new[:] = numpy.zeros(self.image_size, dtype=numpy.float32)
 
         # Iterate over blocks
         stream1 = cuda.stream()
         stream2 = cuda.stream()
 
+        iterables = (xrange(0, m, n) for m, n in zip(self.image_size, self.block_size))
+        pad = self.options.block_pad
+        block_idx = tuple(slice(pad, pad + block) for block in self.block_size)
+
         if self.imdims == 2:
-            for x, y in itertools.product(xrange(0, self.image_size[0], self.block_size[0]),
-                                          xrange(0, self.image_size[1], self.block_size[1])):
+            for pos in itertools.product(*iterables):
 
-                index = numpy.array((x, y), dtype=int)
+                estimate_idx = tuple(slice(j, j + k) for j, k in zip(idx, self.block_size))
+                index = numpy.array(pos, dtype=int)
 
                 if self.options.block_pad > 0:
                     h_estimate_block = self.get_padded_block(self.estimate, index.copy()).astype(numpy.complex64)
                 else:
-                    h_estimate_block = self.estimate[
-                                       index[0]:index[0] + self.block_size[0],
-                                       index[1]:index[1] + self.block_size[1]].astype(numpy.complex64)
+                    h_estimate_block = self.estimate[estimate_idx].astype(numpy.complex64)
 
                 d_estimate_block = cuda.to_device(h_estimate_block, stream=stream1)
                 d_psf = cuda.to_device(self.psf_fft, stream=stream2)
@@ -117,71 +118,7 @@ class DeconvolutionRLCuda(deconvolve.DeconvolutionRL):
                 ifft_inplace(d_estimate_block)
                 h_estimate_block_new = d_estimate_block.copy_to_host().real
 
-                pad = self.options.block_pad
-
-                self.estimate_new[
-                index[0]:index[0] + self.block_size[0],
-                index[1]:index[1] + self.block_size[1]
-                ] = h_estimate_block_new[
-                    pad:pad + self.block_size[0],
-                    pad:pad + self.block_size[1]
-                    ]
-
-        else:
-
-            for x, y, z in itertools.product(xrange(0, self.image_size[0], self.block_size[0]),
-                                             xrange(0, self.image_size[1], self.block_size[1]),
-                                             xrange(0, self.image_size[2], self.block_size[2])):
-
-                index = numpy.array((x, y, z), dtype=int)
-
-                if self.options.block_pad > 0:
-                    h_estimate_block = self.get_padded_block(self.estimate, index.copy()).astype(numpy.complex64)
-                else:
-                    h_estimate_block = self.estimate[
-                                       index[0]:index[0] + self.block_size[0],
-                                       index[1]:index[1] + self.block_size[1],
-                                       index[2]:index[2] + self.block_size[2]].astype(numpy.complex64)
-
-                d_estimate_block = cuda.to_device(h_estimate_block, stream=stream1)
-                d_psf = cuda.to_device(self.psf_fft, stream=stream2)
-
-                # Execute: cache = convolve(PSF, estimate), non-normalized
-                fft_inplace(d_estimate_block, stream=stream1)
-                stream2.synchronize()
-
-                self.vmult(d_estimate_block, d_psf, out=d_estimate_block)
-                ifft_inplace(d_estimate_block)
-
-                h_estimate_block_new = d_estimate_block.copy_to_host()
-
-                # Execute: cache = data/cache
-                h_image_block = self.get_padded_block(self.image, index.copy()).astype(numpy.float32)
-                ops_ext.inverse_division_inplace(h_estimate_block_new, h_image_block)
-
-                d_estimate_block = cuda.to_device(h_estimate_block_new,
-                                                  stream=stream1)
-                d_adj_psf = cuda.to_device(self.adj_psf_fft, stream=stream2)
-
-                fft_inplace(d_estimate_block, stream=stream1)
-                stream2.synchronize()
-                self.vmult(d_estimate_block, d_adj_psf, out=d_estimate_block)
-                ifft_inplace(d_estimate_block)
-                h_estimate_block_new = d_estimate_block.copy_to_host().real
-
-
-                pad = self.options.block_pad
-
-                self.estimate_new[
-                        index[0]:index[0] + self.block_size[0],
-                        index[1]:index[1] + self.block_size[1],
-                        index[2]:index[2] + self.block_size[2]
-                    ] = h_estimate_block_new[
-                             pad:pad + self.block_size[0],
-                             pad:pad + self.block_size[1],
-                             pad:pad + self.block_size[2]
-                         ]
-
+                self.estimate_new[estimate_idx] = h_estimate_block_new[block_idx]
 
         # TV Regularization (doesn't seem to do anything miraculous).
         if self.options.rltv_lambda > 0 and self.iteration_count > 0:
