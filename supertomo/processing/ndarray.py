@@ -195,3 +195,37 @@ def safe_divide(numerator, denominator):
         result = numerator / denominator
         result[result == numpy.inf] = 0.0
         return numpy.nan_to_num(result)
+
+
+def start_to_stop_idx(start, stop):
+    """
+    Generate n-dimensional indexing strucure for a numpy array,
+    consisting of a start-to-stop slice in each dimension
+    :param start: start indexes
+    :param stop: stop indexes
+    :return:
+    """
+    return tuple(slice(a, b) for a, b in zip(start, stop))
+
+
+def start_to_offset_idx(start, offset):
+    """
+    Generate n-dimensional indexing structure for a numpy array,
+    based on start indexes and offsets
+    :param start: list of indexes to start the slicing from
+    :param offset: list of slice lengths
+    :return:
+    """
+    stop = start + offset
+    return tuple(slice(a, b) for a, b in zip(start, stop))
+
+
+def reverse_array(array):
+
+    assert isinstance(array, numpy.ndarray)
+
+    temp = array.copy()
+    for i in range(temp.ndim):
+        temp = numpy.flip(temp, i)
+
+    return temp
