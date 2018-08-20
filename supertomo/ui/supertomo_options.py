@@ -239,10 +239,11 @@ def get_fusion_options(parser):
     group.add_argument(
         '--first-estimate',
         choices=['first_image',
-                 'sum_of_all',
-                 'simple_fusion',
                  'first_image_mean',
+                 'sum_of_originals',
+                 'sum_of_registered',
                  'average_of_all',
+                 'simple_fusion',
                  'constant'],
         default='first_image_mean',
         help='Specify first estimate for iteration.'
@@ -253,6 +254,12 @@ def get_fusion_options(parser):
         dest='estimate_constant',
         type=float,
         default=1.0
+    )
+
+    group.add_argument(
+        '--wiener-snr',
+        type=float,
+        default=100.0
     )
 
     group.add_argument(
@@ -569,8 +576,6 @@ def get_registration_options(parser):
         type=float,
         default=1.0
     )
-
-
 
     return parser
 

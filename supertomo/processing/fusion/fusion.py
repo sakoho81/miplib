@@ -34,6 +34,7 @@ from supertomo.data.containers import image_data, image
 from supertomo.data.containers.image import Image
 import utils as fusion_utils
 
+
 class MultiViewFusionRL(object):
     """
     The Richardson-Lucy fusion is a result of simultaneous deblurring of
@@ -352,9 +353,9 @@ class MultiViewFusionRL(object):
             self.psfs.append(psf_new)
 
             if self.imdims == 3:
-                self.adj_psf = psf_new[::-1, ::-1, ::-1]
+                self.adj_psfs.append(psf_new[::-1, ::-1, ::-1])
             else:
-                self.adj_psf = psf_new[::-1, ::-1]
+                self.adj_psfs.append(psf_new[::-1, ::-1])
 
     def __compute_virtual_psfs(self):
         """

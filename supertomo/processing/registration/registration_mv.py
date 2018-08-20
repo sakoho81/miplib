@@ -5,7 +5,9 @@ import supertomo.processing.itk as ops_itk
 from supertomo.data.containers import image_data
 import registration
 
-class MultiViewRegistration:
+
+# todo: This class has way too many responsibilities. Need to refactor at some point.
+class RotatedMultiViewRegistration(object):
     """
     A class for multiview image registration. The method is based on
     functions inside the Insight Toolkit (www.itk.org), as in the original
@@ -84,6 +86,7 @@ class MultiViewRegistration:
         image
         at index 0 is used as a reference.
         """
+
         # Get reference image.
         self.data.set_active_image(self.fixed_index,
                                    self.options.channel,
@@ -197,7 +200,7 @@ class MultiViewRegistration:
 
         # Print final metric value and stopping condition
         print(
-        'Final metric value: {0}'.format(self.registration.GetMetricValue()))
+            'Final metric value: {0}'.format(self.registration.GetMetricValue()))
         print(
             'Optimizer\'s stopping condition, {0}'.format(
                 self.registration.GetOptimizerStopConditionDescription()))
@@ -258,7 +261,7 @@ class MultiViewRegistration:
         moving_image = self.data.get_itk_image()
 
         return ops_itk.resample_image(moving_image, self.final_transform,
-                                       fixed_image)
+                                      fixed_image)
 
     def save_result(self):
         scale = self.options.scale
@@ -294,3 +297,33 @@ class MultiViewRegistration:
         self.registration.AddCommand(sitk.sitkStartEvent, start)
         self.registration.AddCommand(sitk.sitkIterationEvent,
                                      lambda: update(self.registration))
+
+
+class MultiViewRegistrationISM(RotatedMultiViewRegistration):
+
+    def execute(self):
+        # Get reference image.
+        self.data.set_active_image(self.fixed_index,
+                                   self.options.channel,
+                                   self.options.scale,
+                                   "original")
+        fixed_image = self.data.get_itk_image()
+
+        for idx in range(self.data.get_number_of_images("original")):
+            print "Registering view {}".format(idx)
+            self.moving_index = idx
+
+            # Get moving image
+            self.data.set_active_image(self.moving_index,
+                                       self.options.channel,
+                                       self.options.scale,
+                                       "original")
+            moving_image = self.data.get_itk_image()
+
+            # Register
+            self.final_transform = registration.itk_registration_rigid_2d(fixed_image,
+                                                                          moving_image,
+                                                                          self.options)
+            self.save_result()
+
+        print "All views registered and saved to the data structure"

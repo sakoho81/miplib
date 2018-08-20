@@ -129,6 +129,12 @@ def get_deconvolution_options(parser):
     )
 
     group.add_argument(
+        '--wiener-snr',
+        type=float,
+        default=100.0
+    )
+
+    group.add_argument(
         '--first-estimate',
         choices=['image',
                  'image_mean',

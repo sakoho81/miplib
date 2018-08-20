@@ -46,3 +46,34 @@ def shift_and_sum(data, transforms, gate=0, detectors=None):
 
     return output
 
+
+def shift(data, transforms, gate=0):
+
+    assert isinstance(data, ArrayDetectorData)
+    assert isinstance(transforms, list) and len(transforms) == data.ndetectors
+
+    shifted = ArrayDetectorData(data.ndetectors, 1)
+
+    for i in range(data.ndetectors):
+        image = itk.resample_image(
+            itk.convert_to_itk_image(data[gate, i]),
+            transforms[i])
+
+        shifted[gate, i] = itk.convert_from_itk_image(image)
+
+    return shifted
+
+
+def sum(data, gate=0, detectors=None):
+    assert isinstance(data, ArrayDetectorData)
+
+    if detectors is None:
+        detectors = range(data.ndetectors)
+
+    result = np.zeros(data[0,0].shape, dtype=np.float64)
+
+    for i in detectors:
+        result += data[gate, i]
+
+    return Image(result, data[0, 0].spacing)
+
