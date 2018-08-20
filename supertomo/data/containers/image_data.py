@@ -8,9 +8,10 @@ import supertomo.processing.itk as itkutils
 import supertomo.ui.utils as uiutils
 from supertomo.data.containers.image import Image
 from supertomo.data.definitions import *
+import supertomo.processing.ndarray as arrayutils
 
 
-class ImageData():
+class ImageData(object):
     """
     The data storage in SuperTomo is based on a HDF5 file format. This
     allows the efficient handing of large datasets
@@ -67,7 +68,7 @@ class ImageData():
 
         # Create a new image group, based on the ordering index. If the
         # group exists, an attempt is made to add a new dataset.
-        group_name = "original/" + index
+        group_name = "original/" + str(index)
         if group_name not in self.data:
             image_group = self.data.create_group(group_name)
             self.series_count += 1
@@ -82,7 +83,7 @@ class ImageData():
             return
 
         # Zoom axial dimension for isotropic pixel size.
-        if spacing[0] != spacing[1]:
+        if data.ndim == 3 and spacing[0] != spacing[1]:
             print "Image index %s needs to be resampled for isotropic spacing." \
                   "This will take a minute" % index
             z_zoom = spacing[0] / spacing[1]
@@ -300,10 +301,13 @@ class ImageData():
                 if name_new in image_group:
                     del image_group[name_new]
                     continue
+
+                # Zoom
                 spacing = tuple(100*x/scale for x in image_group[name_ref].attrs["spacing"])
                 z_factor = float(scale)/100
-                zoom = (z_factor, z_factor, z_factor)
+                zoom = (z_factor, ) * self.get_number_of_dimensions()
                 data = ndimage.zoom(image_group[name_ref], zoom, order=3)
+
                 if chunk_size is None:
                     image_group.create_dataset(name_new, data=data)
                 else:
@@ -384,7 +388,6 @@ class ImageData():
                                       0, channel, 0, self.get_voxel_size())
             self.set_active_image(0, channel, to_scale, "registered")
             reference = self.get_itk_image()
-
 
             for view in range(1, self.get_number_of_images("original")):
                 print "Resampling view %i" % view
@@ -471,6 +474,9 @@ class ImageData():
         assert image_type in image_types_c
         return len(self.data[image_type])
 
+    def get_number_of_dimensions(self):
+        return self.data[self.active_image].ndim
+
     def get_scales(self, image_type):
         """
         Get a list of the image sizes available for a given image type.
@@ -521,9 +527,10 @@ class ImageData():
         tfm_type = self.data[self.active_image].attrs["tfm_type"]
         tfm_params = self.data[self.active_image].attrs["tfm_params"]
         tfm_fixed_params = self.data[self.active_image].attrs["tfm_fixed_params"]
+        ndim = self.get_number_of_dimensions()
 
         return itkutils.make_itk_transform(tfm_type,
-                                           3,
+                                           ndim,
                                            tfm_params,
                                            tfm_fixed_params)
 
@@ -534,7 +541,6 @@ class ImageData():
         tfm_fixed_params = self.data[self.active_image].attrs["tfm_fixed_params"]
 
         return tfm_params, tfm_fixed_params, tfm_type
-
 
     def set_active_image(self, index, channel, scale, image_type):
         """
@@ -601,12 +607,10 @@ class ImageData():
         # print "The start index is %i %i %i" % tuple(start_index)
         # print "The block size is %i %i %i" % tuple(block_size)
 
+        block_idx = arrayutils.start_to_stop_idx(start_index, end_index)
+
         if (image_size >= end_index).all() and (start_index >= 0).all():
-            block = self.data[self.active_image][
-                    start_index[0]:end_index[0],
-                    start_index[1]:end_index[1],
-                    start_index[2]:end_index[2]
-                    ]
+            block = self.data[self.active_image][block_idx]
             return block
 
         else:
@@ -633,11 +637,10 @@ class ImageData():
 
             end_index = start_index + block_end
 
-            block[block_start[0]:block_end[0],
-                  block_start[1]:block_end[1],
-                  block_start[2]:block_end[2]] = self.data[self.active_image][image_start[0]:end_index[0],
-                                                                              image_start[1]:end_index[1],
-                                                                              image_start[2]:end_index[2]]
+            block_read_idx = arrayutils.start_to_stop_idx(image_start, end_index)
+            block_write_idx = arrayutils.start_to_stop_idx(block_start, block_end)
+
+            block[block_write_idx] = self.data[self.active_image][block_read_idx]
             return block
 
     def get_itk_image(self):
@@ -645,7 +648,16 @@ class ImageData():
         Get the currently active image as a ITK image instead of a Numpy array.
         """
         return itkutils.convert_from_numpy(self.data[self.active_image][:],
+
                                            self.data[self.active_image].attrs["spacing"])
+
+    def get_image(self):
+        """
+        Get the currently active image as an Image object instead of a Numpy array
+        """
+        return Image(self.data[self.active_image][:],
+                     self.data[self.active_image].attrs["spacing"])
+
     def get_active_image_index(self):
         """
         Get the image of the currently active image

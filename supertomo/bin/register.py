@@ -54,7 +54,7 @@ def main():
 
     # Setup registration. View number 0 is always the reference for now.
     # The behavior can be easily changed if necessary.
-    task = registration_mv.MultiViewRegistration(data, options)
+    task = registration_mv.RotatedMultiViewRegistration(data, options)
     task.set_fixed_image(0)
 
     # Iterate over the rotated views

@@ -9,6 +9,7 @@ from supertomo.processing.converters import degrees_to_radians
 import numpy as np
 import supertomo.processing.ndarray as arrayops
 
+
 class FourierDataPlotter(object):
     def __init__(self, data, path=None):
         assert isinstance(data, FourierCorrelationDataCollection)

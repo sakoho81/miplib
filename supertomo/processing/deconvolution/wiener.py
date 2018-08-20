@@ -5,9 +5,9 @@ from numpy.fft import fftn, ifftn, fftshift
 from supertomo.data.containers.image import Image
 import supertomo.processing.image as imops
 
-from skimage.restoration import wiener
+#todo: Speed up with CUDA/Multithreading. Functions are ready in the ufuncs.py
 
-def wiener_deconvolution(image, psf, snr=1e-3, add_pad=0):
+def wiener_deconvolution(image, psf, snr=1e-3, add_pad=0, cuda=False):
     assert isinstance(image, Image)
     assert isinstance(psf, Image)
 
@@ -26,8 +26,6 @@ def wiener_deconvolution(image, psf, snr=1e-3, add_pad=0):
     if psf.shape != image_s.shape:
         psf = imops.zero_pad_to_shape(psf, image_s.shape)
 
-
-
     psf /= psf.max()
 
     psf_f = fftn(fftshift(psf))
@@ -39,3 +37,5 @@ def wiener_deconvolution(image, psf, snr=1e-3, add_pad=0):
     result = Image(np.abs(ifftn(image_f * wiener).real), image.spacing)
 
     return imops.remove_zero_padding(result, image.shape)
+
+
