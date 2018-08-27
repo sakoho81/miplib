@@ -233,11 +233,10 @@ def crop_to_rectangle(image):
     return crop_to_shape(image, shape)
 
 
-def crop_to_shape(image, shape):
+def crop_to_shape(image, shape, offset):
     """
-    Crop image to shape. The new image will be centered at the geometric center
-    of the original
-    image
+    Crop image to shape.
+
     :param image:   An N-dimensional Image to be cropped
     :type image:    Image
     :param shape:   The new, cropped size; should be greater or equal than
@@ -246,10 +245,12 @@ def crop_to_shape(image, shape):
     :return:        Returns the cropped image as an Image object
     """
     assert isinstance(image, Image)
-    assert image.ndim == len(shape)
-    assert all((x >= y for x, y in zip(image.shape, shape)))
+    assert image.ndim == len(shape) == len(offset)
+    assert all((v + x <= y for v, x, y in zip(offset, shape, image.shape)))
 
-    return Image(ndarray.contract_to_shape(image, shape), image.spacing)
+    crop_idx = tuple(slice(start, size + start) for start, size in zip(offset, shape))
+
+    return Image(image[crop_idx], image.spacing)
 
 
 def noisy(image, noise_type):
