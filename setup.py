@@ -3,7 +3,7 @@ import numpy
 
 setup(
     name='miplib',
-    version='0.1',
+    version='1.0',
     packages=find_packages(),
     install_requires=['numpy', 'scipy', 'h5py', 'miplib', 'SimpleITK',
                       'matplotlib', 'numba', 'pyculib', 'pandas'],
