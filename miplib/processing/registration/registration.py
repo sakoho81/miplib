@@ -25,6 +25,9 @@ import matplotlib.pyplot as plt
 import miplib.processing.itk as ops_itk
 import miplib.ui.plots.image as show
 
+import numpy as np
+
+# region OBSERVERS
 
 # PLOTS
 # =============================================================================
@@ -35,6 +38,7 @@ def start_plot():
     global metric_values
 
     metric_values = []
+
 
 def end_plot(fixed, moving, transform):
     global metric_values
@@ -74,8 +78,12 @@ def plot_values(registration_method):
     # clear the output area (wait=True, to reduce flickering), and plot current data
     # plot the similarity metric values
 
-# REGISTRATION METHODS
 
+# endregion
+
+# region RIGID SPATIAL DOMAIN REGISTRATION METHODS
+
+#todo: Make a single method for n-dimensions. Too complicated now
 
 def itk_registration_rigid_3d(fixed_image, moving_image, options):
     """
@@ -274,6 +282,9 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
 
     return final_transform
 
+# endregion
+
+# region DEFORMABLE SPATILA DOMAIN REGISTRATION METHDOS
 
 def itk_registration_similarity_2d(fixed_image, moving_image, options):
     """
@@ -466,3 +477,48 @@ def itk_registration_affine_2d(fixed_image, moving_image, options):
     end_plot(fixed_image, moving_image, final_transform)
 
     return final_transform
+
+# endregion
+
+# region RIGID FREQUENCY DOMAIN REGISTRATION METHODS
+
+
+def phase_correlation_registration(fixed_image, moving_image):
+    """
+    A simple Phase Correlation based image registration method.
+    :param fixed_image: the reference image as sitk.Image object
+    :param moving_image: the moving image as sitk.Image object
+    :return: returns the SimpleITK transform
+    """
+
+    assert isinstance(fixed_image, sitk.Image)
+    assert isinstance(moving_image, sitk.Image)
+
+    spacing = fixed_image.GetSpacing()
+
+    # Make a mask, not used here. May help in making this more robust
+    mask = ops_itk.convert_from_numpy(np.full(fixed_image.GetSize()[::-1], 255),
+                                      spacing)
+
+    # Calculate cross correlation
+    correlation = sitk.MaskedFFTNormalizedCorrelation(fixed_image, mask,
+                                                      moving_image, mask)
+    # Find index of the maximum
+    array = ops_itk.convert_from_itk_image(correlation)
+    image_size = fixed_image.GetSize()[::-1]
+    offset = np.unravel_index(np.argmax(array), image_size)
+
+    # Convert offset to physical spacing. Also consider that it can be in positive
+    # and negative direction
+    offset = tuple(size - offset if offset > size / 2 else -offset
+                   for size, offset in zip(image_size, offset))
+
+    offset = tuple(shift * step for shift, step in zip(offset, spacing))
+
+    # Make transform
+    transform = sitk.TranslationTransform(2)
+    transform.SetOffset(offset)
+
+    return transform
+
+# endregion
