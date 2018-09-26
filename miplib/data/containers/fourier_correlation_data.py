@@ -45,7 +45,7 @@ class FourierCorrelationDataCollection(object):
     def items(self):
         return self._data.items()
 
-    def as_dataframe(self):
+    def as_dataframe(self, include_results=False):
         """
         Convert a FourierCorrelationDataCollection object into a Pandas
         dataframe. Only returns the raw Fourier correlation data,
@@ -57,7 +57,7 @@ class FourierCorrelationDataCollection(object):
         df = pd.DataFrame(columns=['Correlation', 'Frequency', 'nPoints', 'Angle'])
 
         for key, dataset in self._data.iteritems():
-            df_temp = dataset.as_dataframe()
+            df_temp = dataset.as_dataframe(include_results=include_results)
 
             angle = np.full(len(df_temp), int(key), dtype=np.int64)
             df_temp['Angle'] = angle

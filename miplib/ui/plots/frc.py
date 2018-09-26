@@ -10,6 +10,69 @@ import numpy as np
 import miplib.processing.ndarray as arrayops
 
 
+def plot_resolution_curves(data_to_plot, path, labels=None, to_file=False, size=(3,3), coerce_ticks=False):
+    assert isinstance(data_to_plot, FourierCorrelationDataCollection)
+
+    angles = list()
+    datasets = list()
+
+    # Sort datasets by angle.
+    for dataset in data_to_plot:
+        angles.append((int(dataset[0])))
+        datasets.append(dataset[1])
+
+    angles, datasets = zip(*sorted(zip(angles, datasets)))
+
+    # Setup labels
+    if labels is not None:
+        assert len(labels) == len(angles)
+    else:
+        labels = angles
+
+    # with sns.color_palette("husl", 8):
+
+    fig, ax = plt.subplots(figsize=size)
+
+    # plot threshold
+    dataset = datasets[0]
+    y = dataset.resolution["threshold"]
+    x = dataset.correlation["frequency"]
+    if x[-1] < 1.0:
+        x = np.append(x, 1.0)
+        y = np.append(y, y[-1])
+
+    ax.plot(x, y, linestyle='--', color='#b5b5b3')
+
+    x_axis = arrayops.safe_divide(np.linspace(0.0, 1.0, num=len(ax.get_xticklabels())),
+                                  2 * dataset.resolution["spacing"])
+
+    if coerce_ticks is True:
+        x_labels = map(lambda n: '%d' % n, x_axis)
+    else:
+        x_labels = map(lambda n: '%.1f' % n, x_axis)
+
+    ax.set_xticklabels(x_labels)
+
+    if not to_file:
+        xlabel = 'Frequency (1/um)'
+        ylabel = 'Correlation'
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+
+    for idx, dataset in enumerate(datasets):
+
+        ax.set_ylim([0, 1.2])
+
+        # Plot calculated FRC values as xy scatter.
+        y = dataset.correlation["correlation"]
+        x = dataset.correlation["frequency"]
+
+        ax.plot(x, y, label=labels[idx])
+
+    if to_file:
+        plt.savefig(path, dpi=1200, bbox_inches='tight', pad_inches=0, transparent=True)
+
+
 class FourierDataPlotter(object):
     def __init__(self, data, path=None):
         assert isinstance(data, FourierCorrelationDataCollection)
