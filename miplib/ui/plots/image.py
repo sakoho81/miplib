@@ -61,7 +61,6 @@ def display_3d_slice_with_alpha(image_z, alpha, fixed, moving):
     plt.axis('off')
 
 
-
 def create_axial_views_plot(image, x_idx, y_idx, z_idx):
 
     assert issubclass(image.__class__, np.ndarray)

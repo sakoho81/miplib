@@ -34,6 +34,7 @@ from miplib.data.containers import temp_data
 from miplib.data.containers.image import Image
 from miplib.data.messages.image_writer_wrappers import ImageWriterBase
 
+import miplib.psf.frc_psf as frc_psf
 
 class DeconvolutionRL(object):
     """
@@ -209,6 +210,10 @@ class DeconvolutionRL(object):
         # ====================================================================
         try:
             while True:
+
+                if self.options.update_blind_psf:
+                    self.psf = frc_psf.generate_frc_based_psf(self.estimate, self.options)
+                    self.__get_psfs()
 
                 info_map = {}
                 ittime = time.time()
