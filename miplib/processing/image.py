@@ -337,9 +337,9 @@ def flip_image(image):
 
     assert isinstance(image, Image)
 
-    temp = ndarray.reverse_array(image)
+    indexer = (np.s_[::-1],) * image.ndim
 
-    return Image(temp, image.spacing)
+    return Image(image[indexer], image.spacing)
 
 
 
