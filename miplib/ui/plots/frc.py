@@ -64,7 +64,7 @@ def plot_resolution_curves(data_to_plot, path, labels=None, to_file=False, size=
         ax.set_ylim([0, 1.2])
 
         # Plot calculated FRC values as xy scatter.
-        y = dataset.correlation["correlation"]
+        y = dataset.correlation["curve-fit"]
         x = dataset.correlation["frequency"]
 
         ax.plot(x, y, label=labels[idx])
@@ -72,6 +72,7 @@ def plot_resolution_curves(data_to_plot, path, labels=None, to_file=False, size=
     if to_file:
         plt.savefig(path, dpi=1200, bbox_inches='tight', pad_inches=0, transparent=True)
 
+    return fig
 
 class FourierDataPlotter(object):
     def __init__(self, data, path=None):

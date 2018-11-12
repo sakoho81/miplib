@@ -120,6 +120,11 @@ def get_deconvolution_options(parser):
         help='Specify maximum number of iterations.'
     )
     group.add_argument(
+        '--update-blind-psf',
+        action='store_true',
+        help='Updates the blind psf during deconvolution iteration'
+    )
+    group.add_argument(
         '--convergence-epsilon',
         dest='convergence_epsilon',
         type=float,

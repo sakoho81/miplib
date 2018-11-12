@@ -37,7 +37,7 @@ class DeconvolutionRLCuda(deconvolve.DeconvolutionRL):
     MultiViewFusionRLCuda is inherits most of its functionality from
     MultiViewFusionRL (see deconvolve.py).
     """
-    def __init__(self, image, psf, options):
+    def __init__(self, image, psf, writer, options):
         """
         :param image:   the image as a Image object
         :param psf:     the psf as an Image object
@@ -45,7 +45,7 @@ class DeconvolutionRLCuda(deconvolve.DeconvolutionRL):
         :param options: command line options that control the behavior
                         of the fusion algorithm
         """
-        deconvolve.DeconvolutionRL.__init__(self, image, psf, options)
+        deconvolve.DeconvolutionRL.__init__(self, image, psf, writer, options)
 
         padded_block_size = self.block_size + 2*self.options.block_pad
         if self.imdims == 2:

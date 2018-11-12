@@ -125,8 +125,6 @@ def remove_zero_padding(image, shape):
     assert isinstance(image, Image)
     assert len(shape) == image.ndim
 
-
-
     return Image(ndarray.contract_to_shape(image, shape), image.spacing)
 
 
@@ -223,14 +221,6 @@ def zero_pad_to_cube(image):
         return zero_pad_to_shape(image, square_shape)
     else:
         return image
-
-
-def crop_to_rectangle(image):
-    assert isinstance(image, Image)
-    assert image.ndim < 4
-
-    shape = [min(image.shape), ] * image.ndim
-    return crop_to_shape(image, shape)
 
 
 def crop_to_shape(image, shape, offset):
