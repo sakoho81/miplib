@@ -21,9 +21,13 @@ information 3. mattes mutual information are supported implemented
 
 import SimpleITK as sitk
 import matplotlib.pyplot as plt
+from skimage.feature import register_translation
+from scipy.ndimage import fourier_shift
 
 import miplib.processing.itk as ops_itk
 import miplib.ui.plots.image as show
+import miplib.processing.image as imops
+from miplib.data.containers.image import Image
 
 import numpy as np
 
@@ -483,42 +487,28 @@ def itk_registration_affine_2d(fixed_image, moving_image, options):
 # region RIGID FREQUENCY DOMAIN REGISTRATION METHODS
 
 
-def phase_correlation_registration(fixed_image, moving_image):
+def phase_correlation_registration(fixed_image, moving_image, subpixel=100, verbose=False):
     """
     A simple Phase Correlation based image registration method.
-    :param fixed_image: the reference image as sitk.Image object
-    :param moving_image: the moving image as sitk.Image object
+    :param verbose:  enable print functions
+    :param subpixel: resampling factor; registration will be perfromed to
+                     1/subpixel accuracy
+    :param fixed_image: the reference image as MIPLIB Image object
+    :param moving_image: the moving image as MIPLIB Image object
     :return: returns the SimpleITK transform
     """
 
-    assert isinstance(fixed_image, sitk.Image)
-    assert isinstance(moving_image, sitk.Image)
+    assert isinstance(fixed_image, Image)
+    assert isinstance(moving_image, Image)
 
-    spacing = fixed_image.GetSpacing()
+    shift, error, diffphase = register_translation(fixed_image, moving_image, subpixel)
 
-    # Make a mask, not used here. May help in making this more robust
-    mask = ops_itk.convert_from_numpy(np.full(fixed_image.GetSize()[::-1], 255),
-                                      spacing)
+    if verbose:
+        print("Detected offset (y, x): {}".format(shift))
 
-    # Calculate cross correlation
-    correlation = sitk.MaskedFFTNormalizedCorrelation(fixed_image, mask,
-                                                      moving_image, mask)
-    # Find index of the maximum
-    array = ops_itk.convert_from_itk_image(correlation)
-    image_size = fixed_image.GetSize()[::-1]
-    offset = np.unravel_index(np.argmax(array), image_size)
+    resampled = np.abs(np.fft.ifftn(fourier_shift(np.fft.fftn(moving_image),
+                                                  shift)).real)
+    return Image(resampled, fixed_image.spacing)
 
-    # Convert offset to physical spacing. Also consider that it can be in positive
-    # and negative direction
-    offset = tuple(size - offset if offset > size / 2 else -offset
-                   for size, offset in zip(image_size, offset))
-
-    offset = tuple(shift * step for shift, step in zip(offset, spacing))
-
-    # Make transform
-    transform = sitk.TranslationTransform(2)
-    transform.SetOffset(offset)
-
-    return transform
 
 # endregion

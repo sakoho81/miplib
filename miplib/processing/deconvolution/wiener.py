@@ -4,6 +4,7 @@ from numpy.fft import fftn, ifftn, fftshift
 
 from miplib.data.containers.image import Image
 import miplib.processing.image as imops
+import miplib.processing.ndarray as arrayops
 
 #todo: Speed up with CUDA/Multithreading. Functions are ready in the ufuncs.py
 
@@ -30,7 +31,7 @@ def wiener_deconvolution(image, psf, snr=1e-3, add_pad=0, cuda=False):
 
     psf_f = fftn(fftshift(psf))
 
-    wiener = (np.abs(psf_f)**2/(np.abs(psf_f)**2 + snr))/psf_f
+    wiener = arrayops.safe_divide(np.abs(psf_f)**2/(np.abs(psf_f)**2 + snr), psf_f)
 
     image_f = fftn(image_s)
 

@@ -162,7 +162,13 @@ class DeconvolutionRL(object):
             self.estimate_new[estimate_idx] = cache[cache_idx]
 
         if self.options.tv_lambda > 0 and self.iteration_count > 0:
-            dv_est = ops_ext.div_unit_grad(self.estimate, self.image_spacing)
+            if self.estimate.ndim == 2:
+                spacing = list(self.image_spacing)
+                spacing.insert(0,1)
+                dv_est = ops_ext.div_unit_grad(numpy.expand_dims(self.estimate, 0),
+                                               spacing)[0]
+            else:
+                dv_est = ops_ext.div_unit_grad(self.estimate, self.image_spacing)
             with numpy.errstate(divide="ignore"):
                 self.estimate_new /= (1.0 - self.options.tv_lambda * dv_est)
                 self.estimate_new[self.estimate_new == numpy.inf] = 0.0
@@ -212,7 +218,7 @@ class DeconvolutionRL(object):
             while True:
 
                 if self.options.update_blind_psf:
-                    self.psf = frc_psf.generate_frc_based_psf(self.estimate, self.options)
+                    self.psf = frc_psf.generate_frc_based_psf(Image(self.estimate, self.image_spacing), self.options)
                     self.__get_psfs()
 
                 info_map = {}
