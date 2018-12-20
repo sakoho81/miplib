@@ -8,10 +8,89 @@ Image resolution measurement by Fourier Ring Correlation.
 import numpy as np
 
 import miplib.data.iterators.fourier_ring_iterators as iterators
-import miplib.processing.image as ops_image
+import miplib.processing.image as imops
 from miplib.data.containers.fourier_correlation_data import FourierCorrelationData, \
     FourierCorrelationDataCollection
 from miplib.data.containers.image import Image
+from . import analysis as fsc_analysis
+from miplib.processing import windowing
+
+def calculate_single_image_frc(image, args, average=True):
+    """
+    A simple utility to calculate a regular FRC with a single image input
+
+    :param image: the image as an Image object
+    :param args:  the parameters for the FRC calculation. See *miplib.ui.frc_options*
+                  for details
+    :return:      returns the FRC result as a FourierCorrelationData object
+    """
+    assert isinstance(image, Image)
+
+    frc_data = FourierCorrelationDataCollection()
+
+    # Hamming Windowing
+    if not args.disable_hamming:
+        spacing = image.spacing
+        image = Image(windowing.apply_hamming_window(image), spacing)
+
+    # Split and make sure that the images are the same size
+    image1, image2 = imops.checkerboard_split(image)
+    #image1, image2 = imops.reverse_checkerboard_split(image)
+    image1, image2 = imops.zero_pad_to_matching_shape(image1, image2)
+
+    # Run FRC
+    iterator = iterators.FourierRingIterator(image1.shape, args.d_bin)
+    frc_task = FRC(image1, image2, iterator)
+    frc_data[0] = frc_task.execute()
+
+    if average:
+        # Split and make sure that the images are the same size
+        image1, image2 = imops.reverse_checkerboard_split(image)
+        image1, image2 = imops.zero_pad_to_matching_shape(image1, image2)
+        iterator = iterators.FourierRingIterator(image1.shape, args.d_bin)
+        frc_task = FRC(image1, image2, iterator)
+
+        frc_data[0].correlation["correlation"] *= 0.5
+        frc_data[0].correlation["correlation"] += 0.5*frc_task.execute().correlation["correlation"]
+
+    # Analyze results
+    analyzer = fsc_analysis.FourierCorrelationAnalysis(frc_data, image1.spacing[0], args)
+
+    return analyzer.execute()[0]
+
+
+def calculate_two_image_frc(image1, image2, args):
+    """
+    A simple utility to calculate a regular FRC with a two image input
+
+    :param image: the image as an Image object
+    :param args:  the parameters for the FRC calculation. See *miplib.ui.frc_options*
+                  for details
+    :return:      returns the FRC result as a FourierCorrelationData object
+    """
+    assert isinstance(image1, Image)
+    assert isinstance(image2, Image)
+
+    assert image1.shape == image2.shape
+
+    frc_data = FourierCorrelationDataCollection()
+
+    spacing = image1.spacing
+
+    if not args.disable_hamming:
+
+        image1 = Image(windowing.apply_hamming_window(image1), spacing)
+        image2 = Image(windowing.apply_hamming_window(image2), spacing)
+
+    # Run FRC
+    iterator = iterators.FourierRingIterator(image1.shape, args.d_bin)
+    frc_task = FRC(image1, image2, iterator)
+    frc_data[0] = frc_task.execute()
+
+    # Analyze results
+    analyzer = fsc_analysis.FourierCorrelationAnalysis(frc_data, image1.spacing[0], args)
+
+    return analyzer.execute()[0]
 
 
 class FRC(object):
@@ -24,7 +103,7 @@ class FRC(object):
         assert isinstance(image1, Image)
         assert isinstance(image2, Image)
 
-        if image1.shape != image2.shape or image1.spacing != image2.spacing:
+        if image1.shape != image2.shape or tuple(image1.spacing) != tuple(image2.spacing):
             raise ValueError("The image dimensions do not match")
         if image1.ndim != 2:
             raise ValueError("Fourier ring correlation requires 2D images.")
@@ -32,8 +111,8 @@ class FRC(object):
         self.pixel_size = image1.spacing[0]
 
         # Expand to square
-        image1 = ops_image.zero_pad_to_cube(image1)
-        image2 = ops_image.zero_pad_to_cube(image2)
+        image1 = imops.zero_pad_to_cube(image1)
+        image2 = imops.zero_pad_to_cube(image2)
 
         self.iterator = iterator
         # Calculate power spectra for the input images.

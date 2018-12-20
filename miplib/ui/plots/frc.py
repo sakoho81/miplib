@@ -11,6 +11,16 @@ import miplib.processing.ndarray as arrayops
 
 
 def plot_resolution_curves(data_to_plot, path, labels=None, to_file=False, size=(3,3), coerce_ticks=False):
+    fig, ax = plt.subplots(figsize=size)
+
+    resolution_curves_subplot(ax, data_to_plot, path,
+                              labels=labels, to_file=to_file,
+                              coerce_ticks=coerce_ticks)
+
+    return fig
+
+
+def resolution_curves_subplot(ax, data_to_plot, path, labels=None, to_file=False, coerce_ticks=False):
     assert isinstance(data_to_plot, FourierCorrelationDataCollection)
 
     angles = list()
@@ -31,7 +41,7 @@ def plot_resolution_curves(data_to_plot, path, labels=None, to_file=False, size=
 
     # with sns.color_palette("husl", 8):
 
-    fig, ax = plt.subplots(figsize=size)
+
 
     # plot threshold
     dataset = datasets[0]
@@ -72,7 +82,7 @@ def plot_resolution_curves(data_to_plot, path, labels=None, to_file=False, size=
     if to_file:
         plt.savefig(path, dpi=1200, bbox_inches='tight', pad_inches=0, transparent=True)
 
-    return fig
+    return ax
 
 class FourierDataPlotter(object):
     def __init__(self, data, path=None):
@@ -400,7 +410,8 @@ class FourierDataPlotter(object):
 
         # Plot calculated FRC values as xy scatter.
         y = frc.correlation["correlation"]
-        x = frc.correlation["frequency"]
+        x_raw = frc.correlation["frequency"]
+        x = arrayops.safe_divide(x_raw, 2 * frc.resolution["spacing"])
         ax.plot(x, y, marker_array[0], color='#b5b5b3',
                 label='FRC')
 
@@ -421,16 +432,18 @@ class FourierDataPlotter(object):
         else:
             label = "Threshold"
 
-        if x[-1] < 1.0:
-            x = np.append(x, 1.0)
+        if x_raw[-1] < 1.0:
+            x_th = arrayops.safe_divide(np.append(x_raw, 1.0), 2 * frc.resolution["spacing"])
             y = np.append(y, y[-1])
+        else:
+            x_th = x
 
-        ax.plot(x, y, color='#d77186',
+        ax.plot(x_th, y, color='#d77186',
                 label=label, linestyle='--')
 
         # Plot resolution point
         y0 = frc.resolution["resolution-point"][0]
-        x0 = frc.resolution["resolution-point"][1]
+        x0 = frc.resolution["resolution-point"][1] / (2*frc.resolution["spacing"])
 
         ax.plot(x0, y0, 'ro', label='Resolution point', color='#D75725')
 
@@ -439,15 +452,15 @@ class FourierDataPlotter(object):
 
         ax.plot(xs, ys, 'x--', color='#D75725', ms=10)
 
-        x_axis = arrayops.safe_divide(np.linspace(0.0, 1.0, num=len(ax.get_xticklabels())),
-                                      2 * frc.resolution["spacing"])
-
-        if coerce_ticks is True:
-            x_labels = map(lambda n: '%d' % n, x_axis)
-        else:
-            x_labels = map(lambda n: '%.1f' % n, x_axis)
-
-        ax.set_xticklabels(x_labels)
+        # x_axis = arrayops.safe_divide(np.linspace(0.0, 1.0, num=len(ax.get_xticklabels())),
+        #                               2 * frc.resolution["spacing"])
+        #
+        # if coerce_ticks is True:
+        #     x_labels = map(lambda n: '%d' % n, x_axis)
+        # else:
+        #     x_labels = map(lambda n: '%.1f' % n, x_axis)
+        #
+        # ax.set_xticklabels(x_labels)
 
 
 

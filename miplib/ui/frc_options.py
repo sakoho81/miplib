@@ -94,4 +94,11 @@ def get_frc_options_group(parser):
     group.add_argument('--use-splines',
                        action='store_true')
 
+    group.add_argument('--disable-hamming',
+                       action='store_true')
+
+    group.add_argument('--frc-curve-fit-type',
+                       choices=['smooth-spline', 'spline', 'polynomial'],
+                       default='spline')
+
     return parser

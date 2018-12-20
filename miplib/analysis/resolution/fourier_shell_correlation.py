@@ -5,12 +5,43 @@ Sami Koho 01/2018
 Sectioned Fourier Shell Correlation for complex resolution analysis
 in 3D images.
 """
-
+from scipy.ndimage.interpolation import rotate
 import numpy as np
 
 import miplib.data.containers.fourier_correlation_data as containers
 import miplib.processing.ndarray as ndarray
 from miplib.data.containers.image import Image
+from . import analysis as fsc_analysis
+from math import floor
+
+
+def calculate_fourier_plane_correlation(image1, image2, args, z_correction=1):
+        steps = np.arange(0, 360, args.d_angle)
+        data = containers.FourierCorrelationDataCollection()
+
+        for idx, step in enumerate(steps):
+            im1_rot = np.fft.fftshift(np.fft.fftn(rotate(image1, step, reshape=False)))
+            im2_rot = np.fft.fftshift(np.fft.fftn(rotate(image2, step, reshape=False)))
+
+            numerator = np.sum(im1_rot*np.conjugate(im2_rot), axis=(0,2))
+            #numerator = correlation_3d.sum(axis=0).sum(axis=0)
+            denominator = np.sum(np.sqrt(np.abs(im1_rot)**2 * np.abs(im2_rot)**2), axis=(0,2))
+
+            correlation = ndarray.safe_divide(numerator, denominator)
+
+            zero = correlation.size / 2
+            correlation = correlation[zero:]
+
+            result = containers.FourierCorrelationData()
+            result.correlation["correlation"] = correlation
+            result.correlation["frequency"] = np.linspace(0, 1.0, num=correlation.size)
+            result.correlation["points-x-bin"] = np.ones(correlation.size)*(im2_rot.shape[2]*im2_rot.shape[0])
+
+            data[int(step)] = result
+
+        analyzer = fsc_analysis.FourierCorrelationAnalysis(data, image1.spacing[0], args)
+        return analyzer.execute(z_correction=z_correction)
+
 
 
 class DirectionalFSC(object):

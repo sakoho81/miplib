@@ -45,6 +45,9 @@ class FourierCorrelationDataCollection(object):
     def items(self):
         return self._data.items()
 
+    def nitems(self):
+        return len(self._data)
+
     def as_dataframe(self, include_results=False):
         """
         Convert a FourierCorrelationDataCollection object into a Pandas

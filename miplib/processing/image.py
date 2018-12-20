@@ -164,6 +164,40 @@ def checkerboard_split(image, disable_3d_sum = False):
     return image1, image2
 
 
+def reverse_checkerboard_split(image, disable_3d_sum = False):
+    """
+    Splits an image in two, by using a checkerboard pattern.
+
+    :param image:   a miplib Image
+    :return:        two miplib Images
+    """
+    assert isinstance(image, Image)
+
+    # Make an index chess board structure
+    shape = image.shape
+    odd_index = list(np.arange(1, shape[i], 2) for i in range(len(shape)))
+    even_index = list(np.arange(0, shape[i], 2) for i in range(len(shape)))
+
+    # Create the two pseudo images
+    if image.ndim == 2:
+        image1 = image[odd_index[0], :][:, even_index[1]]
+        image2 = image[even_index[0], :][:, odd_index[1]]
+    else:
+        if disable_3d_sum:
+            image1 = image[odd_index[0], :, :][:, odd_index[1], :][:, :, even_index[2]]
+            image2 = image[even_index[0], :, :][:, even_index[1], :][:, :, odd_index[2]]
+
+        else:
+            image1 = image.astype(np.uint32)[even_index[0], :, :][:, odd_index[1], :][:, :, even_index[2]] + \
+                     image.astype(np.uint32)[odd_index[0], :, :][:, even_index[1], :][:, :, odd_index[2]]
+
+            image2 = image.astype(np.uint32)[even_index[0], :, :][:, even_index[1], :][:, :, odd_index[2]] + \
+                     image.astype(np.uint32)[odd_index[0], :, :][:, odd_index[1], :][:, :, even_index[2]]
+
+    image1.spacing = tuple(i * np.sqrt(2) for i in image.spacing)
+    image2.spacing = image1.spacing
+
+    return image1, image2
 def summed_checkerboard_split(image):
     """
     Splits an image in two, by using a checkerboard pattern and diagonal pixels
@@ -332,4 +366,32 @@ def flip_image(image):
     return Image(image[indexer], image.spacing)
 
 
+def translate_image(image, shift):
+    """
+    Apply a circular shift to an image
+
+    :param image: An Image object
+    :param shift: The shift as a single numeric value
+    :return: returns the translated image.
+    """
+    fft_image = np.fft.fftshift(np.fft.fft2(image))
+
+    shape = fft_image.shape
+    axes = (np.arange(-np.floor(i / 2.0), np.ceil(i / 2.0)) for i in shape)
+    axes = (i / (2 * i.max()) for i in axes)
+    y, x = np.meshgrid(*axes)
+
+    xx = np.zeros(fft_image.shape, dtype=np.complex64)
+    xx.real[:] = np.cos(2 * np.pi * shift * x)
+    xx.imag[:] = np.sin(-2 * np.pi * shift * x)
+
+    yy = np.zeros(fft_image.shape, dtype=np.complex64)
+    yy.real[:] = np.cos(2 * np.pi * shift * y)
+    yy.imag[:] = np.sin(-2 * np.pi * shift * y)
+
+    multiplier = xx * yy
+
+    result = np.abs(np.fft.ifftn(fft_image * multiplier).real)
+
+    return Image(result, image.spacing)
 
