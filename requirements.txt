@@ -1,0 +1,12 @@
+ipywidgets
+backports
+mayavi
+pims
+pandas
+h5py
+matplotlib
+numba
+pyculib
+SimpleITK
+scipy
+numpy
