@@ -13,6 +13,7 @@ dependencies:
   - pims
   - jpype1
   - notebook
+  - skimage
 
 channels:
   - conda-forge

@@ -64,4 +64,5 @@ target/
 #scribbles/
 
 # Data directory (needs to be distributed some other way)
-notebooks/data/
+<<<<<<< HEAD
+notebooks/

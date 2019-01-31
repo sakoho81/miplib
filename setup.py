@@ -6,7 +6,7 @@ setup(
     version='1.0',
     packages=find_packages(),
     install_requires=['numpy', 'scipy', 'h5py', 'SimpleITK',
-                      'matplotlib', 'numba', 'pyculib', 'pandas', 'pims'],
+                      'matplotlib', 'numba', 'pyculib', 'pandas', 'pims', 'scikit-image'],
     entry_points={
         'console_scripts': [
             'miplib.import = miplib.bin.import:main',
