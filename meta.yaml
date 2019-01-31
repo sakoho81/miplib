@@ -4,7 +4,7 @@ package:
 
 source:
   git_rev: v1.0
-  git_url: https://sakoho81@bitbucket.org/sakoho81/miplib.git
+  git_url: https://sakoho81@github.org/sakoho81/miplib.git
 
 requirements:
   build:
@@ -24,13 +24,14 @@ requirements:
     - SimpleITK
     - scipy
     - numpy
+    - skimage
 
   test:
     imports:
       - miplib
 
   about:
-    home: https://bitbucket.org/sakoho81/miplib
+    home: https://github.org/sakoho81/miplib
     license: BSD
     license_file: License.txt
 
