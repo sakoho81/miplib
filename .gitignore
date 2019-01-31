@@ -65,12 +65,6 @@ target/
 
 # Data directory (needs to be distributed some other way)
 
-#notebooks/data/
-
-# Public branch
 notebooks/
 supertomo/processing/fusion
 supertomo/processing/ism
-=======
-notebooks/data/
-

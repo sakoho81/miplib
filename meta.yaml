@@ -1,0 +1,37 @@
+package:
+  name: miplib
+  version: "1.0"
+
+source:
+  git_rev: v1.0
+  git_url: https://sakoho81@github.org/sakoho81/miplib.git
+
+requirements:
+  build:
+    - python
+    - setuptools
+    - numpy
+
+  run:
+    - python
+    - mayavi
+    - pims
+    - pandas
+    - h5py
+    - matplotlib
+    - numba
+    - pyculib
+    - SimpleITK
+    - scipy
+    - numpy
+    - skimage
+
+  test:
+    imports:
+      - miplib
+
+  about:
+    home: https://github.org/sakoho81/miplib
+    license: BSD
+    license_file: License.txt
+
