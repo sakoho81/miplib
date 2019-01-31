@@ -1,5 +1,5 @@
 
-Copyright (c) 2018, Molecular Microscopy & Spectroscopy,
+Copyright (c) 2018, Sami Koho, Molecular Microscopy & Spectroscopy,
 Italian Institute of Technology
 
 Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,5 @@ In addition to the terms of the license, we ask to acknowledge the use
 of packages in scientific articles by citing the corresponding papers:
 
 MIPLIB:
-* Koho, S., Deguchi, T. & Hänninen, P.E. (2015) A software tool for tomographic
-axial superresolution in STED microscopy. Journal of Microscopy, n/a–n/a.
 
 
