@@ -66,5 +66,3 @@ target/
 # Data directory (needs to be distributed some other way)
 
 notebooks/
-supertomo/processing/fusion
-supertomo/processing/ism
