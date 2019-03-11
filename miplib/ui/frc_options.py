@@ -48,7 +48,7 @@ def get_frc_options_group(parser):
 
     group.add_argument('--resolution-threshold-value',
                        type=float,
-                       default=0.5,
+                       default=1.0/7,
                        help="The resolution threshold value to be used when fixed threshold" \
                             "is applied")
 
@@ -60,7 +60,7 @@ def get_frc_options_group(parser):
 
     group.add_argument('--resolution-snr-value',
                        type=float,
-                       default=0.5,
+                       default=0.25,
                        help="The target SNR value for the resolution measurement.")
 
     group.add_argument('--angle-delta',

@@ -214,6 +214,14 @@ def get_deconvolution_options(parser):
         '--disable-fft-psf-memmap',
         action='store_true'
     )
+
+    group.add_argument(
+        '--rl-background',
+        type=float,
+        default=0.0,
+        help="Background correction term for RL"
+    )
+
     return parser
 
 

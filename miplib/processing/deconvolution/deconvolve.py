@@ -27,12 +27,14 @@ import pandas
 import numpy
 import miplib.processing.ops_ext as ops_ext
 from scipy.ndimage.interpolation import zoom
-from scipy.signal import fftconvolve, medfilt
+from scipy.signal import fftconvolve, medfilt, unit_impulse
 
 import miplib.processing.to_string as ops_output
+import miplib.processing.ndarray
 from miplib.data.containers import temp_data
 from miplib.data.containers.image import Image
 from miplib.data.messages.image_writer_wrappers import ImageWriterBase
+from numpy.fft import fftn, fftshift
 
 import miplib.psf.frc_psf as frc_psf
 
@@ -148,7 +150,10 @@ class DeconvolutionRL(object):
             # Execute: cache = convolve(PSF, estimate), non-normalized
             cache = fftconvolve(estimate_block, self.psf, mode='same')
 
-            # ops_ext.inverse_division_inplace(cache, image_block)
+            if self.options.rl_background != 0:
+                cache += self.options.rl_background
+
+                # ops_ext.inverse_division_inplace(cache, image_block)
             with numpy.errstate(divide="ignore"):
                 cache = image_block.astype(numpy.float32) / cache
                 cache[cache == numpy.inf] = 0.0

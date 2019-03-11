@@ -7,10 +7,12 @@ in 3D images.
 """
 from scipy.ndimage.interpolation import rotate
 import numpy as np
+import miplib.data.iterators.fourier_shell_iterators as iterators
 
 import miplib.data.containers.fourier_correlation_data as containers
 import miplib.processing.ndarray as ndarray
 from miplib.data.containers.image import Image
+from miplib.processing import windowing
 from . import analysis as fsc_analysis
 from math import floor
 
@@ -24,7 +26,6 @@ def calculate_fourier_plane_correlation(image1, image2, args, z_correction=1):
             im2_rot = np.fft.fftshift(np.fft.fftn(rotate(image2, step, reshape=False)))
 
             numerator = np.sum(im1_rot*np.conjugate(im2_rot), axis=(0,2))
-            #numerator = correlation_3d.sum(axis=0).sum(axis=0)
             denominator = np.sum(np.sqrt(np.abs(im1_rot)**2 * np.abs(im2_rot)**2), axis=(0,2))
 
             correlation = ndarray.safe_divide(numerator, denominator)
@@ -41,6 +42,27 @@ def calculate_fourier_plane_correlation(image1, image2, args, z_correction=1):
 
         analyzer = fsc_analysis.FourierCorrelationAnalysis(data, image1.spacing[0], args)
         return analyzer.execute(z_correction=z_correction)
+
+
+
+#def calculate_one_image_sectioned_fsc(image, args, z_correction=1):
+
+
+def calculate_two_image_sectioned_fsc(image1, image2, args, z_correction=1):
+    assert isinstance(image1, Image)
+    assert isinstance(image2, Image)
+
+    image1 = Image(windowing.apply_hamming_window(image1), image1.spacing)
+    image2 = Image(windowing.apply_hamming_window(image2), image2.spacing)
+
+    iterator = iterators.AxialExcludeHollowConicalFourierShellIterator(image1.shape, args.d_bin, args.d_angle,
+                                                                       args.d_extract_angle)
+    fsc_task = DirectionalFSC(image1, image2, iterator)
+    data = fsc_task.execute()
+
+    analyzer = fsc_analysis.FourierCorrelationAnalysis(data, image1.spacing[0], args)
+    return analyzer.execute(z_correction=z_correction)
+
 
 
 

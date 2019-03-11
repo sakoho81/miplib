@@ -15,7 +15,7 @@ from miplib.data.containers.image import Image
 from . import analysis as fsc_analysis
 from miplib.processing import windowing
 
-def calculate_single_image_frc(image, args, average=True):
+def calculate_single_image_frc(image, args, average=True, z_correction=1):
     """
     A simple utility to calculate a regular FRC with a single image input
 
@@ -33,7 +33,7 @@ def calculate_single_image_frc(image, args, average=True):
         spacing = image.spacing
         image = Image(windowing.apply_hamming_window(image), spacing)
 
-    # Split and make sure that the images are the same size
+    # Split and make sure that the images are the same siz
     image1, image2 = imops.checkerboard_split(image)
     #image1, image2 = imops.reverse_checkerboard_split(image)
     image1, image2 = imops.zero_pad_to_matching_shape(image1, image2)
@@ -53,13 +53,17 @@ def calculate_single_image_frc(image, args, average=True):
         frc_data[0].correlation["correlation"] *= 0.5
         frc_data[0].correlation["correlation"] += 0.5*frc_task.execute().correlation["correlation"]
 
+    freqs = frc_data[0].correlation["frequency"].copy()
+    log_correction = np.sqrt(2)*np.log(2*freqs + 2.1)/2
+
+    frc_data[0].correlation["frequency"] = freqs*log_correction
     # Analyze results
     analyzer = fsc_analysis.FourierCorrelationAnalysis(frc_data, image1.spacing[0], args)
 
-    return analyzer.execute()[0]
+    return analyzer.execute(z_correction=z_correction)[0]
 
 
-def calculate_two_image_frc(image1, image2, args):
+def calculate_two_image_frc(image1, image2, args, z_correction=1):
     """
     A simple utility to calculate a regular FRC with a two image input
 
@@ -90,7 +94,7 @@ def calculate_two_image_frc(image1, image2, args):
     # Analyze results
     analyzer = fsc_analysis.FourierCorrelationAnalysis(frc_data, image1.spacing[0], args)
 
-    return analyzer.execute()[0]
+    return analyzer.execute(z_correction=z_correction)[0]
 
 
 class FRC(object):
