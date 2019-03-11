@@ -487,7 +487,7 @@ def itk_registration_affine_2d(fixed_image, moving_image, options):
 # region RIGID FREQUENCY DOMAIN REGISTRATION METHODS
 
 
-def phase_correlation_registration(fixed_image, moving_image, subpixel=100, verbose=False):
+def phase_correlation_registration(fixed_image, moving_image, subpixel=100, verbose=False, resample=True):
     """
     A simple Phase Correlation based image registration method.
     :param verbose:  enable print functions
@@ -503,12 +503,15 @@ def phase_correlation_registration(fixed_image, moving_image, subpixel=100, verb
 
     shift, error, diffphase = register_translation(fixed_image, moving_image, subpixel)
 
+    scaled_shifts = list(-offset * spacing for offset, spacing in zip(shift, fixed_image.spacing))
     if verbose:
-        print("Detected offset (y, x): {}".format(shift))
+        print("Detected offset (y, x): {}".format(scaled_shifts))
 
     resampled = np.abs(np.fft.ifftn(fourier_shift(np.fft.fftn(moving_image),
                                                   shift)).real)
-    return Image(resampled, fixed_image.spacing)
-
+    if resample:
+        return Image(resampled, fixed_image.spacing)
+    else:
+        return scaled_shifts
 
 # endregion

@@ -198,6 +198,7 @@ def reverse_checkerboard_split(image, disable_3d_sum = False):
     image2.spacing = image1.spacing
 
     return image1, image2
+
 def summed_checkerboard_split(image):
     """
     Splits an image in two, by using a checkerboard pattern and diagonal pixels
@@ -327,6 +328,16 @@ def noisy(image, noise_type):
 
 
 def enhance_contrast(image, percent_saturated=0.3, out_type=np.uint8):
+    """
+    Performs historgram stretching (not equalization), with a given percentage
+    :param percent_saturated of pixels saturated in the output.
+
+    :param image: an Image object
+    :param percent_saturated: Percentage value of saturated pixels. Defaults to 0.3
+    :param out_type: The type of the output image. The default is 8-bit uint
+    :return: an Image with intensity values rescaled to the whole dynamic range
+    """
+
     assert isinstance(image, Image)
 
     percent_saturated /= 100
@@ -355,6 +366,18 @@ def enhance_contrast(image, percent_saturated=0.3, out_type=np.uint8):
     image = np.clip(image, in_min, in_max)
     image *= (out_max-out_min)/image.max()
     return Image(image.astype(out_type), spacing)
+
+
+def rescale_to_8_bit(image):
+    """
+    Converts an Image into 8-bit (typically for saving)
+    :param image: an Image object
+    :return: a 8-bit version of the Image
+    """
+    assert isinstance(image, Image)
+    return Image((image*(255.0/image.max())).astype(np.uint8), image.spacing)
+
+
 
 
 def flip_image(image):

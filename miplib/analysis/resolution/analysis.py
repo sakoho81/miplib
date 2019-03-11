@@ -191,7 +191,7 @@ class FourierCorrelationAnalysis(object):
 
             angle = converters.degrees_to_radians(int(key))
             z_correction_multiplier = (1+(z_correction-1)*np.abs(np.sin(angle)))
-            resolution =z_correction_multiplier*(2 * self.spacing / root)
+            resolution =z_correction_multiplier*(2*self.spacing / root)
 
             data_set.resolution["resolution"] = resolution
             data_set.resolution["spacing"] = self.spacing*z_correction_multiplier

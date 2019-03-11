@@ -28,7 +28,7 @@ def read_carma_mat(filename):
     shape = list(data['Size'][0][0][0][::-1])
 
     detectors = int(data['DetectorsCount'][0][0][0])
-    photosensors = len(data["PhotosensorsTime"][0][0])
+    photosensors = len(data["PhotosensorsTime"][0][0][0])
 
     # Initialize data container
     container = ArrayDetectorData(detectors, photosensors)

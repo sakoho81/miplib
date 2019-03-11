@@ -83,5 +83,8 @@ class ArrayDetectorData(object):
             self.detector_idx = 0
             raise StopIteration
 
-
-
+    def get_photosensor(self, photosensor):
+            data = ArrayDetectorData(self.ndetectors, 1)
+            for i in range(self.ndetectors):
+                data[0, i] = self._data_container[photosensor][i]
+            return data

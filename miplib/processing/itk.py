@@ -458,9 +458,23 @@ def make_composite_rgb_image(red, green, blue=None, return_numpy=False):
             return sitk.Compose(red, green, blue)
 
 
+def make_translation_transforms_from_xy(xs, ys):
+    """
+    Makes translation transforms from a set of (x,y) shift coordinate pairs
+    :param xs: a list of x shifts
+    :param ys: a list of y shifts
+    :return: a list of sitk.TranslationTransforms
+    """
+    assert len(xs) == len(ys)
+    transforms = []
 
+    for x, y in zip(xs, ys):
+        tfm = sitk.TranslationTransform(2)
+        tfm.SetParameters((x, y))
 
+        transforms.append(tfm)
 
+    return transforms
 
 
 
