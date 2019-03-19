@@ -27,7 +27,8 @@ import pandas
 import numpy
 import miplib.processing.ops_ext as ops_ext
 from scipy.ndimage.interpolation import zoom
-from scipy.signal import fftconvolve, medfilt, unit_impulse
+from scipy.ndimage.filters import uniform_filter
+from scipy.signal import fftconvolve, medfilt
 
 import miplib.processing.to_string as ops_output
 import miplib.processing.ndarray
@@ -196,6 +197,8 @@ class DeconvolutionRL(object):
 
         if first_estimate == 'image':
             self.estimate[:] = self.image[:].astype(numpy.float32)
+        elif first_estimate == 'blurred':
+            self.estimate[:] = uniform_filter(self.image, 3).astype(numpy.float32)
         elif first_estimate == 'image_mean':
             self.estimate[:] = numpy.float32(numpy.mean(self.image[:]))
         elif first_estimate == 'constant':

@@ -142,6 +142,7 @@ def get_deconvolution_options(parser):
     group.add_argument(
         '--first-estimate',
         choices=['image',
+                 'blurred',
                  'image_mean',
                  'constant'],
         default='image',

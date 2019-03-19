@@ -230,7 +230,7 @@ class FourierDataPlotter(object):
         radii.append(radii[0])
 
         radii_norm = list(i / max(radii) for i in radii)
-        plt.figure(figsize=(4, 4))
+        fig = plt.figure(figsize=(4, 4))
         ax = plt.subplot(111, projection="polar")
         ax.plot(angles, radii_norm, color='#61a2da')
         ax.set_rmax(1.2)
@@ -248,6 +248,8 @@ class FourierDataPlotter(object):
 
         # ax.set_xlabel("XY")
         # ax.set_ylabel("Z")
+
+        return ax
 
     def plot_polar_to_file(self, filename, size=(2, 2)):
         """
