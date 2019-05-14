@@ -8,7 +8,7 @@ import miplib.processing.ndarray as arrayops
 
 #todo: Speed up with CUDA/Multithreading. Functions are ready in the ufuncs.py
 
-def wiener_deconvolution(image, psf, snr=1e-3, add_pad=0, cuda=False):
+def wiener_deconvolution(image, psf, snr=1e-3, add_pad=0, cuda=False, normalize=False):
     assert isinstance(image, Image)
     assert isinstance(psf, Image)
 

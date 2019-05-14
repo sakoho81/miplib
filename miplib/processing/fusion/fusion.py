@@ -62,6 +62,18 @@ class MultiViewFusionRL(object):
 
         self.n_views = len(self.views)
 
+        # Get weights
+        self.weights = numpy.zeros(self.n_views, dtype=numpy.float32)
+
+        for idx, view in enumerate(self.views):
+            self.data.set_active_image(view, self.options.channel,
+                                       self.options.scale, "registered")
+
+            self.weights[idx] = self.data.get_max()
+
+        self.weights /= self.weights.sum()
+
+
         # Get image size
         self.data.set_active_image(0, self.options.channel, self.options.scale,
                                    "registered")
@@ -147,7 +159,8 @@ class MultiViewFusionRL(object):
             self.data.set_active_image(view, self.options.channel,
                                        self.options.scale, "registered")
 
-            weighting = float(self.data.get_max()) / 255
+            #weighting = float(self.data.get_max()) / 255
+            weighting = self.weights[idx]
 
             iterables = (xrange(0, m, n) for m, n in zip(self.image_size, self.block_size))
             pad = self.options.block_pad
@@ -196,12 +209,14 @@ class MultiViewFusionRL(object):
                         # print "The block size is ", self.block_size
                         self.estimate_new[estimate_idx] += estimate_block_new[cache_idx]
 
+        # I changed the weighting scheme a little bit
+        # I'm not sure if this thing is necessary; maybe in the multiplicative?
         # Divide with the number of projections
-        if "summative" in self.options.fusion_method:
-            self.estimate_new *= (1.0 / self.n_views)
-        else:
-            self.estimate_new[:] = ops_array.nroot(self.estimate_new,
-                                                   self.n_views)
+        # if "summative" in self.options.fusion_method:
+        #     self.estimate_new *= (1.0 / self.n_views)
+        # else:
+        #     self.estimate_new[:] = ops_array.nroot(self.estimate_new,
+        #                                            self.n_views)
 
         return ops_ext.update_estimate_poisson(self.estimate,
                                                self.estimate_new,

@@ -15,7 +15,7 @@ from miplib.data.containers.image import Image
 from . import analysis as fsc_analysis
 from miplib.processing import windowing
 
-def calculate_single_image_frc(image, args, average=True, z_correction=1):
+def calculate_single_image_frc(image, args, average=True, trim=True, z_correction=1):
     """
     A simple utility to calculate a regular FRC with a single image input
 
@@ -23,6 +23,7 @@ def calculate_single_image_frc(image, args, average=True, z_correction=1):
     :param args:  the parameters for the FRC calculation. See *miplib.ui.frc_options*
                   for details
     :return:      returns the FRC result as a FourierCorrelationData object
+
     """
     assert isinstance(image, Image)
 
@@ -54,14 +55,35 @@ def calculate_single_image_frc(image, args, average=True, z_correction=1):
         frc_data[0].correlation["correlation"] += 0.5*frc_task.execute().correlation["correlation"]
 
     freqs = frc_data[0].correlation["frequency"].copy()
-    log_correction = np.sqrt(2)*np.log(2*freqs + 2.1)/2
+    #log_correction = np.sqrt(2)*np.log(2*freqs + 2.1)/2
+    #log_correction = np.sqrt(2)*np.log(np.sqrt(2)*freqs + 2.718281828459)/2
 
-    frc_data[0].correlation["frequency"] = freqs*log_correction
+    def func(x, a, b, c, d):
+        return a * np.exp(c * (x - b)) + d
+
+    #params = [0.87420745, 1.01606197, 9.77890561, 0.54539224]
+    #params = [ 0.9126985, 0.97605337, 13.92594423, 0.55153212]
+    #params = [0.87291152, 0.96833531, 14.42136703, 0.58735602]
+    params = [0.95988146, 0.97979108, 13.90441896, 0.55146136]
+
+    #log_correction = np.sqrt(2)*func(freqs, *params)
+    #log_correction = 1.0
+
+    #if trim:
+     #   log_correction[log_correction > 1.0] = 1.0
+
+    #frc_data[0].correlation["frequency"] = freqs*log_correction
     # Analyze results
     analyzer = fsc_analysis.FourierCorrelationAnalysis(frc_data, image1.spacing[0], args)
 
-    return analyzer.execute(z_correction=z_correction)[0]
+    result = analyzer.execute(z_correction=z_correction)[0]
+    point = result.resolution["resolution-point"][1]
 
+    log_correction = func(point, *params)
+    result.resolution["spacing"] /= log_correction
+    result.resolution["resolution"] /= log_correction
+
+    return result
 
 def calculate_two_image_frc(image1, image2, args, z_correction=1):
     """

@@ -111,7 +111,7 @@ def resample_image(image, transform, reference=None, interpolation="linear"):
     resampler.SetTransform(transform)
 
     resampler.SetInterpolator(interpolator)
-
+    resampler.SetOutputPixelType(reference.GetPixelID())
     resampler.SetSize(reference.GetSize())
     resampler.SetOutputOrigin(reference.GetOrigin())
     resampler.SetOutputSpacing(reference.GetSpacing())

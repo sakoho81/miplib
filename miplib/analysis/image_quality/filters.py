@@ -216,7 +216,7 @@ class FrequencyQuality(Filter):
         # Additive form of power spectrum calculation requires a square shaped
         # image
         if self.options.power_averaging == "additive":
-            self.data = imutils.crop_to_rectangle(self.data)
+            self.data = imutils.crop_to_largest_square(self.data)
 
         self.simple_power = None
         self.power = None
@@ -386,7 +386,7 @@ class BrennerImageQuality(Filter):
         Filter.__init__(self, image, options, physical, verbal)
         # This is not really necessary. It was just added in order to compare
         # with the frequency domain measures.
-        self.data = imutils.crop_to_rectangle(image)
+        self.data = imutils.crop_to_largest_square(image)
 
     def calculate_brenner_quality(self):
         data = self.data
