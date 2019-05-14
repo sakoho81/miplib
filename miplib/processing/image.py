@@ -158,7 +158,8 @@ def checkerboard_split(image, disable_3d_sum = False):
             image2 = image.astype(np.uint32)[even_index[0], :, :][:, even_index[1], :][:, :, even_index[2]] + \
                      image.astype(np.uint32)[odd_index[0], :, :][:, even_index[1], :][:, :, even_index[2]]
 
-    image1.spacing = tuple(i * np.sqrt(2) for i in image.spacing)
+    # image1.spacing = tuple(i * np.sqrt(2) for i in image.spacing)
+    image1.spacing = image.spacing
     image2.spacing = image1.spacing
 
     return image1, image2
@@ -194,7 +195,8 @@ def reverse_checkerboard_split(image, disable_3d_sum = False):
             image2 = image.astype(np.uint32)[even_index[0], :, :][:, even_index[1], :][:, :, odd_index[2]] + \
                      image.astype(np.uint32)[odd_index[0], :, :][:, odd_index[1], :][:, :, even_index[2]]
 
-    image1.spacing = tuple(i * np.sqrt(2) for i in image.spacing)
+    #image1.spacing = tuple(i * np.sqrt(2) for i in image.spacing)
+    image1.spacing = image.spacing
     image2.spacing = image1.spacing
 
     return image1, image2
@@ -256,6 +258,25 @@ def zero_pad_to_cube(image):
         return zero_pad_to_shape(image, square_shape)
     else:
         return image
+
+
+def crop_to_largest_square(image, physical_dims=False):
+    """
+    Crops an image into a largest square shape that fits inside the image area in all
+    dimensions. The cropping can bone either in physical units or in pixels (typically pixels)
+    :param image: an image Object
+    :return: the cropped image
+    """
+    assert isinstance(image, Image)
+
+    if physical_dims:
+        shape_real = list(x*y for x, y in zip(image.shape, image.spacing))
+        min_shape_real = (min(*shape_real), ) * image.ndim
+        min_shape_px = list(x / y for x, y in zip(min_shape_real, image.spacing))
+    else:
+        min_shape_px = (min(*image.shape), image.ndim)
+
+    return remove_zero_padding(image, min_shape_px)
 
 
 def crop_to_shape(image, shape, offset):

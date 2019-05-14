@@ -46,6 +46,18 @@ def find_image_shifts(data, options, photosensor=0):
     return x, y, transforms
 
 
+def get_theoretical_shifts(pitch=75, wavelength=550, detector_size_au=1.5):
+    magnification = 500
+
+    # Make a pure theoretical shifts grid
+    pitch_pt = pitch / magnification
+    axis = np.linspace(-2 * pitch_pt, 2 * pitch_pt, 5)
+    y_pt, x_pt = np.meshgrid(axis, axis)
+
+    x_pts = list(x_pt.ravel())
+    y_pts = list(y_pt.ravel())[::-1]
+
+
 def find_image_shifts_frequency_domain(data, photosensor=0):
     """
     Register all image in an ISM ArrayDetectorDAta dataset, with a single step frequency domain

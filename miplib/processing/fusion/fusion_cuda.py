@@ -88,7 +88,7 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
             self.data.set_active_image(view, self.options.channel,
                                        self.options.scale, "registered")
 
-            weighting = float(self.data.get_max())/255
+            weighting = self.weights[idx]
             iterables = (xrange(0, m, n) for m, n in zip(self.image_size, self.block_size))
             pad = self.options.block_pad
             block_idx = tuple(slice(pad, pad + block) for block in self.block_size)
@@ -150,15 +150,15 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
                         # print "The block size is ", self.block_size
                         self.estimate_new[estimate_idx] += h_estimate_block_new[block_idx]
 
-        # Divide with the number of projections
-        if "summative" in self.options.fusion_method:
-            # self.estimate_new[:] = self.float_vmult(self.estimate_new,
-            #                                         self.scaler)
-            self.estimate_new *= (1.0 / self.n_views)
-        else:
-            self.estimate_new[self.estimate_new < 0] = 0
-            self.estimate_new[:] = ops_array.nroot(self.estimate_new,
-                                                   self.n_views)
+        # # Divide with the number of projections
+        # if "summative" in self.options.fusion_method:
+        #     # self.estimate_new[:] = self.float_vmult(self.estimate_new,
+        #     #                                         self.scaler)
+        #     self.estimate_new *= (1.0 / self.n_views)
+        # else:
+        #     self.estimate_new[self.estimate_new < 0] = 0
+        #     self.estimate_new[:] = ops_array.nroot(self.estimate_new,
+        #                                            self.n_views)
 
         # TV Regularization (doesn't seem to do anything miraculous).
         if self.options.rltv_lambda > 0 and self.iteration_count > 0:
