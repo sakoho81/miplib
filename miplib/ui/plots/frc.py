@@ -1,7 +1,7 @@
 import os
 
 import matplotlib.pyplot as plt
-plt.style.use("seaborn-paper")
+plt.style.use("seaborn-colorblind")
 
 import numpy as np
 import miplib.processing.ndarray as arrayops
@@ -74,7 +74,7 @@ def resolution_curves_subplot(ax, data_to_plot, x_idx=0, disable_ax_labels=False
     ax.plot(x_axis, y, linestyle='--', color='#b5b5b3')
 
     if not disable_ax_labels:
-        xlabel = r'Frequency ($1/\mu m$)'
+        xlabel = r'Frequency ($\mathrm{\mu m}^{-1}$)'
         ylabel = 'Correlation'
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
