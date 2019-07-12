@@ -34,7 +34,7 @@ Skip all the hassle above and install the *miplib* package through the Anaconda 
 
 # Regarding Python versions
 
-MIPLIB was originally developed in Python 2.7, which sadly, appears to approach its end of life. For that reason, I have made some preparations for migrating MIPLIB to Python 3, and in principle that should be feasible now. There were some problems with certain C extensions, that now should be compatible. When time allows, I will take a closer look.
+MIPLIB was developed in Python 2.7, which sadly, appears to approach its end of life. For that reason, I am currently working on migrating the library to Python 3. I am planning to move exclusively to Python 3, as soon as I get the library tested, and rewrite some parts of the code that don't seem to migrate well. 
 
 ## Publications
 
