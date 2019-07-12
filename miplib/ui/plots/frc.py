@@ -58,7 +58,7 @@ def resolution_curves_subplot(ax, data_to_plot, x_idx=0, disable_ax_labels=False
         angles.append((int(dataset[0])))
         datasets.append(dataset[1])
 
-    angles, datasets = zip(*sorted(zip(angles, datasets)))
+    angles, datasets = list(zip(*sorted(zip(angles, datasets))))
 
     # plot threshold
     dataset = datasets[x_idx]
@@ -142,7 +142,7 @@ class FourierDataPlotter(object):
             angles.append((int(dataset[0])))
             datasets.append(dataset[1])
 
-        angles, datasets = zip(*sorted(zip(angles, datasets)))
+        angles, datasets = list(zip(*sorted(zip(angles, datasets))))
 
         if custom_titles is None:
             titles = list("FRC @ angle %i" % angle for angle in angles)
@@ -175,7 +175,7 @@ class FourierDataPlotter(object):
             angles.append((int(dataset[0])))
             datasets.append(dataset[1])
 
-        angles, datasets = zip(*sorted(zip(angles, datasets)))
+        angles, datasets = list(zip(*sorted(zip(angles, datasets))))
 
         if custom_titles is None:
             titles = list("FRC @ angle %i" % angle for angle in angles)
@@ -223,7 +223,7 @@ class FourierDataPlotter(object):
             angles.append(degrees_to_radians(float(dataset[0])))
             radii.append(dataset[1].resolution["resolution"])
 
-        angles, radii = zip(*sorted(zip(angles, radii)))
+        angles, radii = list(zip(*sorted(zip(angles, radii))))
         angles = list(angles)
         radii = list(radii)
         angles.append(angles[0])
@@ -237,7 +237,7 @@ class FourierDataPlotter(object):
         r_ticks = np.linspace(0.1, 1.0, 5)
         r_ticks_scale = r_ticks * max(radii)
 
-        x_labels = map(lambda n: '%.2f' % n, r_ticks_scale)
+        x_labels = ['%.2f' % n for n in r_ticks_scale]
 
         ax.set_rticks(r_ticks)
         ax.set_yticklabels(x_labels)
@@ -264,7 +264,7 @@ class FourierDataPlotter(object):
             angles.append(degrees_to_radians(float(dataset[0])))
             radii.append(dataset[1].resolution["resolution"])
 
-        angles, radii = zip(*sorted(zip(angles, radii)))
+        angles, radii = list(zip(*sorted(zip(angles, radii))))
         angles = list(angles)
         radii = list(radii)
         angles.append(angles[0])
@@ -278,12 +278,12 @@ class FourierDataPlotter(object):
         r_ticks = np.linspace(0.1, 1.0, 5)
         r_ticks_scale = r_ticks * max(radii)
 
-        print r_ticks_scale
-        print max(radii)
+        print(r_ticks_scale)
+        print(max(radii))
 
-        x_labels = map(lambda n: '%.2f' % n, r_ticks_scale)
+        x_labels = ['%.2f' % n for n in r_ticks_scale]
 
-        print x_labels
+        print(x_labels)
         ax.set_rticks(r_ticks)
         ax.set_yticklabels(x_labels)
         ax.set_rlabel_position(-80)  # get radial labels away from plotted line
@@ -372,7 +372,7 @@ class FourierDataPlotter(object):
         ax.plot(x0, y0, 'ro', markersize=8, label='Resolution point', color='#D75725')
 
         verts = [(x0, 0), (x0, y0)]
-        xs, ys = zip(*verts)
+        xs, ys = list(zip(*verts))
 
         ax.plot(xs, ys, 'x--', lw=3, color='#D75725', ms=10)
         # ax.text(x0, y0 + 0.10, 'RESOL-FREQ', fontsize=12)
@@ -469,7 +469,7 @@ class FourierDataPlotter(object):
         ax.plot(x0, y0, 'ro', label='Resolution point', color='#D75725')
 
         verts = [(x0, 0), (x0, y0)]
-        xs, ys = zip(*verts)
+        xs, ys = list(zip(*verts))
 
         ax.plot(xs, ys, 'x--', color='#D75725', ms=10)
 

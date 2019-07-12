@@ -36,18 +36,18 @@ def main():
     data = image_data.ImageData(full_path)
 
     if options.scale not in data.get_scales("registered"):
-        print "Images at the defined scale do not exist in the data structure." \
+        print("Images at the defined scale do not exist in the data structure." \
               "The original images will be now resampled. This may take a long" \
-              "time depending on the image size and the number of views."
+              "time depending on the image size and the number of views.")
         data.create_rescaled_images("registered", options.scale)
 
     if data.get_number_of_images("psf") != data.get_number_of_images("registered"):
-        print "Some PSFs are missing. They are going to be calculated from the " \
-              "original STED PSF (that is assumed to be at index 0)."
+        print("Some PSFs are missing. They are going to be calculated from the " \
+              "original STED PSF (that is assumed to be at index 0).")
         data.calculate_missing_psfs()
 
     if not options.disable_cuda:
-        print "Trying to run the image fusion with GPU acceleration."
+        print("Trying to run the image fusion with GPU acceleration.")
         task = gpufusion.MultiViewFusionRLCuda(data, options)
     else:
         task = fusion.MultiViewFusionRL(data, options)
@@ -60,11 +60,11 @@ def main():
     if options.evaluate_results:
         task.show_result()
 
-    print "Fusion complete."
-    print "The fusion process with %i iterations " \
+    print("Fusion complete.")
+    print("The fusion process with %i iterations " \
           "took %s (H:M:S) to complete." % (options.max_nof_iterations,
                                             genutils.format_time_string(
-                                                end-begin))
+                                                end-begin)))
 
     if uiutils.get_user_input("Do you want to save the result to TIFF? "):
         file_path = os.path.join(options.working_directory,

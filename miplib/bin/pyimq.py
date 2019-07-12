@@ -83,7 +83,7 @@ def main():
     file_path = None
     csv_data = None
 
-    print "Mode option is %s" % options.mode
+    print("Mode option is %s" % options.mode)
 
     if "file" in options.mode:
         # In "file" mode a single file is analyzed and the various parameter
@@ -95,7 +95,7 @@ def main():
         assert os.path.isfile(path)
         image = read.get_image(path, channel=options.rgb_channel)
 
-        print "The shape is %s" % str(image.shape)
+        print("The shape is %s" % str(image.shape))
 
         task = filters.LocalImageQuality(image, options)
         task.set_smoothing_kernel_size(100)
@@ -103,16 +103,16 @@ def main():
         task2 = filters.FrequencyQuality(image, options)
         finfo = task2.analyze_power_spectrum()
 
-        print "SPATIAL MEASURES:"
-        print "The entropy value of %s is %f" % (path, entropy)
-        print "ANALYSIS OF THE POWER SPECTRUM TAIL"
-        print "The mean is: %e" % finfo[0]
-        print "The std is: %e" % finfo[1]
-        print "The entropy is %e" % finfo[2]
-        print "The threshold frequency is %f Hz" % finfo[3]
-        print "Power at high frequencies %e" % finfo[4]
-        print "The skewness is %f" % finfo[5]
-        print "The kurtosis is %f" % finfo[6]
+        print("SPATIAL MEASURES:")
+        print("The entropy value of %s is %f" % (path, entropy))
+        print("ANALYSIS OF THE POWER SPECTRUM TAIL")
+        print("The mean is: %e" % finfo[0])
+        print("The std is: %e" % finfo[1])
+        print("The entropy is %e" % finfo[2])
+        print("The threshold frequency is %f Hz" % finfo[3])
+        print("Power at high frequencies %e" % finfo[4])
+        print("The skewness is %f" % finfo[5])
+        print("The kurtosis is %f" % finfo[6])
 
     if "directory" in options.mode:
         # In directory mode every image in a given directory is analyzed in a
@@ -179,10 +179,10 @@ def main():
                 results.insert(0, os.path.join(path, image_name))
                 output_writer.writerow(results)
 
-                print "Done analyzing %s" % image_name
+                print("Done analyzing %s" % image_name)
 
         output_file.close()
-        print "The results were saved to %s" % file_path
+        print("The results were saved to %s" % file_path)
 
     if "analyze" in options.mode:
     # In analyze mode the previously created quality ranking variables are
@@ -193,7 +193,7 @@ def main():
             assert options.file is not None, "You have to specify a data file" \
                                              "with the --file option"
             path = os.path.join(options.working_directory, options.file)
-            print path
+            print(path)
             file_path = path
             assert os.path.isfile(path), "Not a valid file %s" % path
             assert path.endswith(".csv"), "Unknown suffix %s" % path.split(".")[-1]
@@ -222,7 +222,7 @@ def main():
         file_path = os.path.join(output_dir, file_name)
 
         csv_data.to_csv(file_path)
-        print "The results were saved to %s" % file_path
+        print("The results were saved to %s" % file_path)
 
     if "plot" in options.mode:
     # With the plot option the dataset is sorted according to the desired ranking variable.
@@ -256,7 +256,7 @@ def main():
         elif options.result == "meanbin":
             csv_data.sort(columns="MeanBinNorm", ascending=False, inplace=True)
         else:
-            print "Unknown results sorting method %s" % options.result
+            print("Unknown results sorting method %s" % options.result)
             sys.exit()
 
         best_pics = csv_data["Filename"].head(options.npics).as_matrix()

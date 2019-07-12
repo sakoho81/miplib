@@ -34,7 +34,7 @@ def make_template_image(data, imagesz=250):
     for gate in range(data.ngates):
         image = np.zeros((imagesz, imagesz))
         idx = 0
-        for x, y in itertools.product(xrange(0, imagesz, blocksz), xrange(0, imagesz, blocksz)):
+        for x, y in itertools.product(range(0, imagesz, blocksz), range(0, imagesz, blocksz)):
             pixel_index = gate*data.ndetectors + idx
             image[x:x + blocksz, y:y + blocksz] = pixels[pixel_index]
             idx += 1

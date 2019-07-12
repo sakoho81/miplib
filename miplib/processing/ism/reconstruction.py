@@ -120,7 +120,7 @@ def shift_and_sum(data, transforms, photosensor=0, detectors=None, supersampling
         output = Image(np.zeros(data[photosensor, 0].shape, dtype=np.float64), data[photosensor, 0].spacing)
 
     if detectors is None:
-        detectors = range(data.ndetectors)
+        detectors = list(range(data.ndetectors))
 
     for i in detectors:
         image = itk.resample_image(
@@ -172,7 +172,7 @@ def sum(data, photosensor=0, detectors=None):
     assert isinstance(data, ArrayDetectorData)
 
     if detectors is None:
-        detectors = range(data.ndetectors)
+        detectors = list(range(data.ndetectors))
 
     result = np.zeros(data[0,0].shape, dtype=np.float64)
 

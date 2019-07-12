@@ -38,10 +38,10 @@ def main():
 
     # Check that requested image size exists. If not, create it.
     if options.scale not in data.get_scales("original"):
-        print "Images at the defined scale do not exist in the data " \
+        print("Images at the defined scale do not exist in the data " \
               "structure. The original images will be now resampled. " \
               "This may take a long time depending on the image size " \
-              "and the number of views."
+              "and the number of views.")
         data.create_rescaled_images("original", options.scale)
 
     data.set_active_image(0, options.channel, options.scale, "original")
@@ -83,7 +83,7 @@ def main():
                         "registration?" % view):
                     continue
                 else:
-                    print "Exiting registration without saving results"
+                    print("Exiting registration without saving results")
                     break
         else:
             task.save_result()

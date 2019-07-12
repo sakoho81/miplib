@@ -84,8 +84,8 @@ class ImageData(object):
 
         # Zoom axial dimension for isotropic pixel size.
         if data.ndim == 3 and spacing[0] != spacing[1]:
-            print "Image index %s needs to be resampled for isotropic spacing." \
-                  "This will take a minute" % index
+            print("Image index %s needs to be resampled for isotropic spacing." \
+                  "This will take a minute" % index)
             z_zoom = spacing[0] / spacing[1]
             data = ndimage.zoom(data, (z_zoom, 1, 1), order=3)
             spacing = tuple(spacing[x] if x != 0 else spacing[x]/z_zoom for x in range(len(spacing)))
@@ -376,13 +376,13 @@ class ImageData(object):
         # Check that the registration result for the specified scale
         # exists.
         assert from_scale in self.get_scales("registered")
-        print "Copying registration results from %i to %i percent scale" % (
-              from_scale, to_scale)
+        print("Copying registration results from %i to %i percent scale" % (
+              from_scale, to_scale))
         if to_scale not in self.get_scales("original"):
             self.create_rescaled_images("original", to_scale)
 
         for channel in range(self.channel_count):
-            print "Resampling view 0"
+            print("Resampling view 0")
             self.set_active_image(0, channel, to_scale, "original")
             self.add_registered_image(self.data[self.active_image][:], to_scale,
                                       0, channel, 0, self.get_voxel_size())
@@ -390,7 +390,7 @@ class ImageData(object):
             reference = self.get_itk_image()
 
             for view in range(1, self.get_number_of_images("original")):
-                print "Resampling view %i" % view
+                print("Resampling view %i" % view)
                 self.set_active_image(view, channel, from_scale, "registered")
                 transform = self.get_transform()
                 transform_params = self.get_transform_parameters()
@@ -553,10 +553,10 @@ class ImageData(object):
         :param image_type   Image type as a string, listed in image_types_c
         """
         if int(index) >= self.series_count:
-            print "Invalid index. There are only %i images in the file" % self.series_count
+            print("Invalid index. There are only %i images in the file" % self.series_count)
             return
         elif image_type not in image_types_c:
-            print "Unkown image type."
+            print("Unkown image type.")
             return
         else:
             if image_type == "fused":

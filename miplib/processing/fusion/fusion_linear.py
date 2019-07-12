@@ -8,7 +8,7 @@ def wiener_fusion(data, options, gate=0, scale=100, views=None):
     assert isinstance(data, ImageData)
 
     if views is None:
-        views = range(data.get_number_of_images("registered"))
+        views = list(range(data.get_number_of_images("registered")))
 
     result = np.zeros(data.get_image_size(), dtype=np.float32)
     for idx in views:

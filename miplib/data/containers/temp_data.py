@@ -178,6 +178,6 @@ class RowFile:
         Close row file.
         """
         if self.file is not None:
-            print 'Closing ',self.filename
+            print('Closing ',self.filename)
             self.file.close ()
             self.file = None
