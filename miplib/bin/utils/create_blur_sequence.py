@@ -15,7 +15,7 @@ from scipy import ndimage, misc
 
 def main():
     if len(sys.argv) < 2 or not os.path.isfile(sys.argv[1]):
-        print "Please specify a path to an image file"
+        print("Please specify a path to an image file")
         sys.exit(1)
 
     original = misc.imread(sys.argv[1], mode='P')

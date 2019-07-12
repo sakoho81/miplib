@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.ndimage import interpolation
 
-import ndarray
+from . import ndarray
 from miplib.data.containers.image import Image
 
 
@@ -32,7 +32,7 @@ def zoom_to_spacing(image, spacing, order=3):
     assert image.ndim == len(spacing)
 
     zoom = tuple(i/j for i, j in zip(image.spacing, spacing))
-    print "The zoom is ", zoom
+    print("The zoom is ", zoom)
 
     array = interpolation.zoom(image, zoom, order=order)
 
@@ -52,7 +52,7 @@ def resize(image, size, order=3):  # type: (Image, tuple) -> Image
     assert isinstance(image, Image)
 
     zoom = [float(a) / b for a, b in zip(size, image.shape)]
-    print "The zoom is %s" % zoom
+    print("The zoom is %s" % zoom)
 
     array = interpolation.zoom(image, tuple(zoom), order=order)
     spacing = tuple(i / j for i, j in zip(image.spacing, zoom))

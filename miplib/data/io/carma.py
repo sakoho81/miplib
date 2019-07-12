@@ -18,7 +18,7 @@ def read_carma_mat(filename):
     data = loadmat(filename)
 
     # Find measurement name (in case someone renamed the file)
-    for key in data.keys():
+    for key in list(data.keys()):
         if 'meas_' in key:
             data = data[key]
             break

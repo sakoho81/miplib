@@ -1,5 +1,5 @@
 import numpy
-import pyculib
+from functools import reduce
 
 def nroot(array, n):
     """
@@ -29,7 +29,7 @@ def float2dtype(float_type):
         return numpy.float32
     if float_type == 'double':
         return numpy.float64
-    raise NotImplementedError (`float_type`)
+    raise NotImplementedError (repr(float_type))
 
 
 def contract_to_shape(data, shape):
@@ -86,7 +86,7 @@ def expand_to_shape(data, shape, dtype=None, background=None):
         try:
             expanded_data[tuple(slices)] = data[tuple(rhs_slices)]
         except ValueError:
-            print data.shape, shape
+            print(data.shape, shape)
             raise
         return expanded_data
     else:
@@ -104,7 +104,7 @@ def float2dtype(float_type):
         return numpy.float32
     if float_type == 'double':
         return numpy.float64
-    raise NotImplementedError(`float_type`)
+    raise NotImplementedError(repr(float_type))
 
 def cast_to_dtype(data, dtype, rescale=True, remove_outliers=False):
     """
@@ -140,8 +140,8 @@ def cast_to_dtype(data, dtype, rescale=True, remove_outliers=False):
     else:
         data_max = data.max()
         data_min = data.min()
-        print "Warning casting into unknown data type. Detail clipping" \
-              "may occur"
+        print("Warning casting into unknown data type. Detail clipping" \
+              "may occur")
 
     # In case of unsigned integers, numbers below zero need to be clipped
     if 'uint' in str(dtype):
@@ -174,14 +174,6 @@ def rescale_to_min_max(data, data_min, data_max):
         return data_max / data.max() * data
     else:
         return data_min / data.min() * data
-
-
-def fft(array, cuda=False): # type: (numpy.ndarray, bool) -> numpy.ndarray
-    if cuda:
-        return numpy.fft.fftshift(pyculib.fft_inplace(array.astype('complex64')))
-    else:
-        return numpy.fft.fftshift(numpy.fft.rfftn(array))
-
 
 def safe_divide(numerator, denominator):
     """

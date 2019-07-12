@@ -42,7 +42,7 @@ def main():
         save_path = os.path.join(path, output_dir)
         save_path = os.path.join(save_path, save_name)
         write.image(image_sub, save_path)
-        print "Saved %s to %s" % (save_name, save_path)
+        print("Saved %s to %s" % (save_name, save_path))
 
 if __name__ == "__main__":
     main()

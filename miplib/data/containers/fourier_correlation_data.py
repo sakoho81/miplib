@@ -26,9 +26,9 @@ class FourierCorrelationDataCollection(object):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         try:
-            item = self._data.items()[self.iter_index]
+            item = list(self._data.items())[self.iter_index]
         except IndexError:
             self.iter_index = 0
             raise StopIteration
@@ -43,7 +43,7 @@ class FourierCorrelationDataCollection(object):
         self._data.clear()
 
     def items(self):
-        return self._data.items()
+        return list(self._data.items())
 
     def nitems(self):
         return len(self._data)
@@ -59,7 +59,7 @@ class FourierCorrelationDataCollection(object):
         """
         df = pd.DataFrame(columns=['Correlation', 'Frequency', 'nPoints', 'Angle'])
 
-        for key, dataset in self._data.iteritems():
+        for key, dataset in self._data.items():
             df_temp = dataset.as_dataframe(include_results=include_results)
 
             angle = np.full(len(df_temp), int(key), dtype=np.int64)
@@ -91,7 +91,7 @@ class FourierCorrelationData(object):
         if data is not None:
             assert isinstance(data, dict)
 
-            for key, value in data.iteritems():
+            for key, value in data.items():
                 if key in self.resolution.keys:
                     self.resolution[key] = value
                 elif key in self.correlation.keys:

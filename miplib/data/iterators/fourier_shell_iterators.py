@@ -49,7 +49,7 @@ class FourierShellIterator(object):
 
         return arr_inf*arr_sup
 
-    def __getitem__(self, (shell_start, shell_stop)):
+    def __getitem__(self, limits):
         """
         Get a points on a Fourier shell specified by the start and stop coordinates
 
@@ -59,14 +59,14 @@ class FourierShellIterator(object):
         :return:            Returns the coordinates of the points that are located on
                             the specified shell
         """
-
+        (shell_start, shell_stop) = limits
         shell = self.get_points_on_shell(shell_start, shell_stop)
         return np.where(shell)
 
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
 
         shell_idx = self.current_shell
 
@@ -135,7 +135,7 @@ class ConicalFourierShellIterator(FourierShellIterator):
 
         return arr_inf * arr_sup + arr_inf_neg * arr_sup_neg
 
-    def __getitem__(self, (shell_start, shell_stop, angle_min, angle_max)):
+    def __getitem__(self, limits):
         """
         Get a single conical section of a 3D shell.
 
@@ -147,7 +147,7 @@ class ConicalFourierShellIterator(FourierShellIterator):
                             the portion of a shell that intersects with the points on the
                             cone.
         """
-
+        (shell_start, shell_stop, angle_min, angle_max) = limits
         angle_min = converters.degrees_to_radians(angle_min)
         angle_max = converters.degrees_to_radians(angle_max)
 
@@ -156,7 +156,7 @@ class ConicalFourierShellIterator(FourierShellIterator):
 
         return np.where(shell*cone)
 
-    def next(self):
+    def __next__(self):
 
         rotation_idx = self.current_rotation
         shell_idx = self.current_shell
@@ -342,7 +342,7 @@ class RotatingFourierShellIterator(FourierShellIterator):
     def steps(self):
         return self.radii, self.angles
 
-    def __getitem__(self, (shell_start, shell_stop, angle)):
+    def __getitem__(self, limits):
         """
         Get a single conical section of a 3D shell.
 
@@ -350,7 +350,7 @@ class RotatingFourierShellIterator(FourierShellIterator):
         :param shell_stop:  The end of the shell
         :param angle:
         """
-
+        (shell_start, shell_stop, angle) = limits
         rotated_plane = itkutils.convert_from_itk_image(
             itkutils.rotate_image(self.plane, angle))
 
@@ -359,7 +359,7 @@ class RotatingFourierShellIterator(FourierShellIterator):
 
         return np.where(points_on_plane * points_on_shell)
 
-    def next(self):
+    def __next__(self):
 
         rotation_idx = self.current_rotation + 1
         shell_idx = self.current_shell

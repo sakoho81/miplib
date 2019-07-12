@@ -230,7 +230,7 @@ def show_pics_from_disk(filenames, title="Image collage"):
         while k < len(filenames):
             j = 0
             while j < subplots.shape[1] and k < len(filenames):
-                print filenames[i + j]
+                print(filenames[i + j])
                 subplots[i, j].imshow(plt.imread(filenames[k]), cmap='hot')
                 subplots[i, j].set_title(os.path.basename(filenames[k]))
                 subplots[i, j].axis("off")

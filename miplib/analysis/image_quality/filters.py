@@ -24,7 +24,7 @@ import numpy
 from matplotlib import pyplot as plt
 from scipy import ndimage, fftpack, stats
 
-import utils
+from . import utils
 from miplib.data.containers.image import Image
 from miplib.processing import image as imutils
 from miplib.data.iterators.fourier_ring_iterators import FourierRingIterator
@@ -125,7 +125,7 @@ class LocalImageQuality(Filter):
         elif isinstance(size, float) or isinstance(size, int):
             sizes = [size, ] * len(self.spacing)
         else:
-            print "Unknown size type"
+            print("Unknown size type")
             return
 
         if self.physical is True:

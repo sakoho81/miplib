@@ -1,4 +1,4 @@
-from image import Image
+from .image import Image
 
 
 class ArrayDetectorData(object):
@@ -60,7 +60,7 @@ class ArrayDetectorData(object):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         if self.gate_idx < self._nGates and self.detector_idx < self._nDetectors:
             data = self._data_container[self.gate_idx][self.detector_idx]
             if self._iteration_axis == 'detectors':

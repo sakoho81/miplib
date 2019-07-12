@@ -32,7 +32,7 @@ import miplib.processing.ndarray as ops_array
 import miplib.processing.to_string as ops_output
 from miplib.data.containers import image_data, image
 from miplib.data.containers.image import Image
-import utils as fusion_utils
+from . import utils as fusion_utils
 
 
 class MultiViewFusionRL(object):
@@ -56,7 +56,7 @@ class MultiViewFusionRL(object):
 
         # Select views to fuse
         if self.options.fuse_views == -1:
-            self.views = xrange(self.data.get_number_of_images("registered"))
+            self.views = range(self.data.get_number_of_images("registered"))
         else:
             self.views = self.options.fuse_views
 
@@ -80,7 +80,7 @@ class MultiViewFusionRL(object):
         self.image_size = self.data.get_image_size()
         self.imdims = len(self.image_size)
 
-        print "The original image size is {}".format(tuple(self.image_size))
+        print("The original image size is {}".format(tuple(self.image_size)))
 
         self.voxel_size = self.data.get_voxel_size()
         self.iteration_count = 0
@@ -123,9 +123,9 @@ class MultiViewFusionRL(object):
         else:
             pass
 
-        print "The fusion will be run with %i blocks" % self.num_blocks
+        print("The fusion will be run with %i blocks" % self.num_blocks)
         padded_block_size = tuple(i + 2 * self.options.block_pad for i in self.block_size)
-        print "The internal block size is %s" % (padded_block_size,)
+        print("The internal block size is %s" % (padded_block_size,))
 
         self.column_headers = ('t', 'tau1', 'leak', 'e',
                                's', 'u', 'n', 'uesu')
@@ -142,7 +142,7 @@ class MultiViewFusionRL(object):
         function -- it is used internally by the class during fusion process.
         """
 
-        print 'Beginning the computation of the %i. estimate' % self.iteration_count
+        print('Beginning the computation of the %i. estimate' % self.iteration_count)
 
         if "multiplicative" in self.options.fusion_method:
             self.estimate_new[:] = numpy.float32(1.0)
@@ -162,7 +162,7 @@ class MultiViewFusionRL(object):
             #weighting = float(self.data.get_max()) / 255
             weighting = self.weights[idx]
 
-            iterables = (xrange(0, m, n) for m, n in zip(self.image_size, self.block_size))
+            iterables = (range(0, m, n) for m, n in zip(self.image_size, self.block_size))
             pad = self.options.block_pad
             cache_idx = tuple(slice(pad, pad + block) for block in self.block_size)
 
@@ -227,7 +227,7 @@ class MultiViewFusionRL(object):
         This is the main fusion function
         """
 
-        print "Preparing image fusion."
+        print("Preparing image fusion.")
 
         save_intermediate_results = self.options.save_intermediate_results
 
@@ -310,7 +310,7 @@ class MultiViewFusionRL(object):
                 info_map['TIME=%ss'] = t
                 bar.updateComment(' ' + ', '.join([k % (ops_output.tostr(info_map[k])) for k in sorted(info_map)]))
                 bar(self.iteration_count)
-                print
+                print()
 
                 # Save parameters to file
                 self._progress_parameters[self.iteration_count - 1] = (t, tau1, leak, e, s, u, n, u_esu)
@@ -338,10 +338,10 @@ class MultiViewFusionRL(object):
         # if self.num_blocks > 1:
         #     self.estimate = self.estimate[0:real_size[0], 0:real_size[1], 0:real_size[2]]
 
-        print
+        print()
         bar.updateComment(' ' + stop_message)
         bar(self.iteration_count)
-        print
+        print()
 
     # region Prepare PSFs
     def __get_psfs(self):
@@ -379,11 +379,11 @@ class MultiViewFusionRL(object):
         Methods 11/6 (2014)
         """
 
-        print "Caclulating Virtual PSFs"
+        print("Caclulating Virtual PSFs")
 
-        for i in xrange(self.n_views):
+        for i in range(self.n_views):
             virtual_psf = numpy.ones(self.psfs[0].shape, dtype=self.psfs[0].dtype)
-            for j in xrange(self.n_views):
+            for j in range(self.n_views):
                 if j == i:
                     pass
                 else:

@@ -194,9 +194,9 @@ def rotate_psf(psf, transform, spacing=None, return_numpy=False):
     imdims = image.GetSize()
     imspacing = image.GetSpacing()
 
-    center = map(
+    center = list(map(
         lambda size, spacing: spacing * size / 2, imdims, imspacing
-    )
+    ))
 
     transform.SetFixedParameters(center)
 
@@ -231,9 +231,9 @@ def resample_to_isotropic(itk_image):
     spacing = itk_image.GetSpacing()
 
     if len(spacing) != 3:
-        print "The function resample_to_isotropic(itk_image, image_type) is" \
+        print("The function resample_to_isotropic(itk_image, image_type) is" \
               "intended for processing 3D images. The input image has %d " \
-              "dimensions" % len(spacing)
+              "dimensions" % len(spacing))
         return
 
     scaling = spacing[2]/spacing[0]
@@ -274,7 +274,7 @@ def rescale_intensity(image):
         method.SetOutputMinimum(0)
         method.SetOutputMaximum(255)
     else:    
-        print "The rescale intensity filter has not been implemented for ", image_type
+        print("The rescale intensity filter has not been implemented for ", image_type)
         return image
     
     # TODO: Add pixel type check that is needed to check the bounds of re-scaling
@@ -417,10 +417,10 @@ def calculate_center_of_image(image, center_of_mass=False):
         center = scipy.ndimage.center_of_mass(np_image)
         center *= numpy.array(spacing)
     else:
-        center = map(
+        center = list(map(
             lambda size, spacing: spacing * size / 2,
             imdims, imspacing
-        )
+        ))
     return center
 
 

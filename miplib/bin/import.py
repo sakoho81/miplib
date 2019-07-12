@@ -70,7 +70,7 @@ def main():
     directory = options.data_dir_path
 
     # Create a new HDF5 file. If a file exists, new data will be appended.
-    file_name = raw_input("Give a name for the HDF5 file: ")
+    file_name = input("Give a name for the HDF5 file: ")
     file_name += ".hdf5"
     data_path = os.path.join(directory, file_name)
     data = image_data.ImageData(data_path)
@@ -89,7 +89,7 @@ def main():
             images = (images * (255.0/images.max())).astype(numpy.uint8)
 
         if not all(x in image_name for x in params_c) or not any(x in image_name for x in image_types_c):
-            print "Unrecognized image name %s. Skipping it." % image_name
+            print("Unrecognized image name %s. Skipping it." % image_name)
             continue
 
         image_type = image_name.split("_scale")[0]
@@ -111,7 +111,7 @@ def main():
     # Calculate resampled images
     if options.scales is not None:
         for scale in options.scales:
-            print "Creating %s percent downsampled versions of the original images" % scale
+            print("Creating %s percent downsampled versions of the original images" % scale)
             data.create_rescaled_images("original", scale)
 
     # Add transforms for registered images.
@@ -120,7 +120,7 @@ def main():
             continue
 
         if not all(x in transform_name for x in params_c) or not "transform" in transform_name:
-            print "Unrecognized transform name %s. Skipping it." % transform_name
+            print("Unrecognized transform name %s. Skipping it." % transform_name)
             continue
 
         scale = transform_name.split("scale_")[-1].split("_index")[0]
@@ -132,7 +132,7 @@ def main():
 
         # First calculate registered image if not in the data structure
         if not data.check_if_exists("registered", index, channel, scale):
-            print "Resampling registered image for image nr. ", index
+            print("Resampling registered image for image nr. ", index)
             data.set_active_image(0, channel, scale, "original")
             reference = data.get_itk_image()
             data.set_active_image(index, channel, scale, "original")

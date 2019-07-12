@@ -21,7 +21,7 @@ import miplib.processing.ops_ext as ops_ext
 from numba import cuda, vectorize
 from pyculib.fft import FFTPlan, fft_inplace, ifft_inplace
 
-import deconvolve
+from . import deconvolve
 import miplib.processing.ndarray as ops_array
 
 
@@ -59,7 +59,7 @@ class DeconvolutionRLCuda(deconvolve.DeconvolutionRL):
         FFTPlan(padded_block_size, itype=numpy.complex64, otype=numpy.complex64)
 
 
-        print('Optimal kernel config: %s x %s' % (blockpergrid, threadpergpublock))
+        print(('Optimal kernel config: %s x %s' % (blockpergrid, threadpergpublock)))
 
         self.__get_fourier_psfs()
 
@@ -68,8 +68,8 @@ class DeconvolutionRLCuda(deconvolve.DeconvolutionRL):
             Calculates a single RL fusion estimate. There is no reason to call this
             function -- it is used internally by the class during fusion process.
         """
-        print 'Beginning the computation of the %i. estimate' % \
-              (self.iteration_count + 1)
+        print('Beginning the computation of the %i. estimate' % \
+              (self.iteration_count + 1))
 
         self.estimate_new[:] = numpy.zeros(self.image_size, dtype=numpy.float32)
 
@@ -77,7 +77,7 @@ class DeconvolutionRLCuda(deconvolve.DeconvolutionRL):
         stream1 = cuda.stream()
         stream2 = cuda.stream()
 
-        iterables = (xrange(0, m, n) for m, n in zip(self.image_size, self.block_size))
+        iterables = (range(0, m, n) for m, n in zip(self.image_size, self.block_size))
         pad = self.options.block_pad
         block_idx = tuple(slice(pad, pad + block) for block in self.block_size)
 
@@ -181,7 +181,7 @@ class DeconvolutionRLCuda(deconvolve.DeconvolutionRL):
         """
         Pre-calculates the PSFs during image fusion process.
         """
-        print "Pre-calculating PSFs"
+        print("Pre-calculating PSFs")
 
         psf = self.psf[:]
         if self.imdims == 3:

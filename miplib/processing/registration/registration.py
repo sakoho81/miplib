@@ -103,7 +103,7 @@ def itk_registration_rigid_3d(fixed_image, moving_image, options):
     :return:
                             The final transform as a sitk.Euler2DTransform
     """
-    print 'Setting up registration job'
+    print('Setting up registration job')
 
     assert isinstance(fixed_image, sitk.Image)
     assert isinstance(moving_image, sitk.Image)
@@ -175,11 +175,11 @@ def itk_registration_rigid_3d(fixed_image, moving_image, options):
     # START
     # ========================================================================
 
-    print "Starting registration"
+    print("Starting registration")
     final_transform = registration.Execute(fixed_image, moving_image)
 
-    print('Final metric value: {0}'.format(registration.GetMetricValue()))
-    print('Optimizer\'s stopping condition, {0}'.format(registration.GetOptimizerStopConditionDescription()))
+    print(('Final metric value: {0}'.format(registration.GetMetricValue())))
+    print(('Optimizer\'s stopping condition, {0}'.format(registration.GetOptimizerStopConditionDescription())))
 
     if options.reg_enable_observers:
         end_plot(fixed_image, moving_image, final_transform)
@@ -201,7 +201,7 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
     :return:
                             The final transform as a sitk.Euler2DTransform
     """
-    print 'Setting up registration job'
+    print('Setting up registration job')
 
     assert isinstance(fixed_image, sitk.Image)
     assert isinstance(moving_image, sitk.Image)
@@ -252,7 +252,7 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
         tx = sitk.Euler2DTransform()
         tx.SetAngle(options.set_rotation)
         if options.initializer:
-            print 'Calculating initial registration parameters'
+            print('Calculating initial registration parameters')
             transform = sitk.CenteredTransformInitializer(
                 fixed_image,
                 moving_image,
@@ -275,11 +275,11 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
     # START
     # ========================================================================
 
-    print "Starting registration"
+    print("Starting registration")
     final_transform = registration.Execute(fixed_image, moving_image)
 
-    print('Final metric value: {0}'.format(registration.GetMetricValue()))
-    print('Optimizer\'s stopping condition, {0}'.format(registration.GetOptimizerStopConditionDescription()))
+    print(('Final metric value: {0}'.format(registration.GetMetricValue())))
+    print(('Optimizer\'s stopping condition, {0}'.format(registration.GetOptimizerStopConditionDescription())))
 
     if options.reg_enable_observers:
         end_plot(fixed_image, moving_image, final_transform)
@@ -305,7 +305,7 @@ def itk_registration_similarity_2d(fixed_image, moving_image, options):
 
     :return:                The final transform as a sitk.Similarity2DTransform
     """
-    print 'Setting up registration job'
+    print('Setting up registration job')
 
     assert isinstance(fixed_image, sitk.Image)
     assert isinstance(moving_image, sitk.Image)
@@ -349,7 +349,7 @@ def itk_registration_similarity_2d(fixed_image, moving_image, options):
     else:
         raise ValueError("Unknown metric: %s" % options.registration_method)
 
-    print 'Calculating initial registration parameters'
+    print('Calculating initial registration parameters')
     tx = sitk.Similarity2DTransform()
     tx.SetAngle(options.set_rotation)
     tx.SetScale(options.set_scale)
@@ -376,11 +376,11 @@ def itk_registration_similarity_2d(fixed_image, moving_image, options):
     # START
     # ========================================================================
 
-    print "Starting registration"
+    print("Starting registration")
     final_transform = registration.Execute(fixed_image, moving_image)
 
-    print('Final metric value: {0}'.format(registration.GetMetricValue()))
-    print('Optimizer\'s stopping condition, {0}'.format(registration.GetOptimizerStopConditionDescription()))
+    print(('Final metric value: {0}'.format(registration.GetMetricValue())))
+    print(('Optimizer\'s stopping condition, {0}'.format(registration.GetOptimizerStopConditionDescription())))
 
     end_plot(fixed_image, moving_image, final_transform)
 
@@ -402,7 +402,7 @@ def itk_registration_affine_2d(fixed_image, moving_image, options):
 
     :return:                The final transform as a sitk.Similarity2DTransform
     """
-    print 'Setting up registration job'
+    print('Setting up registration job')
 
     assert isinstance(fixed_image, sitk.Image)
     assert isinstance(moving_image, sitk.Image)
@@ -446,7 +446,7 @@ def itk_registration_affine_2d(fixed_image, moving_image, options):
     else:
         raise ValueError("Unknown metric: %s" % options.registration_method)
 
-    print 'Calculating initial registration parameters'
+    print('Calculating initial registration parameters')
     tx = sitk.AffineTransform()
 
 
@@ -472,11 +472,11 @@ def itk_registration_affine_2d(fixed_image, moving_image, options):
     # START
     # ========================================================================
 
-    print "Starting registration"
+    print("Starting registration")
     final_transform = registration.Execute(fixed_image, moving_image)
 
-    print('Final metric value: {0}'.format(registration.GetMetricValue()))
-    print('Optimizer\'s stopping condition, {0}'.format(registration.GetOptimizerStopConditionDescription()))
+    print(('Final metric value: {0}'.format(registration.GetMetricValue())))
+    print(('Optimizer\'s stopping condition, {0}'.format(registration.GetOptimizerStopConditionDescription())))
 
     end_plot(fixed_image, moving_image, final_transform)
 
@@ -505,7 +505,7 @@ def phase_correlation_registration(fixed_image, moving_image, subpixel=100, verb
 
     scaled_shifts = list(-offset * spacing for offset, spacing in zip(shift, fixed_image.spacing))
     if verbose:
-        print("Detected offset (y, x): {}".format(scaled_shifts))
+        print(("Detected offset (y, x): {}".format(scaled_shifts)))
 
     resampled = np.abs(np.fft.ifftn(fourier_shift(np.fft.fftn(moving_image),
                                                   shift)).real)

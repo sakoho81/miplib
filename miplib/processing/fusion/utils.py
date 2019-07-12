@@ -40,7 +40,7 @@ def simple_fusion(data_structure, channel=0, scale=100):
 
     result = data_structure[:]
 
-    for i in xrange(1, n_views):
+    for i in range(1, n_views):
         data_structure.set_active_image(i, channel, scale, image_type)
         result = (result - (result - data_structure[:]).clip(min=0)).clip(min=0).astype(np.float32)
 
