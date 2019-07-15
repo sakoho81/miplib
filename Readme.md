@@ -40,9 +40,10 @@ MIPLIB was developed in Python 2.7, which sadly, appears to approach its end of 
 
 Here are some works that have been made possible by the MIPLIB (and its predecessors):
 
-Koho, S. V. *et al.* Easy Two-Photon Image Scanning Microscopy with SPAD Array and Blind Image Reconstruction. *biorxiv* doi:10.1101/563288
 
-Koho, S. V. *et al.* Fourier ring correlation simplifies image restoration in fluorescence microscopy. *bioRxiv* 535583 (2019). doi:10.1101/535583
+**Koho, S. *et al.* Fourier ring correlation simplifies image restoration in fluorescence microscopy. Nat. Commun. 10 3103 (2019).**
+
+Koho, S. V. *et al.* Easy Two-Photon Image Scanning Microscopy with SPAD Array and Blind Image Reconstruction. *biorxiv* doi:10.1101/563288
 
 Koho, S., T. Deguchi, and P. E. E. Hänninen. 2015. “A Software Tool for Tomographic Axial Superresolution in STED Microscopy.” Journal of Microscopy 260 (2): 208–18.
 
