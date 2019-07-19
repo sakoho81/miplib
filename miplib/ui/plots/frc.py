@@ -61,7 +61,7 @@ def resolution_curves_subplot(ax, data_to_plot, x_idx=0, disable_ax_labels=False
     angles, datasets = list(zip(*sorted(zip(angles, datasets))))
 
     # plot threshold
-    dataset = datasets[x_idx]
+    dataset = datasets[int(x_idx)]
 
     y = dataset.resolution["threshold"]
     x = dataset.correlation["frequency"]
