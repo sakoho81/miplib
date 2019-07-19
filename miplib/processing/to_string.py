@@ -142,7 +142,7 @@ class ProgressBar:
             percentPlace = (len(self.progBar) / 2) - len(str(percentDone))
             percentString = str(percentDone) + "%"
         else:
-            percentPlace = (len(self.progBar) / 2) - len(str(percentDone))
+            percentPlace = int((len(self.progBar) / 2) - len(str(percentDone)))
             percentString = '%s/%s' % (self.amount, self.span)
         # slice the percentage into the bar
         self.progBar = ''.join([self.progBar[0:percentPlace], percentString,

@@ -937,7 +937,7 @@ static PyObject *fourier_sphere(PyObject *self, PyObject *args)
   if (eps>1.0) // eps specifies peridicity count
     {
       eps = 2e-4 * pow(eps,-2.0/3.0) / min3(r[0]*r[0],r[1]*r[1],r[2]*r[2]);
-      CALL_WRITE((write_func,PyString_FromString("fourier_sphere: using eps = %.5e\n\n"), PyFloat_FromDouble(eps), NULL));
+      CALL_WRITE((write_func,PyUnicode_FromString("fourier_sphere: using eps = %.5e\n\n"), PyFloat_FromDouble(eps), NULL));
     }
   result = PyArray_SimpleNew(3, dims, PyArray_FLOAT64);
   r[0] *= M_PI;
@@ -1011,15 +1011,15 @@ static PyObject *fourier_sphere(PyObject *self, PyObject *args)
 	    }
 	  eta = (clock() - start_clock) * (total/(count+0.0)-1.0) / CLOCKS_PER_SEC;
 	  CALL_WRITE((write_func,  
-		      PyString_FromString("\rfourier_sphere: %6.2f%% done (%d), ETA:%4.1fs"),
+		      PyUnicode_FromString("\rfourier_sphere: %6.2f%% done (%d), ETA:%4.1fs"),
 		      PyFloat_FromDouble((count*100.0)/total),
-		      PyInt_FromLong(pcount),
+		      PyLong_FromLong(pcount),
 		      PyFloat_FromDouble(eta),
 		      NULL));
 	}
     }
   *((npy_float64*)PyArray_GETPTR3(result, 0, 0, 0)) = 1.0; // normalize sum(sphere) to 1.0
-  CALL_WRITE((write_func, PyString_FromString("\n"), NULL));
+  CALL_WRITE((write_func, PyUnicode_FromString("\n"), NULL));
   return Py_BuildValue("N", result);
 }
 
@@ -1120,7 +1120,7 @@ initops_ext(void)
 
     {
 #if PY_MAJOR_VERSION < 3
-    PyObject *s = PyString_FromString(_VERSION_);
+    PyObject *s = PyUnicode_FromString(_VERSION_);
 #else
     PyObject *s = PyUnicode_FromString(_VERSION_);
 #endif
