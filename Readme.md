@@ -28,6 +28,10 @@ I would recommend going with the *Anaconda* Python distribution, as it removes a
 
 Skip all the hassle above and install the *miplib* package through the Anaconda with ```conda install …``` (coming up)
 
+## How do I use it?
+
+Pleas look for updates in the Examples/ folder (a work in progress). Let me know if you would be interested in some specific example to be included.
+
 ## Contribute?
 
 *MIPLIB* was born as a combination of several previously separate libraries. The code and structure, although working, might (does) not in all places make sense. Any suggestions for improvements, new features etc. are welcome. 
