@@ -2,20 +2,23 @@ name: miplib
 
 dependencies:
   - python=2.7
-  - numpy
+  - numpy=1.13.0
   - scipy
   - h5py
   - SimpleItk
   - matplotlib
-  - numba
   - pyculib
   - pandas
   - pims
   - jpype1
   - notebook
   - scikit-image
+  - cudatoolkit=7.5
+  - numba=0.39
+
 
 channels:
+  - anaconda
   - conda-forge
   - simpleitk
 
