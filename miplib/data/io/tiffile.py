@@ -244,7 +244,7 @@ except ImportError:
 
 try:
     if __package__:
-        from miplib.data import _tifffile
+        from miplib.data.io import _tifffile
     else:
         import _tifffile
 except ImportError:

@@ -1,5 +1,4 @@
 import numpy
-import pyculib
 
 def nroot(array, n):
     """
@@ -176,11 +175,8 @@ def rescale_to_min_max(data, data_min, data_max):
         return data_min / data.min() * data
 
 
-def fft(array, cuda=False): # type: (numpy.ndarray, bool) -> numpy.ndarray
-    if cuda:
-        return numpy.fft.fftshift(pyculib.fft_inplace(array.astype('complex64')))
-    else:
-        return numpy.fft.fftshift(numpy.fft.rfftn(array))
+def fft(array): # type: (numpy.ndarray, bool) -> numpy.ndarrayf
+    return numpy.fft.fftshift(numpy.fft.rfftn(array))
 
 
 def safe_divide(numerator, denominator):
