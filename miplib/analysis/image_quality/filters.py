@@ -20,7 +20,7 @@ image quality parameters in the PyImageQuality software.
 import argparse
 from math import floor
 
-import numpy
+import numpy as np
 from matplotlib import pyplot as plt
 from scipy import ndimage, fftpack, stats
 
@@ -134,7 +134,7 @@ class LocalImageQuality(Filter):
                 assert self.kernel_size[i] < self.dimensions[i]
         else:
             self.kernel_size = sizes
-            assert self.kernel_size < self.dimensions, \
+            assert all(x < y for x, y in zip(self.kernel_size, self.dimensions)), \
                 "Kernel can not be larger than image"
 
     def run_mean_smoothing(self, return_result=False):
@@ -159,20 +159,20 @@ class LocalImageQuality(Filter):
             self.data_temp.max(), 50
         )
         # Exclude zeros
-        histogram = histogram[numpy.nonzero(histogram)]
+        histogram = histogram[np.nonzero(histogram)]
         # Normalize histogram bins to sum to one
         histogram = histogram.astype(float)/histogram.sum()
-        return -numpy.sum(histogram*numpy.log2(histogram))
+        return -np.sum(histogram*np.log2(histogram))
 
     def find_sampling_positions(self):
         """
         Create a mask by finding pixel positions in the smoothed image
         that have pixel values higher than 80% of the maximum value.
         """
-        peaks = numpy.percentile(self.data_temp, self.options.spatial_threshold)
-        mask = numpy.where(self.data_temp >= peaks, 1, 0)
+        peaks = np.percentile(self.data_temp, self.options.spatial_threshold)
+        mask = np.where(self.data_temp >= peaks, 1, 0)
         if self.options.invert_mask:
-            return numpy.invert(mask.astype(bool))
+            return np.invert(mask.astype(bool))
         else:
             return mask
 
@@ -193,7 +193,7 @@ class LocalImageQuality(Filter):
                 self.run_mean_smoothing()
 
             positions = self.find_sampling_positions()
-            self.data_temp = self.data[:][numpy.nonzero(positions)]
+            self.data_temp = self.data[:][np.nonzero(positions)]
             if show:
                 Image(self.data[:]*positions, self.spacing).show()
         else:
@@ -231,11 +231,11 @@ class FrequencyQuality(Filter):
         Additionally the power spectrum can be normalized by image dimensions
         and image intensity mean, if necessary.
         """
-        self.power = numpy.abs(fftpack.fftshift(fftpack.fft2(self.data[:])))**2
+        self.power = np.abs(np.fft.fftshift(np.fft.fft2(self.data[:])))**2
         if self.options.normalize_power:
             dims = self.data[:].shape[0]*self.data[:].shape[1]
-            mean = numpy.mean(self.data[:])
-            self.power = self.power/(dims*mean)
+            mean = np.mean(self.data[:])
+            self.power /= (dims*mean)
 
     def calculate_radial_average(self, bin_size=2):
         """
@@ -244,19 +244,19 @@ class FrequencyQuality(Filter):
         """
         iterator = FourierRingIterator(self.power.shape, d_bin=bin_size)
 
-        average = numpy.zeros(iterator.nbins)
+        average = np.zeros(iterator.nbins)
 
         for idx, ring in enumerate(iterator):
             subset = self.power[ring]
             average[idx] = float(subset.sum())/subset.size
 
         dx = self.data.spacing[0]
-        f_k = numpy.linspace(0, 1, iterator.nbins) * (1.0/(2*dx))
+        f_k = np.linspace(0, 1, iterator.nbins) * (1.0/(2*dx))
 
         self.simple_power = [f_k, average]
 
         if self.options.show_plots:
-            plt.plot(numpy.log10(self.simple_power[0]))
+            plt.plot(np.log10(self.simple_power[0]))
             plt.ylabel("Average power")
             plt.xlabel("Frequency")
             plt.show()
@@ -269,16 +269,16 @@ class FrequencyQuality(Filter):
         than the radial average.
         """
 
-        sum = numpy.zeros(self.power.shape[0])
+        power_sum = np.zeros(self.power.shape[0])
         for i in range(len(self.power.shape)):
-            sum += numpy.sum(self.power, axis=i)
-        zero = floor(float(sum.size)/2)
-        sum[zero+1:] = sum[zero+1:]+sum[:zero-1][::-1]
-        sum = sum[zero:]
+            power_sum += np.sum(self.power, axis=i)
+        zero = floor(float(power_sum.size)/2)
+        power_sum[zero+1:] = power_sum[zero+1:]+power_sum[:zero-1][::-1]
+        power_sum = power_sum[zero:]
         dx = self.data.spacing[0]
-        f_k = numpy.linspace(0, 1, sum.size)*(1.0/(2*dx))
+        f_k = np.linspace(0, 1, power_sum.size)*(1.0/(2*dx))
 
-        self.simple_power = [f_k, sum]
+        self.simple_power = [f_k, power_sum]
 
         if self.options.show_plots:
             plt.plot(self.simple_power[0], self.simple_power[1], linewidth=2, color="red")
@@ -307,14 +307,14 @@ class FrequencyQuality(Filter):
 
         # Calculate parameters
         f_th = self.simple_power[0][self.simple_power[0] > self.options.power_threshold*self.simple_power[0].max()][-utils.analyze_accumulation(hf_sum, .2)]
-        mean = numpy.mean(hf_sum)
-        std = numpy.std(hf_sum)
+        mean = np.mean(hf_sum)
+        std = np.std(hf_sum)
         entropy = utils.calculate_entropy(hf_sum)
         nm_th = 1.0e9/f_th
-        pw_at_high_f = numpy.mean(self.simple_power[1][self.simple_power[0] > .9*self.simple_power[0].max()])
-        skew = stats.skew(numpy.log(hf_sum))
+        pw_at_high_f = np.mean(self.simple_power[1][self.simple_power[0] > .9*self.simple_power[0].max()])
+        skew = stats.skew(np.log(hf_sum))
         kurtosis = stats.kurtosis(hf_sum)
-        mean_bin = numpy.mean(hf_sum[0:5])
+        mean_bin = np.mean(hf_sum[0:5])
 
         return [mean, std, entropy, nm_th, pw_at_high_f, skew, kurtosis, mean_bin]
 
@@ -324,7 +324,7 @@ class FrequencyQuality(Filter):
         """
         fig, subplots = plt.subplots(1, 2)
         if self.power is not None:
-            subplots[0].imshow(numpy.log10(self.power))
+            subplots[0].imshow(np.log10(self.power))
         if self.simple_power is not None:
             #index = int(len(self.simple_power[0])*.4)
             #subplots[1].plot(self.simple_power[0][index:], self.simple_power[1][index:], linewidth=1)
@@ -369,9 +369,9 @@ class SpectralMoments(FrequencyQuality):
 
         self.calculate_percent_spectrum()
 
-        bin_index = numpy.arange(1, self.simple_power[1].shape[0]+1)
+        bin_index = np.arange(1, self.simple_power[1].shape[0]+1)
 
-        return (self.simple_power[1]*numpy.log10(bin_index)).sum()
+        return (self.simple_power[1]*np.log10(bin_index)).sum()
 
 
 class BrennerImageQuality(Filter):
@@ -392,7 +392,7 @@ class BrennerImageQuality(Filter):
         data = self.data
         rows = data.shape[0]
         columns = data.shape[1]-2
-        temp = numpy.zeros((rows, columns))
+        temp = np.zeros((rows, columns))
 
         temp[:] = ((data[:, 0:-2] - data[:, 2:])**2)
 

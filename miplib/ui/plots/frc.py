@@ -109,9 +109,9 @@ class FourierDataPlotter(object):
             self._columns = 3
 
         if len(self.data) % self._columns == 0:
-            self._rows = len(self.data) / self._columns
+            self._rows = int(len(self.data) / self._columns)
         else:
-            self._rows = len(self.data) / self._columns + 1
+            self._rows = int(len(self.data) / self._columns + 1)
 
         if path is not None:
             assert os.path.isdir(path)
