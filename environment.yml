@@ -1,13 +1,13 @@
 name: miplib3
 
 dependencies:
-  - python=3
+  - python=3.6
   - numpy
   - scipy
   - h5py
   - SimpleItk
   - matplotlib
-  - numba
+  - numba=0.39
   - pyculib
   - pandas
   - pims

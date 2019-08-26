@@ -274,7 +274,7 @@ def crop_to_largest_square(image, physical_dims=False):
         min_shape_real = (min(*shape_real), ) * image.ndim
         min_shape_px = list(x / y for x, y in zip(min_shape_real, image.spacing))
     else:
-        min_shape_px = (min(*image.shape), image.ndim)
+        min_shape_px = (min(*image.shape),) * image.ndim
 
     return remove_zero_padding(image, min_shape_px)
 
