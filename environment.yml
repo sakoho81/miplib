@@ -1,4 +1,4 @@
-name: miplib3
+name: miplib
 
 dependencies:
   - python=3.6

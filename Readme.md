@@ -1,6 +1,6 @@
 # MIPLIB
 
-Microscope Image Processing Library (*MIPLIB*) is a Python 2.7 based software package, created especially for processing and analysis of fluorescece microscopy images. It contains functions for example for:
+Microscope Image Processing Library (*MIPLIB*) is a Python based software library, created especially for processing and analysis of fluorescece microscopy images. It contains functions for example for:
 
 - image registration 2D/3D
 - image deconvolution and fusion (2D/3D), based on efficient CUDA GPU accelerated algorithms
@@ -13,16 +13,19 @@ The library is distributed under a BSD open source license.
 
 ## How do I install it?
 
-I would recommend going with the *Anaconda* Python distribution, as it removes all the hassle from installing the necessary packages. 
+I would recommend going with the *Anaconda* Python distribution, as it removes all the hassle from installing the necessary packages. MIPLIB should work on all platforms (Windows, MacOS, Linux), however I do not actively test it on Windows. On MacOS the CUDA GPU acceleration currently does not work, because there are no NVIDIA drivers available for the latest OS versions.
 
 ### Here's how to setup your machine for development:
 
-  1. There are some C extensions in *miplib* that need to be compiled. Therefore, iff you are on a *Mac*, you will also need to install XCode command line tools. In order to do this, Open *Terminal* and write `xcode-select --install`. In addition, if you already upgraded to MacOS Mojave, you will also have to install the following: `open /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.14.pkg`. If you are on *Windows*, you will need the [C++ compiler](https://www.microsoft.com/en-us/download/details.aspx?id=44266)
+  1. There are some C extensions in *miplib* that need to be compiled. Therefore, if you are on a *mac*, you will also need to install XCode command line tools. In order to do this, Open *Terminal* and write `xcode-select --install`. In addition, if you already upgraded to MacOS Mojave, you will also have to install the following: `open /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.14.pkg`. If you are on *Windows*, you will need the [C++ compiler](https://wiki.python.org/moin/WindowsCompilers)
 
 
-3. Open *Terminal* and Clone the *MIBLIB* repository from Bitbucket: `git clone git@github.com:sakoho81/miplib.git`. The code will go to a sub-directory called *miplib* of the current directory. Put the code somewhere where it can stay for a while. You may need to generate an SSH key, if you have not used GitHub previously.
+3. Clone the *MIBLIB* repository from GitHub (`git clone git@github.com:sakoho81/miplib.git`). The code will be saved to a sub-directory called *miplib* of the current directory. Put the code somewhere where it can stay for a while. You may need to generate an SSH key, if you have not used GitHub previously.
+
 4. Go to the *miplib* directory and create a new Python virtual environment `conda env create -f environment.yml`. 
+
 5. Activate the created virtual environment by writing `conda activate miplib`
+
 6. Now, install the *miplib* package to the new environment by executing the following in the *miplib* directory `python setup.py develop`. This will only create a link to the source code, so don't delete the *miplib* directory afterwards. 
 
 ### And if you are not a developer
@@ -37,9 +40,9 @@ Please look for updates in the Examples/ folder (a work in progress). Let me kno
 
 *MIPLIB* was born as a combination of several previously separate libraries. The code and structure, although working, might (does) not in all places make sense. Any suggestions for improvements, new features etc. are welcome. 
 
-# Regarding Python versions
+## Regarding Python versions
 
-MIPLIB was developed in Python 2.7, which sadly, appears to approach its end of life. For that reason, I am currently working on migrating the library to Python 3. I am planning to move exclusively to Python 3, as soon as I get the library tested, and rewrite some parts of the code that don't seem to migrate well. 
+I recenly migrated MIPLIB to Python 3, and have no intention to maintain backwards compatibility to Python 2.7. You can checkout an older version of the library, if you need to work on Python 2.7.
 
 ## Publications
 
