@@ -1,7 +1,7 @@
 import datetime
 import os
 import sys
-from itertools import izip
+
 
 import numpy as np
 import pandas
@@ -32,7 +32,7 @@ def main():
     files_list = list(i for i in os.listdir(path)
                       if i.endswith((".jpg", ".tif", ".tiff", ".png")))
     files_list.sort()
-    print('Number of images to analyze: ', len(files_list))
+    print(('Number of images to analyze: ', len(files_list)))
 
     df_main = pandas.DataFrame()
 
@@ -44,7 +44,7 @@ def main():
         """
         def pairwise(iterable):
             a = iter(iterable)
-            return izip(a, a)
+            return zip(a, a)
 
         for im1, im2 in pairwise(files_list):
             # Read images
@@ -120,7 +120,7 @@ def main():
     else:
         raise NotImplementedError()
 
-    df_main.index = range(len(df_main))
+    df_main.index = list(range(len(df_main)))
     df_main.to_csv(filename)
 
 if __name__ == '__main__':

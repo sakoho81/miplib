@@ -61,7 +61,7 @@ class FourierCorrelationDataReader(object):
         """
         group_prefix = "data_set_"
         data_sets = FourierCorrelationDataCollection()
-        for group_name in self.data.keys():
+        for group_name in list(self.data.keys()):
             if group_prefix in group_name:
                 angle = group_name.split("_")[-1]
                 data_set = FourierCorrelationData()

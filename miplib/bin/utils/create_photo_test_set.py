@@ -17,7 +17,7 @@ def main():
 
     # Check input parameters
     if len(sys.argv) < 2 or not os.path.isdir(sys.argv[1]):
-        print "Please specify a path to a directory that contains the pictures"
+        print("Please specify a path to a directory that contains the pictures")
         sys.exit(1)
     path = sys.argv[1]
 

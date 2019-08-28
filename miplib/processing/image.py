@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.ndimage import interpolation
 
-import ndarray
+from . import ndarray
 from miplib.data.containers.image import Image
 
 
@@ -32,7 +32,7 @@ def zoom_to_spacing(image, spacing, order=3):
     assert image.ndim == len(spacing)
 
     zoom = tuple(i/j for i, j in zip(image.spacing, spacing))
-    print "The zoom is ", zoom
+    print("The zoom is ", zoom)
 
     array = interpolation.zoom(image, zoom, order=order)
 
@@ -52,7 +52,7 @@ def resize(image, size, order=3):  # type: (Image, tuple) -> Image
     assert isinstance(image, Image)
 
     zoom = [float(a) / b for a, b in zip(size, image.shape)]
-    print "The zoom is %s" % zoom
+    print("The zoom is %s" % zoom)
 
     array = interpolation.zoom(image, tuple(zoom), order=order)
     spacing = tuple(i / j for i, j in zip(image.spacing, zoom))
@@ -274,7 +274,7 @@ def crop_to_largest_square(image, physical_dims=False):
         min_shape_real = (min(*shape_real), ) * image.ndim
         min_shape_px = list(x / y for x, y in zip(min_shape_real, image.spacing))
     else:
-        min_shape_px = (min(*image.shape), image.ndim)
+        min_shape_px = (min(*image.shape),) * image.ndim
 
     return remove_zero_padding(image, min_shape_px)
 
@@ -439,3 +439,16 @@ def translate_image(image, shift):
 
     return Image(result, image.spacing)
 
+def maximum_projection(image, axis=0):
+    """ Generate a maximum projection image along an axis
+    
+    :param image: an image
+    :type image: Image
+    :param axis: the axis on which the projeciton is to be calculated, defaults to 0
+    :type axis: int, optional
+    :return: a maximum projection image, with one dimension less thatn the input image
+    :rtype: Image
+    """
+    assert isinstance(image, Image)
+    spacing = (image.spacing[s] for s in filter(lambda x : x != axis, range(image.ndim)))
+    return  Image(np.amax(image, axis=axis), spacing)

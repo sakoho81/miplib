@@ -30,14 +30,14 @@ def main():
     options.sted_image_path = os.path.join(options.working_directory,
                                          options.sted_image_path)
     if not os.path.isfile(options.sted_image_path):
-        print 'No such file: %s' % options.sted_image_path
+        print('No such file: %s' % options.sted_image_path)
         sys.exit(1)
 
     # Check that the EM image exists
     options.em_image_path = os.path.join(options.working_directory,
                                            options.em_image_path)
     if not os.path.isfile(options.em_image_path):
-        print 'No such file: %s' % options.em_image_path
+        print('No such file: %s' % options.em_image_path)
         sys.exit(1)
 
 
@@ -54,7 +54,7 @@ def main():
     em_original = em_image
 
     if options.dilation_size != 0:
-        print 'Degrading input images with Dilation filter'
+        print('Degrading input images with Dilation filter')
         sted_image = itkutils.grayscale_dilate_filter(
             sted_image,
             options.dilation_size
@@ -65,7 +65,7 @@ def main():
         )
 
     if options.gaussian_variance != 0.0:
-        print 'Degrading the EM image with Gaussian blur filter'
+        print('Degrading the EM image with Gaussian blur filter')
 
         em_image = itkutils.gaussian_blurring_filter(
             em_image,
@@ -104,7 +104,7 @@ def main():
     #     )
 
     if options.normalize:
-        print 'Normalizing images'
+        print('Normalizing images')
 
         # Normalize
         sted_image = itkutils.normalize_image_filter(sted_image)
@@ -137,7 +137,7 @@ def main():
     ##########################################################################
 
     while True:
-        keep = raw_input("Do you want to keep the results (yes/no)? ")
+        keep = input("Do you want to keep the results (yes/no)? ")
         if keep in ('y', 'Y', 'yes', 'YES'):
             # Files are named according to current time (the date will be
             # in the folder name)
@@ -162,14 +162,14 @@ def main():
 
             rgb_image = itkutils.make_composite_rgb_image(sted_original, em_image)
             sitk.WriteImage(rgb_image, file_path)
-            print "The image was saved to %s and the transform to %s in " \
-                  "the output directory %s" % (file_name, tfm_name, output_dir)
+            print("The image was saved to %s and the transform to %s in " \
+                  "the output directory %s" % (file_name, tfm_name, output_dir))
             break
         elif keep in ('n', 'N', 'no', 'No'):
-            print "Exiting without saving results."
+            print("Exiting without saving results.")
             break
         else:
-            print "Unkown command. Please state yes or no"
+            print("Unkown command. Please state yes or no")
 
 
 if __name__ == "__main__":

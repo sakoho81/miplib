@@ -61,8 +61,8 @@ def main():
 
     # Shuffle the data frame so that the order of the displayed images is mixed every time.
     csv_data = csv_data.sample(frac=1)
-    print "Images are graded on a scale 1-5, where 1 denotes a very bad image " \
-          "and 5 an excellent image"
+    print("Images are graded on a scale 1-5, where 1 denotes a very bad image " \
+          "and 5 an excellent image")
 
     for image_name in csv_data["Filename"]:
         real_path = os.path.join(path, image_name)
@@ -72,19 +72,19 @@ def main():
 
         success = False
         while not success:
-            input = raw_input("Give grade: ")
+            input = input("Give grade: ")
 
             if input.isdigit():
                 result = int(input)
             else:
-                print "Please give a numeric grade 1-5."
+                print("Please give a numeric grade 1-5.")
                 continue
 
             if 1 <= result <= 5:
                 success = True
                 results.append(result)
             else:
-                print "Please give a numeric grade 1-5."
+                print("Please give a numeric grade 1-5.")
 
     csv_data[result_name] = results
     csv_data.to_csv(file_path, index=False)

@@ -51,7 +51,7 @@ class FourierRingIterator(object):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         if self.current_ring < self._nbins:
             ring = self.get_points_on_ring(self.current_ring * self.d_bin,
                                            (self.current_ring + 1) * self.d_bin)
@@ -118,25 +118,20 @@ class SectionedFourierRingIterator(FourierRingIterator):
 
         return arr_inf * arr_sup + arr_inf_neg * arr_sup_neg
 
-    def __getitem__(self, (ring_start, ring_stop, angle_min, angle_max)):
+    def __getitem__(self, limits):
         """
         Get a single conical section of a 2D ring.
 
-        :param ring_start: The start of the ring (0 ... Nyquist)
-        :param ring_stop:  The end of the ring
-        :param angle_min:   The start of the cone (degrees 0-360)
-        :param angle_max:   The end of the cone
-        :return:            Returns the coordinates of the points that are located inside
-                            the portion of a ring that intersects with the points on the
-                            cone.
-        """
-
+        :param limits:  a list of parameters (ring_start, ring_stop, angle_min, angle_ma)
+        that are required to define a single section of a fourier ring.
+         """
+        (ring_start, ring_stop, angle_min, angle_max) = limits
         ring = self.get_points_on_ring(ring_start, ring_stop)
         cone = self.get_angle_sector(angle_min, angle_max)
 
         return np.where(ring*cone)
 
-    def next(self):
+    def __next__(self):
         if self.current_ring < self._nbins:
             ring = self.get_points_on_ring(self.current_ring * self.d_bin,
                                            (self.current_ring + 1) * self.d_bin)

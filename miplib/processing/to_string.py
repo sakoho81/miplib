@@ -15,7 +15,7 @@ def concatenate_to_csv(values):
 
 
 def argument_string(obj):
-    if isinstance(obj, (str,)):
+    if isinstance(obj, str):
         return repr(obj)
     if isinstance(obj, (int, float, complex)):
         return str(obj)
@@ -48,8 +48,8 @@ def time_it(func):
         t = time.time()
         r = func(*args, **kws)
         dt = time.time() - t
-        print 'Calling %s(%s) -> %s took %s seconds' % \
-              (func.__name__, ', '.join(map(argument_string, args)), argument_string(r), dt)
+        print('Calling %s(%s) -> %s took %s seconds' % \
+              (func.__name__, ', '.join(map(argument_string, args)), argument_string(r), dt))
         return r
 
     return new_func
@@ -142,7 +142,7 @@ class ProgressBar:
             percentPlace = (len(self.progBar) / 2) - len(str(percentDone))
             percentString = str(percentDone) + "%"
         else:
-            percentPlace = (len(self.progBar) / 2) - len(str(percentDone))
+            percentPlace = int((len(self.progBar) / 2) - len(str(percentDone)))
             percentString = '%s/%s' % (self.amount, self.span)
         # slice the percentage into the bar
         self.progBar = ''.join([self.progBar[0:percentPlace], percentString,
@@ -165,7 +165,7 @@ class ProgressBar:
         self.updateAmount(value)
         if self.progBar_last == self.progBar and self.comment == self.comment_last:
             return
-        print '\r',
+        print('\r', end=' ')
         sys.stdout.write(self.prefix + str(self) + str(self.comment) + ' ')
         sys.stdout.flush()
         self.progBar_last = self.progBar
@@ -202,12 +202,12 @@ class Holder:
         raise AttributeError('%r instance has no attribute %r' % (self, name))
 
     def __setattr__(self, name, obj):
-        if not self.__dict__.has_key(name) and self.__dict__.has_key('_counter'):
+        if name not in self.__dict__ and '_counter' in self.__dict__:
             self._counter += 1
         self.__dict__[name] = obj
 
     def iterNameValue(self):
-        for k, v in self.__dict__.iteritems():
+        for k, v in self.__dict__.items():
             if k.startswith('_'):
                 continue
             yield k, v
@@ -216,7 +216,7 @@ class Holder:
         r = self.__class__(self._descr + ' - a copy')
         for name, value in self.iterNameValue():
             setattr(r, name, value)
-        for name, value in kws.items():
+        for name, value in list(kws.items()):
             setattr(r, name, value)
         return r
 

@@ -52,8 +52,8 @@ def main():
 
     # Start deconvolution
     if cuda_compatible():
-        print "Found a compatible GPU. The image deconvolution will be run with " \
-              "hardware acceleration."
+        print("Found a compatible GPU. The image deconvolution will be run with " \
+              "hardware acceleration.")
         task = deconvolve_cuda.DeconvolutionRLCuda(image, psf, args)
     else:
         task = deconvolve.DeconvolutionRL(image, psf, args)
@@ -63,11 +63,11 @@ def main():
     end = time.time()
     result = task.get_result()
 
-    print "Deconvolution complete."
-    print "The deconvolution process with %i iterations " \
+    print("Deconvolution complete.")
+    print("The deconvolution process with %i iterations " \
           "took %s (H:M:S) to complete." % (args.max_nof_iterations,
                                             ops_output.format_time_string(
-                                                end - begin))
+                                                end - begin)))
     if uiutils.get_user_input("Do you want to save the result to TIFF? "):
         file_path = os.path.join(args.working_directory,
                                  "fusion_result.tif")
