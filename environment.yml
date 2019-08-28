@@ -14,6 +14,7 @@ dependencies:
   - jpype1
   - notebook
   - scikit-image
+  - cudatoolkit=7.5
 
 channels:
   - anaconda

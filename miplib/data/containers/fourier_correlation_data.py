@@ -15,7 +15,7 @@ class FourierCorrelationDataCollection(object):
         self.iter_index = 0
 
     def __setitem__(self, key, value):
-        assert isinstance(key, int)
+        assert isinstance(key, (int, np.integer))
         assert isinstance(value, FourierCorrelationData)
 
         self._data[str(key)] = value
