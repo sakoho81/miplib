@@ -439,3 +439,16 @@ def translate_image(image, shift):
 
     return Image(result, image.spacing)
 
+def maximum_projection(image, axis=0):
+    """ Generate a maximum projection image along an axis
+    
+    :param image: an image
+    :type image: Image
+    :param axis: the axis on which the projeciton is to be calculated, defaults to 0
+    :type axis: int, optional
+    :return: a maximum projection image, with one dimension less thatn the input image
+    :rtype: Image
+    """
+    assert isinstance(image, Image)
+    spacing = (image.spacing[s] for s in filter(lambda x : x != axis, range(image.ndim)))
+    return  Image(np.amax(image, axis=axis), spacing)
