@@ -89,7 +89,7 @@ Examples
 
 """
 
-from __future__ import division, print_function
+
 
 import math
 import sys
@@ -99,7 +99,7 @@ import time
 import numpy
 
 try:
-    import _psf
+    from . import _psf
 except ImportError:
     raise ImportError(
         "The compiled psf.c extension module could not be found. "
@@ -545,7 +545,7 @@ class Pinhole(object):
         self._corners = self.shapes[shape]
         self.shape = shape
         try:
-            dimensions = dict((k, v[1]) for k, v in dimensions.items())
+            dimensions = dict((k, v[1]) for k, v in list(dimensions.items()))
         except TypeError:
             pass
         self.radius = Dimensions(**dimensions)
@@ -609,11 +609,11 @@ class Dimensions(dict):
         else:
             try:
                 scale = value / dim
-                for k, v in self.items():
+                for k, v in list(self.items()):
                     dict.__setitem__(self, k, v * scale)
             except TypeError:
                 scale = tuple(v/d for v, d in zip(value, dim))
-                for k, v in self.items():
+                for k, v in list(self.items()):
                     dict.__setitem__(
                         self, k, tuple(v*s for v, s in zip(self[k], scale)))
 

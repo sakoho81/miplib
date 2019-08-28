@@ -18,8 +18,8 @@ class FixedDictionary(object):
 
     @property
     def keys(self):
-        return self._dictionary.keys()
+        return list(self._dictionary.keys())
 
     @property
     def contents(self):
-        return self._dictionary.keys(), self._dictionary.values()
+        return list(self._dictionary.keys()), list(self._dictionary.values())

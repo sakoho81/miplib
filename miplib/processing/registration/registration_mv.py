@@ -3,7 +3,7 @@ import numpy
 
 import miplib.processing.itk as ops_itk
 from miplib.data.containers import image_data
-import registration
+from . import registration
 
 
 # todo: This class has way too many responsibilities. Need to refactor at some point.
@@ -104,7 +104,7 @@ class RotatedMultiViewRegistration(object):
         # INITIALIZATION
         # --------------
         # Start by rotating the moving image with the known rotation angle.
-        print 'Initializing registration'
+        print('Initializing registration')
         manual_transform = sitk.Euler3DTransform()
 
         # Rotate around the physical center of the image.
@@ -166,8 +166,8 @@ class RotatedMultiViewRegistration(object):
             self.registration.AddCommand(sitk.sitkStartEvent, registration.start_plot)
             self.registration.AddCommand(sitk.sitkIterationEvent, lambda: registration.plot_values(self.registration))
 
-        print "Starting registration of views " \
-              "%i (fixed) & %i (moving)" % (self.fixed_index, self.moving_index)
+        print("Starting registration of views " \
+              "%i (fixed) & %i (moving)" % (self.fixed_index, self.moving_index))
 
         result = self.registration.Execute(
             sitk.Cast(fixed_image, sitk.sitkFloat32),
@@ -199,12 +199,12 @@ class RotatedMultiViewRegistration(object):
                                                     combined_center)
 
         # Print final metric value and stopping condition
-        print(
-            'Final metric value: {0}'.format(self.registration.GetMetricValue()))
-        print(
+        print((
+            'Final metric value: {0}'.format(self.registration.GetMetricValue())))
+        print((
             'Optimizer\'s stopping condition, {0}'.format(
-                self.registration.GetOptimizerStopConditionDescription()))
-        print self.final_transform
+                self.registration.GetOptimizerStopConditionDescription())))
+        print(self.final_transform)
 
         if self.options.reg_enable_observers:
             registration.end_plot(fixed_image, moving_image, self.final_transform)
@@ -310,7 +310,7 @@ class MultiViewRegistrationISM(RotatedMultiViewRegistration):
         fixed_image = self.data.get_itk_image()
 
         for idx in range(self.data.get_number_of_images("original")):
-            print "Registering view {}".format(idx)
+            print("Registering view {}".format(idx))
             self.moving_index = idx
 
             # Get moving image
@@ -326,4 +326,4 @@ class MultiViewRegistrationISM(RotatedMultiViewRegistration):
                                                                           self.options)
             self.save_result()
 
-        print "All views registered and saved to the data structure"
+        print("All views registered and saved to the data structure")

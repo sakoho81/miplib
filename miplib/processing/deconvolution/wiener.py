@@ -13,6 +13,7 @@ def wiener_deconvolution(image, psf, snr=1e-3, add_pad=0, cuda=False, normalize=
     assert isinstance(psf, Image)
 
     image_s = Image(image.copy(), image.spacing)
+    orig_shape = image.shape
 
     if image.ndim != psf.ndim:
         raise ValueError("Image and psf dimensions do not match")
@@ -33,10 +34,10 @@ def wiener_deconvolution(image, psf, snr=1e-3, add_pad=0, cuda=False, normalize=
 
     wiener = arrayops.safe_divide(np.abs(psf_f)**2/(np.abs(psf_f)**2 + snr), psf_f)
 
-    image_f = fftn(image_s)
+    image_s = fftn(image_s)
 
-    result = Image(np.abs(ifftn(image_f * wiener).real), image.spacing)
+    image_s = Image(np.abs(ifftn(image_s * wiener).real), image.spacing)
 
-    return imops.remove_zero_padding(result, image.shape)
+    return imops.remove_zero_padding(image_s, orig_shape)
 
 

@@ -169,7 +169,7 @@ class FourierCorrelationAnalysis(object):
         for key, data_set in self.data_collection:
 
             if debug:
-                print "Calculating resolution point for dataset {}".format(key)
+                print("Calculating resolution point for dataset {}".format(key))
             frc_eq = fit_frc_curve(data_set, degree, fit_type)
             two_sigma_eq = calculate_resolution_threshold_curve(data_set, criterion, threshold, snr)
 
@@ -184,7 +184,7 @@ class FourierCorrelationAnalysis(object):
                                     data_set.correlation["correlation"],
                                     np.mean(data_set.resolution["threshold"])
             )
-            print "Fit starts at {}".format(fit_start)
+            print("Fit starts at {}".format(fit_start))
             root = optimize.fmin(pdiff2 if criterion == 'fixed' else pdiff1, fit_start)[0]
             data_set.resolution["resolution-point"] = (frc_eq(root), root)
             data_set.resolution["criterion"] = criterion

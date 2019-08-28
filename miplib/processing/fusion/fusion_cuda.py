@@ -59,7 +59,7 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
         #yself.scaler = numpy.full(self.image_size, 1.0/self.n_views,
         # dtype=numpy.float32)
 
-        print('Optimal kernel config: %s x %s' % (blockpergrid, threadpergpublock))
+        print(('Optimal kernel config: %s x %s' % (blockpergrid, threadpergpublock)))
 
         self.__get_fourier_psfs()
 
@@ -68,8 +68,8 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
             Calculates a single RL fusion estimate. There is no reason to call this
             function -- it is used internally by the class during fusion process.
         """
-        print 'Beginning the computation of the %i. estimate' % \
-              (self.iteration_count + 1)
+        print('Beginning the computation of the %i. estimate' % \
+              (self.iteration_count + 1))
 
         if "multiplicative" in self.options.fusion_method:
             self.estimate_new[:] = numpy.ones(self.image_size, dtype=numpy.float32)
@@ -89,7 +89,7 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
                                        self.options.scale, "registered")
 
             weighting = self.weights[idx]
-            iterables = (xrange(0, m, n) for m, n in zip(self.image_size, self.block_size))
+            iterables = (range(0, m, n) for m, n in zip(self.image_size, self.block_size))
             pad = self.options.block_pad
             block_idx = tuple(slice(pad, pad + block) for block in self.block_size)
 
@@ -221,7 +221,7 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
         """
         Pre-calculates the PSFs during image fusion process.
         """
-        print "Pre-calculating PSFs"
+        print("Pre-calculating PSFs")
 
         padded_block_size = tuple(self.block_size + 2*self.options.block_pad)
 

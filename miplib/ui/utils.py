@@ -21,13 +21,13 @@ def get_user_input(message):
     Return a boolean: True for Yes, False for No
     """
     while True:
-        answer = raw_input(message)
+        answer = input(message)
         if answer in ('y', 'Y', 'yes', 'YES'):
             return True
         elif answer in ('n', 'N', 'no', 'No'):
             return False
         else:
-            print "Unkown command. Please state yes or no"
+            print("Unkown command. Please state yes or no")
 
 
 def get_path_dir(path, suffix):

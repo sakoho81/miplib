@@ -4,7 +4,7 @@ import SimpleITK as sitk
 import pims
 
 import miplib.processing.itk as itkutils
-import tiffile
+from . import tiffile
 from miplib.data.containers.image import Image
 
 scale_c = 1.0e6
@@ -74,7 +74,7 @@ def __tiff(filename, memmap=False, return_itk=False):
         images = image.asarray(memmap=memmap)
         # Get tags
         page = image[0]
-        for tag in page.tags.values():
+        for tag in list(page.tags.values()):
             tags[tag.name] = tag.value
 
     # Figure out z-spacing, which in ImageJ is hidden in the "image_description"
@@ -165,7 +165,7 @@ def __bioformats(filename, series=0, channel=0, return_itk = False):
                    image.metadata.PixelsPhysicalSizeX(0))
 
     # Get color channel
-    if image.sizes.has_key('c'):
+    if 'c' in image.sizes:
         image.iter_axes = 'c'
         assert len(image) > channel
         image = image[channel]
