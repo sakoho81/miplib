@@ -316,6 +316,7 @@ def noisy(image, noise_type):
     """
     assert isinstance(image, Image)
     assert image.ndim < 4
+    spacing = image.spacing
 
     if noise_type == "gauss":
         mean = 0
@@ -323,7 +324,7 @@ def noisy(image, noise_type):
         sigma = var ** 0.5
         gauss = np.random.normal(mean, sigma, image.shape)
         gauss = gauss.reshape(image.shape)
-        return image + gauss
+        return Image(image + gauss, spacing)
     elif noise_type == "s&p":
         s_vs_p = 0.5
         amount = 0.004
@@ -339,13 +340,13 @@ def noisy(image, noise_type):
         coords = [np.random.randint(0, i - 1, int(num_pepper))
                   for i in image.shape]
         out[coords] = 0
-        return out
+        return Image(out, spacing)
     elif noise_type == "poisson":
         vals = 2 ** np.ceil(np.log2(len(np.unique(image))))
-        return np.random.poisson(image * vals) / float(vals)
+        return Image(np.random.poisson(image * vals) / float(vals), spacing)
     elif noise_type == "speckle":
         gauss = np.random.standard_normal(image.shape).reshape(image.shape)
-        return image + image * gauss
+        return Image(image + image * gauss, spacing)
 
 
 def enhance_contrast(image, percent_saturated=0.3, out_type=np.uint8):

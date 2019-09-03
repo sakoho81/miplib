@@ -55,24 +55,12 @@ def calculate_single_image_frc(image, args, average=True, trim=True, z_correctio
         frc_data[0].correlation["correlation"] += 0.5*frc_task.execute().correlation["correlation"]
 
     freqs = frc_data[0].correlation["frequency"].copy()
-    #log_correction = np.sqrt(2)*np.log(2*freqs + 2.1)/2
-    #log_correction = np.sqrt(2)*np.log(np.sqrt(2)*freqs + 2.718281828459)/2
-
+    
     def func(x, a, b, c, d):
         return a * np.exp(c * (x - b)) + d
-
-    #params = [0.87420745, 1.01606197, 9.77890561, 0.54539224]
-    #params = [ 0.9126985, 0.97605337, 13.92594423, 0.55153212]
-    #params = [0.87291152, 0.96833531, 14.42136703, 0.58735602]
+  
     params = [0.95988146, 0.97979108, 13.90441896, 0.55146136]
 
-    #log_correction = np.sqrt(2)*func(freqs, *params)
-    #log_correction = 1.0
-
-    #if trim:
-     #   log_correction[log_correction > 1.0] = 1.0
-
-    #frc_data[0].correlation["frequency"] = freqs*log_correction
     # Analyze results
     analyzer = fsc_analysis.FourierCorrelationAnalysis(frc_data, image1.spacing[0], args)
 
@@ -118,6 +106,74 @@ def calculate_two_image_frc(image1, image2, args, z_correction=1):
 
     return analyzer.execute(z_correction=z_correction)[0]
 
+def calculate_single_image_sectioned_frc(image, args, rotation=45, orthogonal=True, trim=True):
+    """
+    A simple utility to calculate a regular FRC with a single image input
+
+    :param image: the image as an Image object
+    :param args:  the parameters for the FRC calculation. See *miplib.ui.frc_options*
+                  for details
+    :return:      returns the FRC result as a FourierCorrelationData object
+
+    """
+    assert isinstance(image, Image)
+
+    frc_data = FourierCorrelationDataCollection()
+
+    # Hamming Windowing
+    if not args.disable_hamming:
+        spacing = image.spacing
+        image = Image(windowing.apply_hamming_window(image), spacing)
+   
+
+    # Run FRC
+    def frc_helper(image1, image2, args, rotation):
+        iterator = iterators.SectionedFourierRingIterator(image1.shape, args.d_bin, args.d_angle)
+        iterator.angle = rotation
+        frc_task = FRC(image1, image2, iterator)
+        return frc_task.execute()
+    
+    image1, image2 = imops.checkerboard_split(image)
+    image1, image2 = imops.zero_pad_to_matching_shape(image1, image2)
+
+    image1_r, image2_r = imops.reverse_checkerboard_split(image)
+    image1_r, image2_r = imops.zero_pad_to_matching_shape(image1_r, image2_r)
+
+    pair_1 = frc_helper(image1, image2, args, rotation)
+    pair_2 = frc_helper(image1_r, image2_r, args, rotation)
+    
+    pair_1.correlation["correlation"] * 0.5
+    pair_1.correlation["correlation"] += 0.5 * pair_2.correlation["correlation"]
+   
+    if orthogonal:
+        pair_1_o = frc_helper(image1, image2, args, rotation+90)
+        pair_2_o = frc_helper(image1_r, image2_r, args, rotation+90)
+    
+        pair_1_o.correlation["correlation"] * 0.5
+        pair_1_o.correlation["correlation"] += 0.5 * pair_2_o.correlation["correlation"]
+
+        pair_1.correlation["correlation"] += 0.5 * pair_1_o.correlation["correlation"]
+    
+    frc_data[0] = pair_1
+
+    freqs = frc_data[0].correlation["frequency"].copy()
+    
+    def func(x, a, b, c, d):
+        return a * np.exp(c * (x - b)) + d
+  
+    params = [0.95988146, 0.97979108, 13.90441896, 0.55146136]
+
+    # Analyze results
+    analyzer = fsc_analysis.FourierCorrelationAnalysis(frc_data, image1.spacing[0], args)
+
+    result = analyzer.execute()[0]
+    point = result.resolution["resolution-point"][1]
+
+    log_correction = func(point, *params)
+    result.resolution["spacing"] /= log_correction
+    result.resolution["resolution"] /= log_correction
+
+    return result
 
 class FRC(object):
     """
