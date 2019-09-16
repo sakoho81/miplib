@@ -13,21 +13,23 @@ requirements:
     - numpy
 
   run:
-    - python
-    - mayavi
+    - python=3.6
     - pims
     - pandas
     - h5py
     - matplotlib
-    - numba
+    - numba=0.39
     - pyculib
     - SimpleITK
     - scipy
     - numpy
     - skimage
+    - cudatoolkit=7.5
+    - jpype1
 
   test:
     imports:
+      - pyculib
       - miplib
 
   about:

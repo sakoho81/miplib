@@ -108,11 +108,14 @@ def calculate_two_image_frc(image1, image2, args, z_correction=1):
 
 def calculate_single_image_sectioned_frc(image, args, rotation=45, orthogonal=True, trim=True):
     """
-    A simple utility to calculate a regular FRC with a single image input
-
+    A function utility to calculate a single image FRC on a Fourier ring section. The section
+    is defined by the section size d_angle (in args) and the section rotation.
     :param image: the image as an Image object
     :param args:  the parameters for the FRC calculation. See *miplib.ui.frc_options*
                   for details
+    :param rotation: defines the orientation of the fourier ring section
+    :param orthogonal: if True, FRC is calculated from two sections, oriented at rotation
+    and rotation + 90 degrees
     :return:      returns the FRC result as a FourierCorrelationData object
 
     """
