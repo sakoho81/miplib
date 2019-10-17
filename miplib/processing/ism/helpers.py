@@ -19,7 +19,7 @@ def make_template_image(data, imagesz=250):
     """
     assert isinstance(data, ArrayDetectorData)
 
-    blocksz = imagesz/int(np.sqrt(data.ndetectors))
+    blocksz = int(imagesz/np.sqrt(data.ndetectors))
 
     # First calculate the total photon count for images from each detector
     # and photosensor
