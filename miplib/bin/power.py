@@ -20,11 +20,11 @@ import pandas
 from miplib.analysis.image_quality import filters
 from miplib.data.io import read
 from miplib.processing import image as improc
-from miplib.ui import image_quality_options
+from miplib.ui.cli import miplib_entry_point_options
 
 
 def main():
-    options = image_quality_options.get_power_script_options(sys.argv[1:])
+    options = miplib_entry_point_options.get_power_script_options(sys.argv[1:])
     path = options.working_directory
 
     assert os.path.isdir(path)

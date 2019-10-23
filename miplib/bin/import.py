@@ -62,11 +62,11 @@ from miplib.data.containers import image_data
 from miplib.data.definitions import *
 from miplib.data.io import read
 from miplib.processing import itk as itkutils
-from ..ui import supertomo_options
+from ..ui.cli import miplib_entry_point_options 
 
 
 def main():
-    options = supertomo_options.get_import_script_options(sys.argv[1:])
+    options = miplib_entry_point_options.get_import_script_options(sys.argv[1:])
     directory = options.data_dir_path
 
     # Create a new HDF5 file. If a file exists, new data will be appended.

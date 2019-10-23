@@ -16,12 +16,12 @@ import sys
 import SimpleITK as sitk
 
 from miplib.processing.registration import registration
-from miplib.ui import supertomo_options
+from miplib.ui.cli import miplib_entry_point_options
 from miplib.processing import itk as itkutils
 
 
 def main():
-    options = supertomo_options.get_correlate_tem_script_options(sys.argv[1:])
+    options = miplib_entry_point_options.get_correlate_tem_script_options(sys.argv[1:])
     
     # SETUP
     ##########################################################################

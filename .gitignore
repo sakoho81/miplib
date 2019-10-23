@@ -69,3 +69,8 @@ target/
 # Data directory (needs to be distributed some other way)
 <<<<<<< HEAD
 notebooks/
+
+# Ignore data thay may be saved in the examples directory.
+*.tif
+*.nd2
+*.tiff
