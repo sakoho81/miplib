@@ -16,7 +16,7 @@ setup(
             'miplib.register = miplib.bin.register:main',
             'miplib.deconvolve = miplib.bin.deconvolve:main',
             'miplib.resolution = miplib.bin.resolution:main',
-            'miplib.3dfrc = miplib.bin.threedfrc:main',
+            'miplib.ism = miplib.bin.ism:main',
             'pyimq.main = miplib.bin.pyimq:main',
             'pyimq.util.blurseq = miplib.bin.utils.create_blur_sequence:main',
             'pyimq.util.imseq = miplib.bin.utils.create_photo_test_set:main',
@@ -25,7 +25,7 @@ setup(
         ]
     },
     platforms=["any"],
-    url='https://bitbucket.org/sakoho81/miplib',
+    url='https://github.com/sakoho81/miplib',
     license='BSD',
     author='Sami Koho',
     author_email='sami.koho@gmail.com',

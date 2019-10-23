@@ -26,20 +26,21 @@ def zoom_to_isotropic_spacing(image, order=3):
     else:
         return resize(image, new_shape, order)
 
-def zoom_to_spacing(image, spacing, order=3):
+def zoom_to_spacing(image, spacing, order=3, verbose=False):
 
     assert isinstance(image, Image)
     assert image.ndim == len(spacing)
 
     zoom = tuple(i/j for i, j in zip(image.spacing, spacing))
-    print("The zoom is ", zoom)
+    if verbose:
+        print("The zoom is ", zoom)
 
     array = interpolation.zoom(image, zoom, order=order)
 
     return Image(array, spacing)
 
 
-def resize(image, size, order=3):  # type: (Image, tuple) -> Image
+def resize(image, size, order=3, verbose=False):  # type: (Image, tuple) -> Image
     """
     Resize the image, using interpolation.
 
@@ -52,7 +53,8 @@ def resize(image, size, order=3):  # type: (Image, tuple) -> Image
     assert isinstance(image, Image)
 
     zoom = [float(a) / b for a, b in zip(size, image.shape)]
-    print("The zoom is %s" % zoom)
+    if verbose:
+        print("The zoom is %s" % zoom)
 
     array = interpolation.zoom(image, tuple(zoom), order=order)
     spacing = tuple(i / j for i, j in zip(image.spacing, zoom))
