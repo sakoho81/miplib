@@ -18,7 +18,7 @@ import miplib.data.containers.image_data as image_data
 import miplib.processing.fusion.fusion as fusion
 import miplib.processing.fusion.fusion_cuda as gpufusion
 import miplib.processing.to_string as genutils
-import miplib.ui.supertomo_options as arguments
+import miplib.ui.cli.miplib_entry_point_options as arguments
 import miplib.ui.utils as uiutils
 
 

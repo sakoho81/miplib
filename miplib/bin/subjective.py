@@ -20,7 +20,7 @@ import sys
 import matplotlib.pyplot as plt
 import pandas
 
-import miplib.ui.image_quality_options as script_options
+import miplib.ui.cli.miplib_entry_point_options as script_options
 
 
 def main():

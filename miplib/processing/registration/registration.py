@@ -201,7 +201,8 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
     :return:
                             The final transform as a sitk.Euler2DTransform
     """
-    print('Setting up registration job')
+    if options.verbose:
+        print('Setting up registration job')
 
     assert isinstance(fixed_image, sitk.Image)
     assert isinstance(moving_image, sitk.Image)
@@ -252,7 +253,8 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
         tx = sitk.Euler2DTransform()
         tx.SetAngle(options.set_rotation)
         if options.initializer:
-            print('Calculating initial registration parameters')
+            if options.verbose:
+                print('Calculating initial registration parameters')
             transform = sitk.CenteredTransformInitializer(
                 fixed_image,
                 moving_image,
@@ -274,12 +276,13 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
 
     # START
     # ========================================================================
-
-    print("Starting registration")
+    if options.verbose:
+        print("Starting registration")
     final_transform = registration.Execute(fixed_image, moving_image)
 
-    print(('Final metric value: {0}'.format(registration.GetMetricValue())))
-    print(('Optimizer\'s stopping condition, {0}'.format(registration.GetOptimizerStopConditionDescription())))
+    if options.verbose:
+        print(('Final metric value: {0}'.format(registration.GetMetricValue())))
+        print(('Optimizer\'s stopping condition, {0}'.format(registration.GetOptimizerStopConditionDescription())))
 
     if options.reg_enable_observers:
         end_plot(fixed_image, moving_image, final_transform)

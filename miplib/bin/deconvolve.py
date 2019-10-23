@@ -2,13 +2,12 @@ import os
 import sys
 import time
 
-from accelerate.cuda import cuda_compatible
-
+from pyculib import cuda_compatible
 import miplib.processing.to_string as ops_output
 import miplib.ui.utils as uiutils
 from miplib.processing.deconvolution import deconvolve_cuda, deconvolve
 from miplib.psf import psfgen
-from miplib.ui import deconvolution_options as options
+from miplib.ui.cli import miplib_entry_point_options as options
 from miplib.data.io import read as imread
 
 
