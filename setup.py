@@ -3,10 +3,11 @@ import numpy
 
 setup(
     name='miplib',
-    version='1.0',
+    version='1.0.2',
     packages=find_packages(),
-    install_requires=['numpy', 'scipy', 'h5py', 'SimpleITK',
+    install_requires=['numpy', 'scipy', 'h5py', 'SimpleITK', 'jpype1',
                       'matplotlib', 'numba', 'pyculib', 'pandas', 'pims', 'scikit-image'],
+    description='A Python software library for (optical) microscopy image restoration, reconstruction and analysis.',
     entry_points={
         'console_scripts': [
             'miplib.import = miplib.bin.import:main',
@@ -26,11 +27,10 @@ setup(
     },
     platforms=["any"],
     url='https://github.com/sakoho81/miplib',
+    download_url="https://github.com/sakoho81/miplib/archive/v1.0.2.tar.gz",
     license='BSD',
     author='Sami Koho',
     author_email='sami.koho@gmail.com',
-    description='miplib software was created for Tomographic processing '
-                'of STED super-resolution microscopy images.',
     ext_modules=[
         Extension(
             'miplib.processing.ops_ext',
@@ -44,5 +44,12 @@ setup(
             'miplib.psf._psf',
             ['miplib/psf/src/psf.c'],
             include_dirs=[numpy.get_include()]),
-    ]
+    ],
+    classifiers=[
+    'Development Status :: 3 - Alpha',
+    'Intended Audience :: Developers',
+    'Topic :: Software Development :: Libraries :: Python Modules',
+    'License :: OSI Approved :: BSD License',  
+    'Programming Language :: Python :: 3.6',
+  ]
 )
