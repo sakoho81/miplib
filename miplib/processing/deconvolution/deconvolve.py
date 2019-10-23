@@ -54,7 +54,8 @@ class DeconvolutionRL(object):
         """
         assert isinstance(image, Image)
         assert isinstance(psf, Image)
-        assert issubclass(writer.__class__, ImageWriterBase)
+        if options.save_intermediate_results:
+            assert issubclass(writer.__class__, ImageWriterBase)
 
         self.image = image
         self.psf = psf
@@ -68,7 +69,8 @@ class DeconvolutionRL(object):
 
         self.__get_psfs()
 
-        print("The original image size is %s" % (self.image_size,))
+        if options.verbose:
+            print("The original image size is %s" % (self.image_size,))
 
         self.iteration_count = 0
 
@@ -101,9 +103,10 @@ class DeconvolutionRL(object):
                                                     mode='w+',
                                                     shape=tuple(self.image_size)), self.image_spacing)
 
-        print("The deconvolution will be run with %i blocks" % self.num_blocks)
         padded_block_size = tuple(i + 2 * self.options.block_pad for i in self.block_size)
-        print("The internal block size is %s" % (padded_block_size,))
+        if options.verbose:
+            print("The deconvolution will be run with %i blocks" % self.num_blocks)
+            print("The internal block size is %s" % (padded_block_size,))
 
         # Create temporary directory and data file.
         self.column_headers = ('t', 'tau1', 'leak', 'e',
@@ -121,7 +124,8 @@ class DeconvolutionRL(object):
         function -- it is used internally by the class during fusion process.
         """
 
-        print('Beginning the computation of the %i. estimate' % self.iteration_count)
+        if self.options.verbose:
+            print('Beginning the computation of the %i. estimate' % self.iteration_count)
 
         self.estimate_new[:] = numpy.float32(0)
 
@@ -189,8 +193,6 @@ class DeconvolutionRL(object):
         This is the main fusion function
         """
 
-        print("Preparing image fusion.")
-
         save_intermediate_results = self.options.save_intermediate_results
 
         first_estimate = self.options.first_estimate
@@ -225,7 +227,11 @@ class DeconvolutionRL(object):
         try:
             while True:
 
-                if self.options.update_blind_psf:
+                if (
+                        self.options.update_blind_psf > 0 and 
+                        self.iteration_count > 0 and 
+                        (self.iteration_count+1) % self.options.update_blind_psf == 0
+                   ):
                     self.psf = frc_psf.generate_frc_based_psf(Image(self.estimate, self.image_spacing), self.options)
                     self.__get_psfs()
 
@@ -247,15 +253,16 @@ class DeconvolutionRL(object):
                 t = time.time() - ittime
                 leak = 100 * photon_leak
 
-                # Update UI
-                info_map['E/S/U/N=%s/%s/%s/%s'] = int(e), int(s), int(u), int(n)
-                info_map['LEAK=%s%%'] = leak
-                info_map['U/ESU=%s'] = u_esu
-                info_map['TIME=%ss'] = t
+                if self.options.verbose:
+                    # Update UI
+                    info_map['E/S/U/N=%s/%s/%s/%s'] = int(e), int(s), int(u), int(n)
+                    info_map['LEAK=%s%%'] = leak
+                    info_map['U/ESU=%s'] = u_esu
+                    info_map['TIME=%ss'] = t
 
-                bar.updateComment(' ' + ', '.join([k % (ops_output.tostr(info_map[k])) for k in sorted(info_map)]))
-                bar(self.iteration_count)
-                print()
+                    bar.updateComment(' ' + ', '.join([k % (ops_output.tostr(info_map[k])) for k in sorted(info_map)]))
+                    bar(self.iteration_count)
+                    print()
 
                 # Save parameters to file
                 self._progress_parameters[self.iteration_count - 1] = (t, tau1, leak, e, s, u, n, u_esu)
@@ -274,7 +281,6 @@ class DeconvolutionRL(object):
                     stop_message = 'The number of non converging photons reached to zero.'
                     break
                 elif self.iteration_count >= max_count:
-                    print("Nothing happens")
                     stop_message = 'The number of iterations reached to maximal count: %s' % max_count
                     break
                 elif not self.options.disable_tau1 and tau1 <= self.options.stop_tau:
@@ -291,11 +297,11 @@ class DeconvolutionRL(object):
 
         # if self.num_blocks > 1:
         #     self.estimate = self.estimate[0:real_size[0], 0:real_size[1], 0:real_size[2]]
-
-        print()
-        bar.updateComment(' ' + stop_message)
-        bar(self.iteration_count)
-        print()
+        if self.options.verbose:
+            print()
+            bar.updateComment(' ' + stop_message)
+            bar(self.iteration_count)
+            print()
 
     def __get_psfs(self):
         """

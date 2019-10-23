@@ -70,7 +70,7 @@ import pandas
 
 from miplib.analysis.image_quality import filters
 from miplib.data.io import read
-from miplib.ui import image_quality_options
+from miplib.ui.cli import miplib_entry_point_options
 from miplib.ui.plots.image import show_pics_from_disk
 
 
@@ -78,7 +78,7 @@ def main():
     """
     The Main program of the PyImageQualityRanking software.
     """
-    options = image_quality_options.get_quality_script_options(sys.argv[1:])
+    options = miplib_entry_point_options.get_quality_script_options(sys.argv[1:])
     path = options.working_directory
     file_path = None
     csv_data = None

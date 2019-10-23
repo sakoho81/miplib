@@ -20,11 +20,12 @@ import SimpleITK as sitk
 from miplib.data.containers import image_data
 from miplib.processing import itk as itkutils
 from miplib.processing.registration import registration_mv
-from miplib.ui import supertomo_options, utils
+from miplib.ui import utils
+from miplib.ui.cli import miplib_entry_point_options
 
 
 def main():
-    options = supertomo_options.get_register_script_options(sys.argv[1:])
+    options = miplib_entry_point_options.get_register_script_options(sys.argv[1:])
 
     # Get Data
     filename = sys.argv[1]
