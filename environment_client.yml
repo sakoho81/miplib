@@ -1,0 +1,26 @@
+name: miplib
+
+dependencies:
+  - python=3.6
+  - numpy
+  - scipy
+  - h5py
+  - SimpleItk
+  - matplotlib
+  - numba=0.39
+  - pyculib
+  - pandas
+  - pims
+  - jpype1
+  - notebook
+  - scikit-image
+  - cudatoolkit=7.5
+  - pip
+  - pip:
+    - miplib
+
+channels:
+  - anaconda
+  - conda-forge
+  - simpleitk
+
