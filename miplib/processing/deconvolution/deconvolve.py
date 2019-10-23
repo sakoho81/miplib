@@ -234,6 +234,7 @@ class DeconvolutionRL(object):
                    ):
                     self.psf = frc_psf.generate_frc_based_psf(Image(self.estimate, self.image_spacing), self.options)
                     self.__get_psfs()
+                    self.image = self.estimate.copy()
 
                 info_map = {}
                 ittime = time.time()
