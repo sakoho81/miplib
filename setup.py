@@ -3,7 +3,7 @@ import numpy
 
 setup(
     name='miplib',
-    version='1.0.2',
+    version='1.0.3',
     packages=find_packages(),
     install_requires=['numpy', 'scipy', 'h5py', 'SimpleITK', 'jpype1',
                       'matplotlib', 'numba', 'pyculib', 'pandas', 'pims', 'scikit-image'],
@@ -27,7 +27,7 @@ setup(
     },
     platforms=["any"],
     url='https://github.com/sakoho81/miplib',
-    download_url="https://github.com/sakoho81/miplib/archive/v1.0.2.tar.gz",
+    download_url="https://github.com/sakoho81/miplib/archive/v1.0.3.tar.gz",
     license='BSD',
     author='Sami Koho',
     author_email='sami.koho@gmail.com',

@@ -8,10 +8,9 @@ from miplib.data.containers.image import Image
 from miplib.processing import itk
 from miplib.processing.registration import registration
 from miplib.processing.windowing import apply_hamming_window
-import miplib.processing.image as imops
 
 
-def find_image_shifts(data, options, photosensor=0):
+def find_image_shifts(data, options, photosensor=0, fixed_idx=12):
     """
     Register all images in an ISM ArrayDetectorData dataset. The central image (pixel 12)
     is used as reference and other images are aligned with it. This function used an
@@ -22,6 +21,7 @@ def find_image_shifts(data, options, photosensor=0):
     supertomo_options.py file
     :param data: ArrayDetectorData object with all the individual images
     :param photosensor: The photosensor number (from 0 upwards) that is to be processed
+    :param fixed_idx: The index of the reference image. Defaults to 12 (IIT SPAD array)
     :return: a three element tuple: x offset, y offset, transforms. The x and y offsets are expressed
     in physical units (um). The transforms are sitk.TranslationTransform objects that can be used
     to resample the images into a common coordinate system.
@@ -29,7 +29,7 @@ def find_image_shifts(data, options, photosensor=0):
     assert isinstance(data, ArrayDetectorData)
     assert photosensor < data.ngates
 
-    fixed_image = itk.convert_to_itk_image(data[photosensor, int(floor(data.ndetectors / 2))])
+    fixed_image = itk.convert_to_itk_image(data[photosensor, fixed_idx])
     x = []
     y = []
     transforms = []
