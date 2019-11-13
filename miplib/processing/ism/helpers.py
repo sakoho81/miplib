@@ -76,4 +76,33 @@ def make_psf_plot(data, size=(5,5)):
     return fig
 
 
+def calculate_theoretical_shifts_xy(pitch, magnification, alpha=0.5, width=5):
+    """ Calculate theoretical ISM shift matrix, based on detector pixel pitch
+    and 
+    
+    Arguments:
+        pitch {float} -- Distance between two detector elements. 
+        
+        magnification {float} -- Total magnification from object plane to the 
+        detector plane.
+    
+    Keyword Arguments:
+        width {int} -- Width of the detector (number of pixels) (default: {5})
+        alpha {float} -- the reassignment factor (default: {0.5})
+    
+    Returns:
+        [list(float, float)] -- Returns a list of the y and x coordinates of
+        the image offsets
+    """
+    
+    pitch_pt = pitch*.5/magnification
+
+    radius = width//2
+    axis = np.linspace(-pitch_pt*radius, pitch_pt*radius, width)
+    y_pt, x_pt = np.meshgrid(axis,axis)
+
+    x_pts = list(x_pt.ravel())
+    y_pts = list(y_pt.ravel())[::-1]
+
+    return y_pts, x_pts
 
