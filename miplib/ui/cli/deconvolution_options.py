@@ -1,5 +1,6 @@
 import argparse
 
+
 def get_deconvolution_options_group(parser):
     assert isinstance(parser, argparse.ArgumentParser)
     group = parser.add_argument_group("Deconvolution", "Options for controlling the deconvolution algorithm")
@@ -118,16 +119,12 @@ def get_deconvolution_options_group(parser):
         '--rl-auto-background',
         action="store_true"
     )
-
-<<<<<<< HEAD
-=======
     group.add_argument(
         '--rl-frc-stop',
         type=float,
         default=0.0,
         help= "Set a stopping condition for the deconvolution based on FRC"
     )
->>>>>>> public
     return parser
 
 

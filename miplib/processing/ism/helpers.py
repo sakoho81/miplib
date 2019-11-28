@@ -95,7 +95,7 @@ def calculate_theoretical_shifts_xy(pitch, magnification, alpha=0.5, width=5):
         the image offsets
     """
     
-    pitch_pt = pitch*.5/magnification
+    pitch_pt = pitch*alpha/magnification
 
     radius = width//2
     axis = np.linspace(-pitch_pt*radius, pitch_pt*radius, width)
