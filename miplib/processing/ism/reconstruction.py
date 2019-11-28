@@ -9,6 +9,9 @@ from miplib.processing import itk
 from miplib.processing.registration import registration
 from miplib.processing.windowing import apply_hamming_window
 
+import miplib.processing.ism.helpers as ismutils
+from miplib.processing import transform as tfm
+
 
 def find_image_shifts(data, options, photosensor=0, fixed_idx=12):
     """
@@ -46,16 +49,31 @@ def find_image_shifts(data, options, photosensor=0, fixed_idx=12):
     return x, y, transforms
 
 
-def get_theoretical_shifts(pitch=75, wavelength=550, detector_size_au=1.5):
-    magnification = 500
+def find_static_image_shifts(pitch, wavelength, fov, na, alpha=0.5, width=5, rotation=0):
+    """
+    Generate spatial transforms for ISM image reconstruction, based on theoretical values.
+    :param pitch: the detector pixel spacing
+    :param wavelength: the wavelength to be used in the calculations. Can be e.g. the average
+    of the excitation and emission wavelengths
+    :param fov: the size of the SPAD field of view in Airy units
+    :param na: the objective numerical aperture
+    :param alpha: the reassignment factor ]0, 1]
+    :param width: the number of detectors along one dimension of the SPAD.
+    :return: a list of ITK transforms that can be used to resample the images.
+    """
+    assert 0 < alpha <= 1
 
-    # Make a pure theoretical shifts grid
-    pitch_pt = pitch / magnification
-    axis = np.linspace(-2 * pitch_pt, 2 * pitch_pt, 5)
-    y_pt, x_pt = np.meshgrid(axis, axis)
+    d_airy = 1.22 * wavelength / na
+    d_detector_sp = fov*d_airy
+    d_detector_ip = pitch*width
 
-    x_pts = list(x_pt.ravel())
-    y_pts = list(y_pt.ravel())[::-1]
+    magnification = d_detector_ip/d_detector_sp
+
+    x,y = ismutils.calculate_theoretical_shifts_xy(pitch, magnification, alpha=alpha)
+    if rotation != 0:
+        x,y = tfm.rotate_xy_points_lists(y, x, rotation)
+
+    return tfm.make_translation_transforms_from_xy(y, x)
 
 
 def find_image_shifts_frequency_domain(data, photosensor=0):

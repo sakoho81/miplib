@@ -8,15 +8,18 @@ for the various *miplib* entry points, that can be found in the
 
 import argparse
 
-from miplib.ui.cli.deconvolution_options import get_deconvolution_options_group
-from miplib.ui.cli.fusion_options import get_fusion_options_group
-from miplib.ui.cli.frc_options import get_frc_options_group
-from miplib.ui.cli.psf_estimation_options import get_psf_estimation_options_group
-from miplib.ui.cli.registration_options import get_registration_options_group
 import miplib.analysis.image_quality.filters as filters
 import miplib.ui.cli.argparse_helpers as helpers
+from miplib.ui.cli.deconvolution_options import get_deconvolution_options_group
+from miplib.ui.cli.frc_options import get_frc_options_group
+from miplib.ui.cli.fusion_options import get_fusion_options_group
+from miplib.ui.cli.psf_estimation_options import get_psf_estimation_options_group
+from miplib.ui.cli.registration_options import get_registration_options_group
+from miplib.ui.cli.ism_options import get_ism_reconstruction_options_group
 
-#region Fourier Ring Correlation scripts
+
+
+# region Fourier Ring Correlation scripts
 
 def get_frc_script_options(arguments):
     """ Command line options for the Fourier ring correlation script
@@ -40,13 +43,14 @@ def get_frc_script_options(arguments):
     parser.add_argument('--outdir', dest='pathout',
                         help='Select output folder where to save the log file'
                              + ' and the plots')
-    parse = get_common_options_group(parser)
+    parser = get_common_options_group(parser)
     parser = get_frc_options_group(parser)
     return parser.parse_args(arguments)
 
-#endregion
 
-#region Deconvolution scripts
+# endregion
+
+# region Deconvolution scripts
 def get_deconvolve_script_options(arguments):
     parser = argparse.ArgumentParser(
         description="Command line arguments for the"
@@ -60,11 +64,13 @@ def get_deconvolve_script_options(arguments):
     parser = get_frc_options_group(parser)
     return parser.parse_args(arguments)
 
-#endregion
 
-#region Image Scanning Microscopy reconstruction scripts
+# endregion
+
+# region Image Scanning Microscopy reconstruction scripts
 
 def get_ism_script_options(arguments):
+
     """ Command line options for the ISM reconstruction script
     
     Arguments:
@@ -81,21 +87,23 @@ def get_ism_script_options(arguments):
                     "ISM image reconstruction script"
     )
     parser.add_argument('directory', type=helpers.parse_is_dir)
-    parser.add_argument('ism_mode', 
-        choices=["reassign", "wiener", "rl", "all"], 
-        default="reassign",
-        help="Indicate the reassignment approach"
-    )
+    parser.add_argument('ism_mode',
+                        choices=["adaptive", "static", "wiener", "rl", "all"],
+                        default="reassign",
+                        help="Indicate the reassignment approach"
+                        )
     parser = get_common_options_group(parser)
     parser = get_registration_options_group(parser)
     parser = get_deconvolution_options_group(parser)
     parser = get_psf_estimation_options_group(parser)
     parser = get_frc_options_group(parser)
+    parser = get_ism_reconstruction_options_group(parser)
     return parser.parse_args(arguments)
 
-#endregion
 
-#region Multi-View Reconstruction scripts
+# endregion
+
+# region Multi-View Reconstruction scripts
 
 def get_import_script_options(arguments):
     """ Import script is used in *miplib* to import data to the internal
@@ -140,6 +148,7 @@ def get_import_script_options(arguments):
 
     return parser.parse_args(arguments)
 
+
 def get_register_script_options(arguments):
     """ Command line options for the multi-view image registration script
 
@@ -158,13 +167,14 @@ def get_register_script_options(arguments):
                     "miplib image registration script"
     )
     parser.add_argument(
-        'data_file', 
-        help="Give a path to a HDF5 file that contains the images")    
-    
+        'data_file',
+        help="Give a path to a HDF5 file that contains the images")
+
     parser = get_common_options_group(parser)
     parser = get_registration_options_group(parser)
 
     return parser.parse_args(arguments)
+
 
 def get_fusion_script_options(arguments):
     """ Command line options for the multi-view image fusion script
@@ -179,22 +189,23 @@ def get_fusion_script_options(arguments):
         [Namespace object] -- Simple class used by default by parse_args() 
         to create an object holding attributes and return it.
     """
-    
+
     parser = argparse.ArgumentParser(
         description="Command line arguments for the"
                     "miplib image fusion script"
     )
     parser.add_argument(
-        'data_file', 
+        'data_file',
         help="Give a path to a HDF5 file that contains the images")
     parser = get_common_options_group(parser)
     parser = get_fusion_options_group(parser)
 
     return parser.parse_args(arguments)
 
-#endregion
 
-#region Correlative Microscopy scripts
+# endregion
+
+# region Correlative Microscopy scripts
 
 def get_tem_correlation_options(parser):
     assert isinstance(parser, argparse.ArgumentParser)
@@ -243,6 +254,7 @@ def get_tem_correlation_options(parser):
 
     return parser
 
+
 def get_correlate_tem_script_options(arguments):
     """ This script is used to correlate fluoresence microscope (STED) and
     TEM images
@@ -266,6 +278,7 @@ def get_correlate_tem_script_options(arguments):
     parser = get_registration_options_group(parser)
 
     return parser.parse_args(arguments)
+
 
 def get_transform_script_options(arguments):
     """ A utility script that can be used to apply a saved spatial transform
@@ -294,9 +307,10 @@ def get_transform_script_options(arguments):
 
     return parser.parse_args(arguments)
 
-#endregion
 
-#region Image Quality Ranking
+# endregion
+
+# region Image Quality Ranking
 
 def get_quality_script_options(arguments):
     """ Command line options for the image quality ranking script
@@ -311,7 +325,7 @@ def get_quality_script_options(arguments):
         [Namespace object] -- Simple class used by default by parse_args() 
         to create an object holding attributes and return it.
     """
-    
+
     parser = argparse.ArgumentParser(
         description="Command line arguments for the "
                     "image quality ranking software"
@@ -427,9 +441,10 @@ def get_subjective_ranking_options(arguments):
 
     return parser.parse_args(arguments)
 
-#endregion
 
-#region Common options
+# endregion
+
+# region Common options
 def get_common_options_group(parser):
     """ Common options for all the above scripts
     
@@ -547,6 +562,12 @@ def get_common_options_group(parser):
         help='Save some extra plots that a script may generate'
     )
 
-    return parser
-#endregion
+    group.add_argument(
+        '--enhance-contrast-on-save',
+        action='store_true',
+        help='Enhance contrast of the output images, by allowing a small percentage '
+             'of the pixels to saturate.'
+    )
 
+    return parser
+# endregion

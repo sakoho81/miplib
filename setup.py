@@ -26,11 +26,7 @@ setup(
         ]
     },
     platforms=["any"],
-    url='https://github.com/sakoho81/miplib',
-<<<<<<< HEAD
-=======
     download_url="https://github.com/sakoho81/miplib/archive/v1.0.3.tar.gz",
->>>>>>> public
     license='BSD',
     author='Sami Koho',
     author_email='sami.koho@gmail.com',
@@ -49,10 +45,10 @@ setup(
             include_dirs=[numpy.get_include()]),
     ],
     classifiers=[
-    'Development Status :: 3 - Alpha',
-    'Intended Audience :: Developers',
-    'Topic :: Software Development :: Libraries :: Python Modules',
-    'License :: OSI Approved :: BSD License',  
-    'Programming Language :: Python :: 3.6',
+        'Development Status :: 3 - Alpha',
+        'Intended Audience :: Developers',
+        'Topic :: Software Development :: Libraries :: Python Modules',
+        'License :: OSI Approved :: BSD License',
+        'Programming Language :: Python :: 3.6',
   ]
 )

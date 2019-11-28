@@ -88,7 +88,7 @@ class ConicalFourierShellIterator(FourierShellIterator):
     """
     def __init__(self, shape, d_bin, d_angle):
         """
-        :param shape: Shape of the image
+        :param shape: Shape of the data
         :param d_bin: The radius increment size (pixels)
         :param d_angle: The angle increment size (degrees)
         """
@@ -315,7 +315,7 @@ class RotatingFourierShellIterator(FourierShellIterator):
 
     def __init__(self, shape, d_bin, d_angle):
         """
-        :param shape: Shape of the image
+        :param shape: Shape of the data
         :param d_bin: The radius increment size (pixels)
         :param d_angle: The angle increment size (degrees)
         """
