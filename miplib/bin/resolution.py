@@ -13,32 +13,29 @@ import miplib.analysis.resolution.fourier_ring_correlation as frc
 from miplib.data.io import read as imread
 import miplib.ui.cli.miplib_entry_point_options as options
 import miplib.processing.to_string as strutils
-import miplib.processing.image as imops
+
 
 def main():
 
     # Get input arguments
     args = options.get_frc_script_options(sys.argv[1:])
-    path = args.working_directory
+    path = args.directory
 
     # Create output directory
-    output_dir = datetime.datetime.now().strftime("%Y-%m-%d") + '_MIPLIB_output'
-    output_dir = os.path.join(args.working_directory, output_dir)
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
+    output_dir = args.directory
     date_now = datetime.datetime.now().strftime("%H-%M-%S")
 
-    filename = date_now + "_miplib_{}_frc_results.csv".format(args.mode)
+    filename = "{}_miplib_{}_frc_results.csv".format(date_now, args.frc_mode)
     filename = os.path.join(output_dir, filename)
 
     # Get image file names, sort in alphabetic order and complete.
     files_list = list(i for i in os.listdir(path)
                       if i.endswith((".jpg", ".tif", ".tiff", ".png")))
     files_list.sort()
-    print(('Number of images to analyze: ', len(files_list)))
+    print('Number of images to analyze: {}'.format(len(files_list)))
 
-    df_main = pandas.DataFrame()
+    #df_main = pandas.DataFrame(0, index=np.arange(len(files_list)), columns=["Image", "Depth", "Kind", "Resolution"])
+    df_main = pandas.DataFrame(0, index=np.arange(len(files_list)), columns=["Image", "Resolution"])
 
     if args.frc_mode == "two-image":
        
@@ -46,7 +43,7 @@ def main():
             a = iter(iterable)
             return zip(a, a)
 
-        for im1, im2 in pairwise(files_list):
+        for idx, im1, im2 in enumerate(pairwise(files_list)):
             # Read images
             image1 = imread.get_image(os.path.join(path, im1))
             image2 = imread.get_image(os.path.join(path, im2))
@@ -54,30 +51,40 @@ def main():
             result = frc.calculate_two_image_frc(image1, image2, args)
             title = strutils.common_start(im1, im2)
 
-            df_temp = pandas.DataFrame()
-            df_temp['image'] = title
-            df_temp['resolution'] = result.resolution['resolution']
-
-            df_main = pandas.concat([df_main, df_temp])
+            resolution = result.resolution['resolution']
+            df_main.iloc[idx] = title, resolution
 
     elif args.frc_mode == "one-image":
-        for im in files_list:
+        for idx, im in enumerate(files_list):
             image = imread.get_image(os.path.join(path, im))
+
+            print("Analyzing image {}".format(im))
 
             result = frc.calculate_single_image_frc(image, args)
 
             title = im.split('.')[0]
-            df_temp = pandas.DataFrame()
-            df_temp['image'] = title
-            df_temp['resolution'] = result.resolution['resolution']
 
-            df_main = pandas.concat([df_main, df_temp])
+            # I left these snippets here to show how one can add additional info
+            # to the dataframes in particular use cases.
+
+            #depth = title.split('um_')[0].split("_")[-1]
+
+            # kind = None
+            # for x in ("apr_ism", "apr_ism_bplus", "closed", "open", "static_ism", "ism_sim"):
+            #     if x in title:
+            #         kind = x
+            # if kind is None:
+            #     raise RuntimeError("Unknown image: {}".format(title))
+            resolution = result.resolution['resolution']
+            #df_main.iloc[idx] = title, depth, kind, resolution
+            df_main.iloc[idx] = title, resolution
 
     else:
         raise NotImplementedError()
 
     df_main.index = list(range(len(df_main)))
     df_main.to_csv(filename)
+
 
 if __name__ == '__main__':
     main()
