@@ -6,7 +6,7 @@ Image resolution measurement by Fourier Ring Correlation.
 """
 
 import numpy as np
-
+import os
 import miplib.data.iterators.fourier_ring_iterators as iterators
 import miplib.processing.image as imops
 from miplib.data.containers.fourier_correlation_data import FourierCorrelationData, \
@@ -14,6 +14,7 @@ from miplib.data.containers.fourier_correlation_data import FourierCorrelationDa
 from miplib.data.containers.image import Image
 from . import analysis as fsc_analysis
 from miplib.processing import windowing
+import miplib.data.io.read as imread
 
 def calculate_single_image_frc(image, args, average=True, trim=True, z_correction=1):
     """
@@ -177,6 +178,39 @@ def calculate_single_image_sectioned_frc(image, args, rotation=45, orthogonal=Tr
     result.resolution["resolution"] /= log_correction
 
     return result
+
+def batch_evaluate_frc(path, options):
+    """
+    Batch calculate FRC resolution for files placed in a directory
+    :param options: options for the FRC
+    :parame path:   directory that contains the images to be analyzed
+    """
+    assert os.path.isdir(path)
+
+    measures = FourierCorrelationDataCollection()
+    image_names = []
+
+    for idx, image_name in enumerate(sorted(os.listdir(path))):
+    
+        real_path = os.path.join(path, image_name)
+        # Only process images. The bioformats reader can actually do many more file formats
+        # but I was a little lazy here, as we usually have tiffs.
+        if not os.path.isfile(real_path) or not real_path.endswith((".tiff", ".tif")):
+            continue
+        # ImageJ files have particular TIFF tags that can be processed correctly
+        # with the options.imagej switch
+        image = imread.get_image(real_path)
+
+        # Only grayscale images are processed. If the input is an RGB image,
+        # a channel can be chosen for processing.
+        measures[idx] = calculate_single_image_frc(image, options)
+
+        image_names.append(image_name)
+
+    return measures, image_names
+        
+
+
 
 class FRC(object):
     """

@@ -1,13 +1,11 @@
 scikit-image
-ipywidgets
-backports
-mayavi
 pims
 pandas
 h5py
 matplotlib
-numba
+numba=0.39
 pyculib
 SimpleITK
 scipy
 numpy
+jpype1

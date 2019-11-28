@@ -2,10 +2,12 @@ import os
 
 import SimpleITK as sitk
 import pims
+import numpy as np
 
 import miplib.processing.itk as itkutils
 from . import tiffile
 from miplib.data.containers.image import Image
+from miplib.data.containers.array_detector_data import ArrayDetectorData
 
 scale_c = 1.0e6
 
@@ -176,6 +178,5 @@ def __bioformats(filename, series=0, channel=0, return_itk = False):
         return itkutils.convert_from_numpy(image, spacing)
     else:
         return Image(image, spacing)
-
 
 

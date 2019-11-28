@@ -119,6 +119,15 @@ def get_deconvolution_options_group(parser):
         action="store_true"
     )
 
+<<<<<<< HEAD
+=======
+    group.add_argument(
+        '--rl-frc-stop',
+        type=float,
+        default=0.0,
+        help= "Set a stopping condition for the deconvolution based on FRC"
+    )
+>>>>>>> public
     return parser
 
 
