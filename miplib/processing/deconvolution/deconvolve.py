@@ -38,6 +38,7 @@ from miplib.data.messages.image_writer_wrappers import ImageWriterBase
 from numpy.fft import fftn, fftshift
 
 import miplib.psf.frc_psf as frc_psf
+import miplib.analysis.resolution.fourier_ring_correlation as frc
 
 class DeconvolutionRL(object):
     """
@@ -113,6 +114,11 @@ class DeconvolutionRL(object):
                              's', 'u', 'n', 'uesu')
         self._progress_parameters = numpy.empty((self.options.max_nof_iterations, len(self.column_headers)),
                                                 dtype=numpy.float32)
+
+        # Get initial resolution (in case you are using the FRC based stopping.)
+        if self.options.rl_frc_stop > 0:
+            self.resolution = frc.calculate_single_image_frc(self.image, 
+                self.options).resolution["resolution"]
 
     @property
     def progress_parameters(self):
@@ -287,6 +293,17 @@ class DeconvolutionRL(object):
                 elif not self.options.disable_tau1 and tau1 <= self.options.stop_tau:
                     stop_message = 'Desired tau-threshold achieved'
                     break
+                elif self.options.rl_frc_stop > 0:
+                    resolution_new = frc.calculate_single_image_frc(
+                            Image(self.estimate, self.image_spacing), self.options).resolution["resolution"]
+                    frc_diff = numpy.abs(self.resolution - resolution_new)
+                    if frc_diff <= self.options.rl_frc_stop:
+                        print('Desired FRC diff reached after {} iterations'.format(
+                            self.iteration_count))
+                        break
+                    else:
+                        self.resolution = resolution_new
+                    
                 # elif self.iteration_count >= 4 and abs(frc_diff) <= .0001:
                 #     stop_message = 'FRC stop condition reached'
                 #     break

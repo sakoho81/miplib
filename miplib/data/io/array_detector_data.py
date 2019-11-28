@@ -1,4 +1,5 @@
 import numpy as np
+import pims
 from scipy.io import loadmat
 
 from miplib.data.containers.array_detector_data import ArrayDetectorData
@@ -43,5 +44,39 @@ def read_carma_mat(filename):
                 container[i, j] = Image(np.transpose(data[name][0][0]), spacing)
 
 
+    return container
+
+def read_airyscan_data(image_path, time_points=1, detectors=32):
+    """ Read an Airyscan image. 
+    
+    Arguments:
+        image_path {string} -- Path to the file
+    
+    Keyword Arguments:
+        time_points {int} -- Number of time points (if a time series) (default: {1})
+        detectors {int} -- Number of detectors (default: {32})
+    
+    Returns:
+        ArrayDetectorData -- Returns the Airyscan image in the internal format for ISM
+        processing.
+    """
+    # Open file
+    data = pims.bioformats.BioformatsReader(image_path)
+    
+    # Get metadata
+    spacing = [data.metadata.PixelsPhysicalSizeY(0), data.metadata.PixelsPhysicalSizeX(0)]
+    
+    # Initialize data container
+    container = ArrayDetectorData(detectors, time_points)
+
+    # Split time points
+    data.bundle_axes = ['t', 'y', 'x']
+    data = np.stack(np.split(data[0], time_points))
+
+    # Save to data container
+    for i in range(time_points):
+        for j in range(detectors):
+            container[i, j] = Image(data[i, j, :, :], spacing)
+            
     return container
 

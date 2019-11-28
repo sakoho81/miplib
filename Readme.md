@@ -30,11 +30,17 @@ I would recommend going with the *Anaconda* Python distribution, as it removes a
 
 ### And if you are not a developer
 
-Skip all the hassle above and install the *miplib* package through the Anaconda with ```conda install …``` (coming up)
+If you just want to use the library, you can get everything running as follows:
+
+1. Download the *environment_client.yml* file and create a Python virtual environment `conda env create -f environment_client.yml`. 
+
+2. Activate the created virtual environment by writing `conda activate miplib`
 
 ## How do I use it?
 
-Please look for updates in the Examples/ folder (a work in progress). Let me know if you would be interested in some specific example to be included.
+My preferred tool for explorative tasks is Jupyter Notebook/Lab. Please look for updates in the Examples/ folder (a work in progress). Let me know if you would be interested in some specific example to be included. 
+
+There are also a number of command line scripts (entry points) in the bin/ directory that may be handy in different batch processing tasks. However, some of them may require some work, as I haven't really used the command line interface in a while.
 
 ## Contribute?
 
