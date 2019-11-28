@@ -1,6 +1,7 @@
 import os
 
 import matplotlib.pyplot as plt
+
 plt.style.use("seaborn-colorblind")
 
 import numpy as np
@@ -10,7 +11,7 @@ from miplib.data.containers.fourier_correlation_data import FourierCorrelationDa
 from miplib.processing.converters import degrees_to_radians
 
 
-def plot_resolution_curves(data_to_plot, x_idx=0, size=(2,2), disable_ax_labels=False):
+def plot_resolution_curves(data_to_plot, x_idx=0, size=(2, 2), disable_ax_labels=False):
     """
     Make a figure with all FRC curves plotted into a single subplot
 
@@ -33,7 +34,7 @@ def plot_resolution_curves(data_to_plot, x_idx=0, size=(2,2), disable_ax_labels=
     return fig
 
 
-def resolution_curves_subplot(ax, data_to_plot, x_idx=0, disable_ax_labels=False):
+def resolution_curves_subplot(ax, data_to_plot, x_idx=0, disable_ax_labels=False, line_style='-'):
     """
     Does the actual owrk fo the plot_resolution_curves function, but requires an axis as an input. It is useful eg.
     when one desires to have several subplots.
@@ -80,7 +81,6 @@ def resolution_curves_subplot(ax, data_to_plot, x_idx=0, disable_ax_labels=False
         ax.set_ylabel(ylabel)
 
     for idx, dataset in enumerate(datasets):
-
         ax.set_ylim([0, 1.2])
 
         # Plot calculated FRC values as xy scatter.
@@ -88,7 +88,7 @@ def resolution_curves_subplot(ax, data_to_plot, x_idx=0, disable_ax_labels=False
         x = dataset.correlation["frequency"]
         x_axis = arrayops.safe_divide(x, 2 * dataset.resolution["spacing"])
 
-        ax.plot(x_axis, y)
+        ax.plot(x_axis, y, linestyle=line_style)
 
     return ax
 
@@ -98,6 +98,7 @@ class FourierDataPlotter(object):
     An attempt of sorts to make a class to handle the various types of FRC/FSC plots. I'm not quite sure
     how much sense that makes. It might be better to just have individual funcitons, more Python.
     """
+
     def __init__(self, data, path=None):
         assert isinstance(data, FourierCorrelationDataCollection)
 

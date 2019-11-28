@@ -8,7 +8,7 @@ import miplib.processing.converters as converters
 class FourierRingIterator(object):
     """
     A Fourier ring iterator class for 2D images. Calculates a 2D polar coordinate
-    centered at the geometric center of the image shape.
+    centered at the geometric center of the data shape.
     """
     def __init__(self, shape, d_bin):
         """
@@ -69,7 +69,7 @@ class SectionedFourierRingIterator(FourierRingIterator):
     """
     def __init__(self, shape, d_bin, d_angle):
         """
-        :param shape: Shape of the image
+        :param shape: Shape of the data
         :param d_bin: The radius increment size (pixels)
         :param d_angle: The angle increment size (degrees)
         """

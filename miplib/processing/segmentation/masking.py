@@ -5,7 +5,7 @@ from scipy import ndimage
 from miplib.data.containers.image import Image
 
 
-def make_local_intensity_based_mask(image, threshold, kernel_size=100, invert=False):
+def make_local_intensity_based_mask(image, threshold, kernel_size=40, invert=False):
     assert isinstance(image, Image)
 
     blurred_image = ndimage.uniform_filter(image, size=kernel_size)
