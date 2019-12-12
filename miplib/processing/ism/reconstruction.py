@@ -12,6 +12,7 @@ from miplib.processing.windowing import apply_hamming_window
 import miplib.processing.ism.helpers as ismutils
 from miplib.processing import transform as tfm
 
+
 def find_image_shifts(data, options, photosensor=0, fixed_idx=12):
     """
     Register all images in an ISM ArrayDetectorData dataset. The central image (pixel 12)
