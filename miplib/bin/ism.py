@@ -84,7 +84,7 @@ def main():
             #
             # plt.xlim([-.3, .3])
             # plt.ylim([-.3, .3])
-            scatter_name = "{}_shifts_scatter.eps".format(filename_prefix)
+            scatter_name = "{}_shifts_scatter.pdf".format(filename_prefix)
             scatter_path = os.path.join(root_dir, scatter_name)
             fig.savefig(scatter_path, dpi=1200, bbox_inches='tight',
                         pad_inches=0, transparent=True)
