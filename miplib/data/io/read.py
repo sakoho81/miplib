@@ -26,10 +26,14 @@ def get_image(filename, series=0, channel=0, return_type='image', bioformats=Tru
     """
     assert return_type in ('itk', 'image')
 
-    if filename.endswith(".mha") or not bioformats:
+    if filename.endswith(".mha"):
         data = __itk_image(filename, return_type == 'itk')
     else:
-        data = __bioformats(filename, series, channel, return_type == 'itk')
+        if bioformats:
+            data = __bioformats(filename, series, channel, return_type == 'itk')
+        else:
+            data = __tiff(filename, return_type == 'itk')
+
 
     return data
 
