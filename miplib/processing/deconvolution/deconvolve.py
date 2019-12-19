@@ -35,6 +35,7 @@ import miplib.processing.ndarray
 from miplib.data.containers import temp_data
 from miplib.data.containers.image import Image
 from miplib.data.messages.image_writer_wrappers import ImageWriterBase
+from miplib.processing.segmentation import masking
 from numpy.fft import fftn, fftshift
 
 import miplib.psf.frc_psf as frc_psf
@@ -119,6 +120,13 @@ class DeconvolutionRL(object):
         if self.options.rl_frc_stop > 0:
             self.resolution = frc.calculate_single_image_frc(self.image, 
                 self.options).resolution["resolution"]
+
+        # Enable automatic background correction with --rl-auto-background
+        if self.options.rl_auto_background:
+            background_mask = masking.make_local_intensity_based_mask(
+                image, threshold=30, kernel_size=60, invert=True)
+            masked_image = Image(image * background_mask, image.spacing)
+            self.options.rl_background = numpy.mean(masked_image[masked_image > 0])
 
     @property
     def progress_parameters(self):

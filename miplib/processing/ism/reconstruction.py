@@ -73,7 +73,7 @@ def find_static_image_shifts(pitch, wavelength, fov, na, alpha=0.5, width=5, rot
     if rotation != 0:
         x,y = tfm.rotate_xy_points_lists(y, x, rotation)
 
-    return tfm.make_translation_transforms_from_xy(y, x)
+    return x, y, tfm.make_translation_transforms_from_xy(y, x)
 
 
 def find_image_shifts_frequency_domain(data, photosensor=0):
