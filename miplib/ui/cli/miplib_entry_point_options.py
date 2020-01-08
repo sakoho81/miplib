@@ -392,6 +392,7 @@ def get_quality_script_options(arguments):
     )
 
     parser = filters.get_common_options(parser)
+    parser = get_common_options_group(parser)
     parser = get_frc_options_group(parser)
     return parser.parse_args(arguments)
 

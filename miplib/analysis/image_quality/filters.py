@@ -72,11 +72,7 @@ def get_common_options(parser):
         type=int,
         default=80
     )
-    group.add_argument(
-        "--show-plots",
-        dest="show_plots",
-        action="store_true"
-    )
+    
     return parser
 
 
