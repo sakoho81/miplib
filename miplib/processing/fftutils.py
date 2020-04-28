@@ -1,7 +1,7 @@
 import numpy as np
 from math import floor
 from miplib.data.containers.image import Image
-from miplib.data.indexers import polar_indexers as indexers
+from miplib.data.coordinates import polar as indexers
 from miplib.processing import windowing, ndarray
 
 

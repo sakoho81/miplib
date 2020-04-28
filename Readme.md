@@ -1,4 +1,5 @@
 # MIPLIB
+[![DOI](https://zenodo.org/badge/162555135.svg)](https://zenodo.org/badge/latestdoi/162555135)
 
 Microscope Image Processing Library (*MIPLIB*) is a Python based software library, created especially for processing and analysis of fluorescece microscopy images. It contains functions for example for:
 
