@@ -7,9 +7,8 @@ Microscope Image Processing Library (*MIPLIB*) is a Python based software librar
 - image deconvolution and fusion (2D/3D), based on efficient CUDA GPU accelerated algorithms
 - Fourier Ring/Shell Correlation (FRC/FSC) based image resolution analysis -- and several blind image restoration methods based on FRC/FSC.
 - Image quality analysis
-- image scanning microscopy (ISM) image reconstruction
 - ...
-
+- 
 The library is distributed under a BSD open source license.
 
 ## How do I install it?
