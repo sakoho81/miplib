@@ -3,10 +3,10 @@ import numpy
 
 setup(
     name='miplib',
-    version='1.0.3',
+    version='1.0.4',
     packages=find_packages(),
     install_requires=['numpy', 'scipy', 'h5py', 'SimpleITK', 'jpype1',
-                      'matplotlib', 'numba', 'pyculib', 'pandas', 'pims', 'scikit-image'],
+                      'matplotlib', 'pandas', 'pims', 'scikit-image'],
     description='A Python software library for (optical) microscopy image restoration, reconstruction and analysis.',
     entry_points={
         'console_scripts': [

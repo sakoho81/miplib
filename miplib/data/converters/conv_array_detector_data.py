@@ -1,3 +1,4 @@
+import numpy as np
 from ..containers.array_detector_data import ArrayDetectorData
 from ..containers.image_data import ImageData
 
@@ -27,3 +28,44 @@ def convert_to_imagedata(data, path, data_type="original"):
                 image_data.add_psf(temp, 100, det_idx, gate_idx, 0, temp.spacing)
 
     return image_data
+
+def convert_to_numpy(data):
+    """
+    Convert ArrayDetectorData into a Numpy array.
+
+    :param data: the object to be converted
+    :type data: ArrayDetectorData
+
+    :return: the data array, organized as (gate, detector, z, y, x). If a two-dimensional
+    dataset is provided, the return shape is the same (len(z)=1).
+
+    """
+    assert isinstance(data, ArrayDetectorData)
+
+    # Get image shape
+    n_dim = data[0,0].ndim
+    if n_dim == 2:
+        image_shape = (1,) + data[0,0].shape
+    elif n_dim == 3:
+        image_shape = data[0,0].shape
+    else:
+        raise ValueError(f"Unsupported array shape ({data[0,0].shape})")
+    
+    # Initialize new Numpy array
+    array_shape = (data.ngates, data.ndetectors) + image_shape
+    array = np.zeros(array_shape, dtype=data[0,0].dtype)
+
+    # Copy values
+    for gate_idx in range(data.ngates):
+        for det_idx in range(data.ndetectors):
+            if n_dim == 2:
+                array[gate_idx, det_idx, 0] = data[gate_idx, det_idx]
+            else:
+                array[gate_idx, det_idx] = data[gate_idx, det_idx]
+
+    image_spacing = data[0,0].spacing
+    
+    return array, image_spacing
+            
+
+

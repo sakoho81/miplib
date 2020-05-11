@@ -8,12 +8,13 @@ Microscope Image Processing Library (*MIPLIB*) is a Python based software librar
 - Fourier Ring/Shell Correlation (FRC/FSC) based image resolution analysis -- and several blind image restoration methods based on FRC/FSC.
 - Image quality analysis
 - ...
-- 
+
 The library is distributed under a BSD open source license.
 
 ## How do I install it?
 
-I would recommend going with the *Anaconda* Python distribution, as it removes all the hassle from installing the necessary packages. MIPLIB should work on all platforms (Windows, MacOS, Linux), however I do not actively test it on Windows. On MacOS the CUDA GPU acceleration currently does not work, because there are no NVIDIA drivers available for the latest OS versions.
+I would recommend going with the *Anaconda* Python distribution, as it removes all the hassle from installing the necessary packages. MIPLIB should work on all platforms (Windows, MacOS, Linux), however I do not actively test it on Windows. 
+
 
 ### Here's how to setup your machine for development:
 
@@ -49,6 +50,10 @@ There are also a number of command line scripts (entry points) in the bin/ direc
 ## Regarding Python versions
 
 I recenly migrated MIPLIB to Python 3, and have no intention to maintain backwards compatibility to Python 2.7. You can checkout an older version of the library, if you need to work on Python 2.7.
+
+## About GPU acceleration
+
+The deconvolution algorithms can be accelerated with a GPU. On MacOS the CUDA GPU acceleration currently does not work, because there are no NVIDIA drivers available for the latest OS versions. For that reason I have included an environment file that does not install the CUDA specific packages. At some point in future I will hopefully have some time to add GPGPU support (e.g. through [Reikna](https://github.com/fjarri/reikna)).
 
 ## Publications
 
