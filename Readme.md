@@ -59,10 +59,9 @@ The deconvolution algorithms can be accelerated with a GPU. On MacOS the CUDA GP
 
 Here are some works that have been made possible by the MIPLIB (and its predecessors):
 
+Koho, S. V. et al. Two-photon image-scanning microscopy with SPAD array and blind image reconstruction. Biomed. Opt. Express, BOE 11, 2905–2924 (2020)
 
 [Koho, S. *et al.* Fourier ring correlation simplifies image restoration in fluorescence microscopy. Nat. Commun. 10 3103 (2019).](https://doi.org/10.1038/s41467-019-11024-z)
-
-Koho, S. V. *et al.* Easy Two-Photon Image Scanning Microscopy with SPAD Array and Blind Image Reconstruction. *biorxiv* doi:10.1101/563288
 
 Koho, S., T. Deguchi, and P. E. E. Hänninen. 2015. “A Software Tool for Tomographic Axial Superresolution in STED Microscopy.” Journal of Microscopy 260 (2): 208–18.
 
