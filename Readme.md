@@ -18,12 +18,13 @@ I would recommend going with the *Anaconda* Python distribution, as it removes a
 
 ### Here's how to setup your machine for development:
 
-  1. There are some C extensions in *miplib* that need to be compiled. Therefore, if you are on a *mac*, you will also need to install XCode command line tools. In order to do this, Open *Terminal* and write `xcode-select --install`. In addition, if you already upgraded to MacOS Mojave, you will also have to install the following: `open /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.14.pkg`. If you are on *Windows*, you will need the [C++ compiler](https://wiki.python.org/moin/WindowsCompilers)
+  1. There are some C extensions in *miplib* that need to be compiled. Therefore, if you are on a *mac*, you will also need to install XCode command line tools. In order to do this, Open *Terminal* and write `xcode-select --install`. If you are on *Windows*, you will need the [C++ compiler](https://wiki.python.org/moin/WindowsCompilers)
 
+  2. The Bioformats plugin that I leverage in MIPLIB to read microscopy image formats requires Java. Therefore, make sure that you have JRE installed if you want to use the bioformats reader.  If you are on Windows, also make sure that the JAVA_HOME environment variable is set. You may also have to add the JAVA_HOME to your PATH. More info on that can be found here: [JPYPE](https://jpype.readthedocs.io/en/latest/install.html). 
 
-3. Clone the *MIBLIB* repository from GitHub (`git clone git@github.com:sakoho81/miplib.git`). The code will be saved to a sub-directory called *miplib* of the current directory. Put the code somewhere where it can stay for a while. You may need to generate an SSH key, if you have not used GitHub previously.
+3. Fork and clone the *MIBLIB* repository (`git clone git@github.com:<your_account>/miplib.git`). The code will be saved to a sub-directory called *miplib* of the current directory. Put the code somewhere where it can stay. You may need to generate an SSH key, if you have not used GitHub previously.
 
-4. Go to the *miplib* directory and create a new Python virtual environment `conda env create -f environment.yml`. 
+4. Go to the *miplib* directory and create a new Python virtual environment `conda env create -f environment.yml`. Alternatively use `environment_nocuda.yml`, if you do not want to use GPU acceleration. 
 
 5. Activate the created virtual environment by writing `conda activate miplib`
 
