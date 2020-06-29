@@ -51,6 +51,7 @@ def contract_to_shape(data, shape):
 
     return image
 
+
 def expand_to_shape(data, shape, dtype=None, background=None):
     """
     Expand data to given shape by zero-padding.
@@ -69,7 +70,7 @@ def expand_to_shape(data, shape, dtype=None, background=None):
     if background is None:
         background = 0
 
-    if (shape != data.shape):
+    if any(shape != data.shape):
         expanded_data = numpy.zeros(shape, dtype=dtype) + background
         slices = []
         rhs_slices = []
