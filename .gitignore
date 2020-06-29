@@ -63,12 +63,14 @@ docs/_build/
 target/
 .idea/
 
+# Exclude jupyter notebooks (if not explicitely added)
 .ipynb_checkpoints/
+*.ipynb
 #scribbles/
 
 # Data directory (needs to be distributed some other way)
-<<<<<<< HEAD
 notebooks/
+miplib/bin/ism.py
 
 # Ignore data thay may be saved in the examples directory.
 *.tif

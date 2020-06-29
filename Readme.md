@@ -1,4 +1,5 @@
 # MIPLIB
+[![DOI](https://zenodo.org/badge/162555135.svg)](https://zenodo.org/badge/latestdoi/162555135)
 
 Microscope Image Processing Library (*MIPLIB*) is a Python based software library, created especially for processing and analysis of fluorescece microscopy images. It contains functions for example for:
 
@@ -6,23 +7,24 @@ Microscope Image Processing Library (*MIPLIB*) is a Python based software librar
 - image deconvolution and fusion (2D/3D), based on efficient CUDA GPU accelerated algorithms
 - Fourier Ring/Shell Correlation (FRC/FSC) based image resolution analysis -- and several blind image restoration methods based on FRC/FSC.
 - Image quality analysis
-- image scanning microscopy (ISM) image reconstruction
 - ...
 
 The library is distributed under a BSD open source license.
 
 ## How do I install it?
 
-I would recommend going with the *Anaconda* Python distribution, as it removes all the hassle from installing the necessary packages. MIPLIB should work on all platforms (Windows, MacOS, Linux), however I do not actively test it on Windows. On MacOS the CUDA GPU acceleration currently does not work, because there are no NVIDIA drivers available for the latest OS versions.
+I would recommend going with the *Anaconda* Python distribution, as it removes all the hassle from installing the necessary packages. MIPLIB should work on all platforms (Windows, MacOS, Linux), however I do not actively test it on Windows. 
+
 
 ### Here's how to setup your machine for development:
 
-  1. There are some C extensions in *miplib* that need to be compiled. Therefore, if you are on a *mac*, you will also need to install XCode command line tools. In order to do this, Open *Terminal* and write `xcode-select --install`. In addition, if you already upgraded to MacOS Mojave, you will also have to install the following: `open /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.14.pkg`. If you are on *Windows*, you will need the [C++ compiler](https://wiki.python.org/moin/WindowsCompilers)
+  1. There are some C extensions in *miplib* that need to be compiled. Therefore, if you are on a *mac*, you will also need to install XCode command line tools. In order to do this, Open *Terminal* and write `xcode-select --install`. If you are on *Windows*, you will need the [C++ compiler](https://wiki.python.org/moin/WindowsCompilers)
 
+  2. The Bioformats plugin that I leverage in MIPLIB to read microscopy image formats requires Java. Therefore, make sure that you have JRE installed if you want to use the bioformats reader.  If you are on Windows, also make sure that the JAVA_HOME environment variable is set. You may also have to add the JAVA_HOME to your PATH. More info on that can be found here: [JPYPE](https://jpype.readthedocs.io/en/latest/install.html). 
 
-3. Clone the *MIBLIB* repository from GitHub (`git clone git@github.com:sakoho81/miplib.git`). The code will be saved to a sub-directory called *miplib* of the current directory. Put the code somewhere where it can stay for a while. You may need to generate an SSH key, if you have not used GitHub previously.
+3. Fork and clone the *MIBLIB* repository (`git clone git@github.com:<your_account>/miplib.git`). The code will be saved to a sub-directory called *miplib* of the current directory. Put the code somewhere where it can stay. You may need to generate an SSH key, if you have not used GitHub previously.
 
-4. Go to the *miplib* directory and create a new Python virtual environment `conda env create -f environment.yml`. 
+4. Go to the *miplib* directory and create a new Python virtual environment `conda env create -f environment.yml`. Alternatively use `environment_nocuda.yml`, if you do not want to use GPU acceleration. 
 
 5. Activate the created virtual environment by writing `conda activate miplib`
 
@@ -50,14 +52,17 @@ There are also a number of command line scripts (entry points) in the bin/ direc
 
 I recenly migrated MIPLIB to Python 3, and have no intention to maintain backwards compatibility to Python 2.7. You can checkout an older version of the library, if you need to work on Python 2.7.
 
+## About GPU acceleration
+
+The deconvolution algorithms can be accelerated with a GPU. On MacOS the CUDA GPU acceleration currently does not work, because there are no NVIDIA drivers available for the latest OS versions. For that reason I have included an environment file that does not install the CUDA specific packages. At some point in future I will hopefully have some time to add GPGPU support (e.g. through [Reikna](https://github.com/fjarri/reikna)).
+
 ## Publications
 
 Here are some works that have been made possible by the MIPLIB (and its predecessors):
 
+Koho, S. V. et al. Two-photon image-scanning microscopy with SPAD array and blind image reconstruction. Biomed. Opt. Express, BOE 11, 2905–2924 (2020)
 
 [Koho, S. *et al.* Fourier ring correlation simplifies image restoration in fluorescence microscopy. Nat. Commun. 10 3103 (2019).](https://doi.org/10.1038/s41467-019-11024-z)
-
-Koho, S. V. *et al.* Easy Two-Photon Image Scanning Microscopy with SPAD Array and Blind Image Reconstruction. *biorxiv* doi:10.1101/563288
 
 Koho, S., T. Deguchi, and P. E. E. Hänninen. 2015. “A Software Tool for Tomographic Axial Superresolution in STED Microscopy.” Journal of Microscopy 260 (2): 208–18.
 
