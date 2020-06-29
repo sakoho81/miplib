@@ -1,0 +1,20 @@
+name: miplib
+
+dependencies:
+  - python=3.6
+  - numpy
+  - scipy
+  - h5py
+  - SimpleItk
+  - matplotlib
+  - pandas
+  - pims
+  - jpype1
+  - notebook
+  - scikit-image
+
+channels:
+  - anaconda
+  - conda-forge
+  - simpleitk
+

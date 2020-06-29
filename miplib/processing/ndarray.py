@@ -1,4 +1,4 @@
-import numpy
+import numpy as np
 from functools import reduce
 
 def nroot(array, n):
@@ -26,9 +26,9 @@ def float2dtype(float_type):
     """Return numpy float dtype object from float type label.
     """
     if float_type == 'single' or float_type is None:
-        return numpy.float32
+        return np.float32
     if float_type == 'double':
-        return numpy.float64
+        return np.float64
     raise NotImplementedError (repr(float_type))
 
 
@@ -59,8 +59,8 @@ def expand_to_shape(data, shape, dtype=None, background=None):
     if dtype is None:
         dtype = data.dtype
 
-    start_index = numpy.array(shape) - data.shape
-    data_start = numpy.negative(start_index.clip(max=0))
+    start_index = np.array(shape) - data.shape
+    data_start = np.negative(start_index.clip(max=0))
     data = cast_to_dtype(data, dtype, rescale=False)
     if data.ndim == 3:
         data = data[data_start[0]:, data_start[1]:, data_start[2]:]
@@ -71,7 +71,7 @@ def expand_to_shape(data, shape, dtype=None, background=None):
         background = 0
 
     if any(shape != data.shape):
-        expanded_data = numpy.zeros(shape, dtype=dtype) + background
+        expanded_data = np.zeros(shape, dtype=dtype) + background
         slices = []
         rhs_slices = []
         for s1, s2 in zip(shape, data.shape):
@@ -102,10 +102,11 @@ def float2dtype(float_type):
     """Return numpy float dtype object from float type label.
     """
     if float_type == 'single' or float_type is None:
-        return numpy.float32
+        return np.float32
     if float_type == 'double':
-        return numpy.float64
+        return np.float64
     raise NotImplementedError(repr(float_type))
+
 
 def cast_to_dtype(data, dtype, rescale=True, remove_outliers=False):
     """
@@ -114,7 +115,7 @@ def cast_to_dtype(data, dtype, rescale=True, remove_outliers=False):
     results, but if the data type to cast into has a more limited
     dynamic range than the original data type, problems may occur.
 
-    :param data:            a numpy.array object
+    :param data:            a np.array object
     :param dtype:           data type string, as in Python
     :param rescale:         switch to enable rescaling pixel
                             values to the new dynamic range.
@@ -131,11 +132,11 @@ def cast_to_dtype(data, dtype, rescale=True, remove_outliers=False):
         return data
 
     if 'int' in str(dtype):
-        data_info = numpy.iinfo(dtype)
+        data_info = np.iinfo(dtype)
         data_max = data_info.max
         data_min = data_info.min
     elif 'float' in str(dtype):
-        data_info = numpy.finfo(dtype)
+        data_info = np.finfo(dtype)
         data_max = data_info.max
         data_min = data_info.min
     else:
@@ -150,7 +151,7 @@ def cast_to_dtype(data, dtype, rescale=True, remove_outliers=False):
         data_min = 0
 
     if remove_outliers:
-        data = data.clip(0, numpy.percentile(data, 99.99))
+        data = data.clip(0, np.percentile(data, 99.99))
 
     if rescale is True:
         return rescale_to_min_max(data, data_min, data_max).astype(dtype)
@@ -184,10 +185,10 @@ def safe_divide(numerator, denominator):
     :param denominator:
     :return:
     """
-    with numpy.errstate(divide="ignore"):
+    with np.errstate(divide="ignore"):
         result = numerator / denominator
-        result[result == numpy.inf] = 0.0
-        return numpy.nan_to_num(result)
+        result[result == np.inf] = 0.0
+        return np.nan_to_num(result)
 
 
 def start_to_stop_idx(start, stop):
@@ -215,10 +216,59 @@ def start_to_offset_idx(start, offset):
 
 def reverse_array(array):
 
-    assert isinstance(array, numpy.ndarray)
+    assert isinstance(array, np.ndarray)
 
     temp = array.copy()
     for i in range(temp.ndim):
-        temp = numpy.flip(temp, i)
+        temp = np.flip(temp, i)
 
     return temp
+
+
+def first_order_derivative_2d(array):
+    """
+    Calculates the first order (a[i]-a[i+1]) derivative of a 2D array
+    :param array: a 2D numeric array
+    :type array: np.ndarray
+    """
+    d1 = np.vstack([np.zeros((1, array.shape[1])), np.diff(array, axis=0)])
+    d2 = np.hstack([np.zeros((array.shape[0], 1)), np.diff(array, axis=1)])
+    return d1 ** 2 + d2 ** 2
+
+
+def get_rounded_kernel(diameter):
+    """
+    Makes a rounded kernel of a desired size for filtering operations
+    :param size:
+    :return:
+    """
+    dd = np.linspace(-1, 1, diameter)
+    xx1, yy1 = np.meshgrid(dd, dd)
+    rr = np.sqrt(xx1 ** 2 + yy1 ** 2)
+
+    kernel = np.zeros((diameter,)*2)
+    kernel[rr < 1] = 1
+
+    return kernel
+
+
+def center_of_mass(xx, yy, array, threshold=0.0):
+    """
+    A small utility calculate the center of mass on a meshgrid
+    :param xx: the x coordinates of the meshgrid
+    :param yy: the y coordinates of the meshgrid
+    :param array: an array with numeric values
+    :param threshold: a threshold value  that can be used to exclude certain
+    array elements from the calculation.
+    :return: the x,y coordinates of the center of mass
+    """
+
+    if threshold > 0.0:
+        array = array.copy()
+        array[array < threshold] = 0
+
+    xsum = (xx * array).sum()
+    ysum = (yy * array).sum()
+    mass = array.sum()
+
+    return xsum / mass, ysum / mass

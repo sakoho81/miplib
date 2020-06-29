@@ -23,7 +23,7 @@ requirements:
     - SimpleITK
     - scipy
     - numpy
-    - scikit-image
+    - scikit-data
     - cudatoolkit=7.5
     - jpype1
 
