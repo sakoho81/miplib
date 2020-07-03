@@ -17,7 +17,9 @@ dependencies:
   - cudatoolkit=7.5
   - pip
   - pip:
+    - psf
     - miplib
+
 
 channels:
   - anaconda

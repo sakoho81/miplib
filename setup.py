@@ -6,7 +6,7 @@ setup(
     version='1.0.4',
     packages=find_packages(),
     install_requires=['numpy', 'scipy', 'h5py', 'SimpleITK', 'jpype1',
-                      'matplotlib', 'pandas', 'pims', 'scikit-image'],
+                      'matplotlib', 'pandas', 'pims', 'scikit-image', 'psf'],
     description='A Python software library for (optical) microscopy image restoration, reconstruction and analysis.',
     entry_points={
         'console_scripts': [
@@ -38,11 +38,7 @@ setup(
         Extension(
             'miplib.data.io._tifffile',
             ['miplib/data/io/src/tifffile.c'],
-            include_dirs=[numpy.get_include()]),
-        Extension(
-            'miplib.psf._psf',
-            ['miplib/psf/src/psf.c'],
-            include_dirs=[numpy.get_include()]),
+            include_dirs=[numpy.get_include()])
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',
