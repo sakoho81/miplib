@@ -12,6 +12,9 @@ dependencies:
   - jpype1
   - notebook
   - scikit-image
+  - pip
+  - pip:
+    - psf
 
 channels:
   - anaconda
