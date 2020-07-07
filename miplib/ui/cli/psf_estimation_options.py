@@ -1,12 +1,12 @@
 import argparse
-from miplib.psf import psfgen
+import psf
 import miplib.ui.cli.argparse_helpers as helpers
 
 def parse_psf_type(args):
     if args == "confocal" or args == "sted":
-        return psfgen.GAUSSIAN | psfgen.CONFOCAL
+        return psf.GAUSSIAN | psf.CONFOCAL
     elif args == "widefield":
-        return psfgen.GAUSSIAN | psfgen.WIDEFIELD
+        return psf.GAUSSIAN | psf.WIDEFIELD
     else:
         raise argparse.ArgumentTypeError("Unknown PSF type")
 
@@ -20,7 +20,7 @@ def get_psf_estimation_options_group(parser):
     group.add_argument(
         '--psf-type',
         type=parse_psf_type,
-        default=psfgen.GAUSSIAN | psfgen.CONFOCAL
+        default=psf.GAUSSIAN | psf.CONFOCAL
     )
 
     group.add_argument(

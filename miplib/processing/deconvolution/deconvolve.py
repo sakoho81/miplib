@@ -32,13 +32,13 @@ from scipy.signal import fftconvolve, medfilt
 
 import miplib.processing.to_string as ops_output
 import miplib.processing.ndarray
+import miplib.psf.psfgen as psfgen
 from miplib.data.containers import temp_data
 from miplib.data.containers.image import Image
 from miplib.data.messages.image_writer_wrappers import ImageWriterBase
 from miplib.processing.segmentation import masking
 from numpy.fft import fftn, fftshift
 
-import miplib.psf.frc_psf as frc_psf
 import miplib.analysis.resolution.fourier_ring_correlation as frc
 
 class DeconvolutionRL(object):
@@ -246,7 +246,7 @@ class DeconvolutionRL(object):
                         self.iteration_count > 0 and 
                         (self.iteration_count+1) % self.options.update_blind_psf == 0
                    ):
-                    self.psf = frc_psf.generate_frc_based_psf(Image(self.estimate, self.image_spacing), self.options)
+                    self.psf = psfgen.generate_frc_based_psf(Image(self.estimate, self.image_spacing), self.options)
                     self.__get_psfs()
                     self.image = self.estimate.copy()
 
