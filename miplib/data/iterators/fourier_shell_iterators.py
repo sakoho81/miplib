@@ -230,7 +230,7 @@ class HollowConicalFourierShellIterator(ConicalFourierShellIterator):
 
         extract_section = arr_inf_ext * arr_sup_ext + arr_inf_neg_ext * arr_sup_neg_ext
 
-        return full_section - extract_section
+        return np.logical_xor(full_section, extract_section)
 
 
 class AxialExcludeHollowConicalFourierShellIterator(HollowConicalFourierShellIterator):
@@ -294,7 +294,7 @@ class AxialExcludeHollowConicalFourierShellIterator(HollowConicalFourierShellIte
 
         extract_section = arr_inf_ext * arr_sup_ext + arr_inf_neg_ext * arr_sup_neg_ext
 
-        return full_section - extract_section
+        return np.logical_xor(full_section, extract_section)
 
 
 class RotatingFourierShellIterator(FourierShellIterator):

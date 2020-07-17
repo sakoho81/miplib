@@ -70,7 +70,7 @@ def expand_to_shape(data, shape, dtype=None, background=None):
     if background is None:
         background = 0
 
-    if any(shape != data.shape):
+    if tuple(shape) != data.shape:
         expanded_data = np.zeros(shape, dtype=dtype) + background
         slices = []
         rhs_slices = []
