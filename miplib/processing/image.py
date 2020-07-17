@@ -108,9 +108,9 @@ def zero_pad_to_matching_shape(image1, image2):
 
     shape = tuple(max(x, y) for x, y in zip(image1.shape, image2.shape))
 
-    if any(map(lambda x,y: x != y, image1.shape, shape)):
+    if any(map(lambda x, y: x != y, image1.shape, shape)):
         image1 = zero_pad_to_shape(image1, shape)
-    if any(map(lambda x,y: x != y, image2.shape, shape)):
+    if any(map(lambda x, y: x != y, image2.shape, shape)):
         image2 = zero_pad_to_shape(image2, shape)
 
     return image1, image2
