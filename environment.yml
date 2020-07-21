@@ -15,6 +15,9 @@ dependencies:
   - notebook
   - scikit-image
   - cudatoolkit=7.5
+  - pip
+  - pip:
+      - psf
 
 channels:
   - anaconda
