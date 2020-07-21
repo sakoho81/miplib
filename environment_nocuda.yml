@@ -2,7 +2,7 @@ name: miplib
 
 dependencies:
   - python=3.6
-  - numpy
+  - numpy=1.14.5
   - scipy
   - h5py
   - SimpleItk
