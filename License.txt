@@ -35,4 +35,20 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 In addition to the terms of the license, we ask to acknowledge the use
 of the software in scientific articles by citing:
 
-Koho, S. et al. Fourier ring correlation simplifies image restoration in fluorescence microscopy. Nat. Commun. 10, 3103 (2019).
+Koho, S. et al. Fourier ring correlation simplifies image restoration in fluorescence
+microscopy. Nat. Commun. 10, 3103 (2019).
+
+Parts of the MIPLIB source code are based on previous BSD licensed
+open source projects:
+
+pyimagequalityranking:
+Copyright (c) 2015, Sami Koho, Laboratory of Biophysics, University of Turku.
+All rights reserved.
+
+supertomo:
+Copyright (c) 2014, Sami Koho, Laboratory of Biophysics, University of Turku.
+All rights reserved.
+
+iocbio-microscope:
+Copyright (c) 2009-2010, Laboratory of Systems Biology, Institute of
+Cybernetics at Tallinn University of Technology. All rights reserved
