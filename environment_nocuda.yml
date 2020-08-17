@@ -8,8 +8,8 @@ dependencies:
   - SimpleItk
   - matplotlib
   - pandas
-  - pims
-  - jpype1
+  - pims=0.4.1
+  - jpype1=0.7.5
   - notebook
   - scikit-image
   - pip
