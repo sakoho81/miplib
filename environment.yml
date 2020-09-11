@@ -7,14 +7,13 @@ dependencies:
   - h5py
   - SimpleItk
   - matplotlib
-  - numba=0.39
-  - pyculib
   - pandas
   - pims=0.4.1
   - jpype1=0.7.5
   - notebook
   - scikit-image
-  - cudatoolkit=7.5
+  - cudatoolkit
+  - cupy
   - pip
   - pip:
       - psf
@@ -23,5 +22,4 @@ channels:
   - anaconda
   - conda-forge
   - simpleitk
-  - numba
 
