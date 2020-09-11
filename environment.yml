@@ -12,11 +12,11 @@ dependencies:
   - jpype1=0.7.5
   - notebook
   - scikit-image
-  - cudatoolkit
-  - cupy
+  - cudatoolkit=10.1
   - pip
   - pip:
       - psf
+      - cupy-cuda101
 
 channels:
   - anaconda
