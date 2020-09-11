@@ -1,12 +1,12 @@
 import numpy as np
-
-from numpy.fft import fftn, ifftn, fftshift
+import cupy as cp
+from cupyx.scipy.fftpack import fftn, ifftn, get_fft_plan
+from numpy.fft import fftshift
 
 from miplib.data.containers.image import Image
 import miplib.processing.image as imops
 import miplib.processing.ndarray as arrayops
 
-#todo: Speed up with CUDA/Multithreading. Functions are ready in the ufuncs.py
 
 def wiener_deconvolution(image, psf, snr=30, add_pad=0):
     assert isinstance(image, Image)
@@ -29,15 +29,30 @@ def wiener_deconvolution(image, psf, snr=30, add_pad=0):
         psf = imops.zero_pad_to_shape(psf, image_s.shape)
 
     psf /= psf.max()
+    psf = fftshift(psf)
 
-    psf_f = fftn(fftshift(psf))
+    psf_dev = fftn(cp.asarray(psf), overwrite_x=True)
 
-    wiener = arrayops.safe_divide(np.abs(psf_f)**2/(np.abs(psf_f)**2 + snr), psf_f)
+    stream = cp.cuda.stream.Stream()
+    with stream:
+        psf_abs = cp.abs(psf_dev)**2
+        below = cp.asnumpy(psf_dev)
+    stream.synchronize()
 
-    image_s = fftn(image_s)
+    with stream:
+        psf_abs /= (psf_abs + snr)
+        image_dev = fftn(cp.asarray(image_s), overwrite_x=True)
+    stream.synchronize()
 
-    image_s = Image(np.abs(ifftn(image_s * wiener).real), image.spacing)
+    above = cp.asnumpy(psf_abs)
+    wiener = arrayops.safe_divide(above, below)
 
-    return imops.remove_zero_padding(image_s, orig_shape)
+    psf_dev = cp.asarray(wiener)
+    image_dev *= psf_dev
+
+    result = np.abs(cp.asnumpy(ifftn(image_dev, overwrite_x=True)).real)
+    result = Image(result, image.spacing)
+
+    return imops.remove_zero_padding(result, orig_shape)
 
 
