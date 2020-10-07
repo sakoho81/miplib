@@ -81,10 +81,10 @@ class FourierShellIterator(object):
         return np.where(shell), shell_idx
 
 
-class ConicalFourierShellIterator(FourierShellIterator):
+class SectionedFourierShellIterator(FourierShellIterator):
     """
-    An iterator for 3D images. Includes the option section a single shell into rotational
-    sections.
+    A sectioned Fourier Shell iterator. Allows dividing a shell into sections, to access
+    anisotropic features in the Fourier transform.
     """
     def __init__(self, shape, d_bin, d_angle):
         """
@@ -119,7 +119,7 @@ class ConicalFourierShellIterator(FourierShellIterator):
         """
         Assuming a classical spherical coordinate system the azimutahl
         angle is the angle between the x- and y- axes. Use this to extract
-        a conical section from a sphere that is defined by start and stop azimuth
+        a section from a sphere that is defined by start and stop azimuth
         angles.
 
         :param phi_min: the angle at which to start the section, in radians
@@ -137,12 +137,12 @@ class ConicalFourierShellIterator(FourierShellIterator):
 
     def __getitem__(self, limits):
         """
-        Get a single conical section of a 3D shell.
+        Get a single section of a 3D shell.
 
         :param shell_start: The start of the shell (0 ... Nyquist)
         :param shell_stop:  The end of the shell
-        :param angle_min:   The start of the cone (degrees 0-360)
-        :param angle_max:   The end of the cone
+        :param angle_min:   The start of the section (degrees 0-360)
+        :param angle_max:   The end of the section
         :return:            Returns the coordinates of the points that are located inside
                             the portion of a shell that intersects with the points on the
                             cone.
@@ -179,15 +179,15 @@ class ConicalFourierShellIterator(FourierShellIterator):
         return np.where(shell*cone), shell_idx, rotation_idx
 
 
-class HollowConicalFourierShellIterator(ConicalFourierShellIterator):
+class HollowSectionedFourierShellIterator(SectionedFourierShellIterator):
     """
-    A conical Fourier shell iterator with the added possibility to remove
+    A sectioned Fourier shell iterator with the added possibility to remove
     a central section of the cone, to better deal with interpolation artefacts etc.
     """
 
     def __init__(self,  shape, d_bin, d_angle, d_extract_angle=5):
 
-        ConicalFourierShellIterator.__init__(self, shape, d_bin, d_angle)
+        SectionedFourierShellIterator.__init__(self, shape, d_bin, d_angle)
 
         self.d_extract_angle = converters.degrees_to_radians(d_extract_angle)
 
@@ -195,7 +195,7 @@ class HollowConicalFourierShellIterator(ConicalFourierShellIterator):
         """
         Assuming a classical spherical coordinate system the azimutahl
         angle is the angle between the x- and y- axes. Use this to extract
-        a conical section from a sphere that is defined by start and stop azimuth
+        a section from a sphere that is defined by start and stop azimuth
         angles.
 
         In the hollow implementation a small slice in the center of the section is
@@ -233,22 +233,22 @@ class HollowConicalFourierShellIterator(ConicalFourierShellIterator):
         return np.logical_xor(full_section, extract_section)
 
 
-class AxialExcludeHollowConicalFourierShellIterator(HollowConicalFourierShellIterator):
+class AxialExcludeSectionedFourierShellIterator(HollowSectionedFourierShellIterator):
     """
-    A conical Fourier shell iterator with the added possibility to remove
+    A sectioned Fourier shell iterator with the added possibility to remove
     a central section of the cone, to better deal with interpolation artefacts etc.
     """
 
     def __init__(self,  shape, d_bin, d_angle, d_extract_angle=5):
 
-        HollowConicalFourierShellIterator.__init__(self, shape, d_bin, d_angle)
+        HollowSectionedFourierShellIterator.__init__(self, shape, d_bin, d_angle)
 
 
     def get_angle_sector(self, phi_min, phi_max):
         """
         Assuming a classical spherical coordinate system the azimutahl
         angle is the angle between the x- and y- axes. Use this to extract
-        a conical section from a sphere that is defined by start and stop azimuth
+        a section from a sphere that is defined by start and stop azimuth
         angles.
 
         In the hollow implementation a small slice in the center of the section is
@@ -344,7 +344,7 @@ class RotatingFourierShellIterator(FourierShellIterator):
 
     def __getitem__(self, limits):
         """
-        Get a single conical section of a 3D shell.
+        Get a single section of a 3D shell.
 
         :param shell_start: The start of the shell (0 ... Nyquist)
         :param shell_stop:  The end of the shell

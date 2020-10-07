@@ -185,7 +185,7 @@ def safe_divide(numerator, denominator):
     :param denominator:
     :return:
     """
-    with np.errstate(divide="ignore"):
+    with np.errstate(divide="ignore", invalid="ignore"):
         result = numerator / denominator
         result[result == np.inf] = 0.0
         return np.nan_to_num(result)

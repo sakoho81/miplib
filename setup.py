@@ -12,15 +12,11 @@ setup(
         'console_scripts': [
             'miplib.import = miplib.bin.import:main',
             'miplib.correlatem = miplib.bin.correlatem:main',
-            'miplib.transform = miplib.bin.transform:main',
             'miplib.fuse = miplib.bin.fuse:main',
             'miplib.register = miplib.bin.register:main',
-            'miplib.deconvolve = miplib.bin.deconvolve:main',
             'miplib.resolution = miplib.bin.resolution:main',
             'miplib.ism = miplib.bin.ism:main',
             'pyimq.main = miplib.bin.pyimq:main',
-            'pyimq.util.blurseq = miplib.bin.utils.create_blur_sequence:main',
-            'pyimq.util.imseq = miplib.bin.utils.create_photo_test_set:main',
             'pyimq.subjective = miplib.bin.subjective:main',
             'pyimq.power = miplib.bin.power:main'
         ]
