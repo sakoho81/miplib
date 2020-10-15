@@ -21,7 +21,7 @@ import shutil
 import tempfile
 import time
 
-import numpy
+import numpy as np
 import pandas
 
 import miplib.processing.ops_ext as ops_ext
@@ -33,7 +33,7 @@ import miplib.processing.to_string as ops_output
 from miplib.data.containers import image_data, image
 from miplib.data.containers.image import Image
 from . import utils as fusion_utils
-
+from miplib.utils.generic import isiterable
 
 class MultiViewFusionRL(object):
     """
@@ -54,6 +54,7 @@ class MultiViewFusionRL(object):
         self.options = options
         self.writer = writer
 
+        
         # Select views to fuse
         if self.options.fuse_views == -1:
             self.views = range(self.data.get_number_of_images("registered"))
@@ -63,7 +64,7 @@ class MultiViewFusionRL(object):
         self.n_views = len(self.views)
 
         # Get weights
-        self.weights = numpy.zeros(self.n_views, dtype=numpy.float32)
+        self.weights = np.zeros(self.n_views, dtype=np.float32)
 
         for idx, view in enumerate(self.views):
             self.data.set_active_image(view, self.options.channel,
@@ -72,7 +73,20 @@ class MultiViewFusionRL(object):
             self.weights[idx] = self.data.get_max()
 
         self.weights /= self.weights.sum()
-
+        
+        # Get background correction
+        background = self.options.fusion_background
+        if background and not isiterable(background):
+            self.background = np.full(self.n_views, background)
+        elif isiterable(background):
+            if len(background) == self.n_views:
+                self.background = np.asarray(background)
+            elif len(background) == self.data.get_number_of_images("registered"):
+                self.background = np.asarray(background)[self.views]
+            else:
+                raise ValueError("Invalid background definition length.")
+        else:
+            self.background = np.zeros(self.n_views)
 
         # Get image size
         self.data.set_active_image(0, self.options.channel, self.options.scale,
@@ -94,23 +108,23 @@ class MultiViewFusionRL(object):
         # down the fusion process considerably..
         if self.options.memmap_estimates:
             estimate_new_f = os.path.join(self.memmap_directory, "estimate_new.dat")
-            self.estimate_new = Image(numpy.memmap(estimate_new_f, dtype='float32',
+            self.estimate_new = Image(np.memmap(estimate_new_f, dtype='float32',
                                                    mode='w+',
                                                    shape=tuple(self.image_size)), self.voxel_size)
 
             estimate_f = os.path.join(self.memmap_directory, "estimate.dat")
-            self.estimate = Image(numpy.memmap(estimate_f, dtype=numpy.float32,
+            self.estimate = Image(np.memmap(estimate_f, dtype=np.float32,
                                                mode='w+',
                                                shape=tuple(self.image_size)), self.voxel_size)
         else:
-            self.estimate = Image(numpy.zeros(tuple(self.image_size),
-                                              dtype=numpy.float32), self.voxel_size)
-            self.estimate_new = Image(numpy.zeros(tuple(self.image_size),
-                                                  dtype=numpy.float32), self.voxel_size)
+            self.estimate = Image(np.zeros(tuple(self.image_size),
+                                              dtype=np.float32), self.voxel_size)
+            self.estimate_new = Image(np.zeros(tuple(self.image_size),
+                                                  dtype=np.float32), self.voxel_size)
 
         if not self.options.disable_tau1:
             prev_estimate_f = os.path.join(self.memmap_directory, "prev_estimate.dat")
-            self.prev_estimate = numpy.memmap(prev_estimate_f, dtype=numpy.float32,
+            self.prev_estimate = np.memmap(prev_estimate_f, dtype=np.float32,
                                               mode='w+',
                                               shape=tuple(self.image_size))
         # Setup PSFs
@@ -129,8 +143,8 @@ class MultiViewFusionRL(object):
 
         self.column_headers = ('t', 'tau1', 'leak', 'e',
                                's', 'u', 'n', 'uesu')
-        self._progress_parameters = numpy.empty((self.options.max_nof_iterations, len(self.column_headers)),
-                                                dtype=numpy.float32)
+        self._progress_parameters = np.empty((self.options.max_nof_iterations, len(self.column_headers)),
+                                                dtype=np.float32)
 
     @property
     def progress_parameters(self):
@@ -145,9 +159,9 @@ class MultiViewFusionRL(object):
         print('Beginning the computation of the %i. estimate' % self.iteration_count)
 
         if "multiplicative" in self.options.fusion_method:
-            self.estimate_new[:] = numpy.float32(1.0)
+            self.estimate_new[:] = np.float32(1.0)
         else:
-            self.estimate_new[:] = numpy.float32(0)
+            self.estimate_new[:] = np.float32(0)
 
         # Iterate over views
         for idx, view in enumerate(self.views):
@@ -159,55 +173,45 @@ class MultiViewFusionRL(object):
             self.data.set_active_image(view, self.options.channel,
                                        self.options.scale, "registered")
 
-            #weighting = float(self.data.get_max()) / 255
             weighting = self.weights[idx]
+            background = self.background[idx]
 
             iterables = (range(0, m, n) for m, n in zip(self.image_size, self.block_size))
             pad = self.options.block_pad
-            cache_idx = tuple(slice(pad, pad + block) for block in self.block_size)
+            block_idx = tuple(slice(pad, pad + block) for block in self.block_size)
 
             # Iterate over blocks
             for pos in itertools.product(*iterables):
 
                 estimate_idx = tuple(slice(j, j + k) for j, k in zip(pos, self.block_size))
-                index = numpy.array(pos, dtype=int)
+                index = np.array(pos, dtype=int)
                 if self.options.block_pad > 0:
-                    estimate_block = self.get_padded_block(index.copy())
+                    estimate_block = self.get_padded_block(self.estimate, index.copy())
                 else:
                     estimate_block = self.estimate[estimate_idx]
 
                 # Execute: cache = convolve(PSF, estimate), non-normalized
                 estimate_block_new = fftconvolve(estimate_block, psf, mode='same')
-                estimate_block_new *= weighting
+
+                # Add background bias
+                estimate_block_new += background
 
                 # Execute: cache = data/cache
-                block = self.data.get_registered_block(self.block_size,
-                                                       self.options.block_pad,
-                                                       index.copy())
+                image_block = self.data.get_registered_block(self.block_size,
+                                                             self.options.block_pad,
+                                                             index.copy())
 
-                with numpy.errstate(divide="ignore"):
-                    estimate_block_new = block / estimate_block_new
-                    estimate_block_new[estimate_block_new == numpy.inf] = 0.0
-                    estimate_block_new = numpy.nan_to_num(estimate_block_new)
+                estimate_block_new = ops_array.safe_divide(image_block, estimate_block_new)
 
                 # Execute: cache = convolve(PSF(-), cache), inverse of non-normalized
                 # Convolution with virtual PSFs is performed here as well, if
                 # necessary
                 estimate_block_new = fftconvolve(estimate_block_new, adj_psf, mode='same')
 
-                # Update the contribution from a single view to the new estimate
-                if self.options.block_pad == 0:
-                    if "multiplicative" in self.options.fusion_method:
-                        self.estimate_new[estimate_idx] *= estimate_block_new
-                    else:
-                        self.estimate_new[estimate_idx] += estimate_block_new
-                else:
-                    if "multiplicative" in self.options.fusion_method:
-                        self.estimate_new[estimate_idx] *= estimate_block_new[cache_idx]
+                # Apply weighting
+                estimate_block_new *= weighting
 
-                    else:
-                        # print "The block size is ", self.block_size
-                        self.estimate_new[estimate_idx] += estimate_block_new[cache_idx]
+                self._write_estimate_block(estimate_block_new, estimate_idx, block_idx)
 
         # I changed the weighting scheme a little bit
         # I'm not sure if this thing is necessary; maybe in the multiplicative?
@@ -218,9 +222,35 @@ class MultiViewFusionRL(object):
         #     self.estimate_new[:] = ops_array.nroot(self.estimate_new,
         #                                            self.n_views)
 
+        # TV Regularization (doesn't seem to do anything miraculous).
+        if self.options.tv_lambda > 0 and self.iteration_count > 0:
+            dv_est = ops_ext.div_unit_grad(self.estimate, self.voxel_size)
+            self.estimate_new = ops_array.safe_divide(self.estimate, (1.0 - self.options.rltv_lambda * dv_est))
+
         return ops_ext.update_estimate_poisson(self.estimate,
                                                self.estimate_new,
                                                self.options.convergence_epsilon)
+
+    def _write_estimate_block(self, block, estimate_idx, block_idx):
+        """ Update the contribution from a single view to the new estimate
+        :param block: the data block to save
+        :param estimate_idx: the position of the block inside the image
+        :param block_idx: the position of valid data inside the block (excluding padding)
+        :return: Nothing
+        """
+        
+        if self.options.block_pad == 0:
+            if "multiplicative" in self.options.fusion_method:
+                self.estimate_new[estimate_idx] *= block
+            else:
+                self.estimate_new[estimate_idx] += block
+        else:
+            if "multiplicative" in self.options.fusion_method:
+                self.estimate_new[estimate_idx] *= block[block_idx]
+
+            else:
+                # print "The block size is ", self.block_size
+                self.estimate_new[estimate_idx] += block[block_idx]
 
     def execute(self):
         """
@@ -239,9 +269,9 @@ class MultiViewFusionRL(object):
                                    "registered")
 
         if first_estimate == 'first_image':
-            self.estimate[:] = self.data[:].astype(numpy.float32)
+            self.estimate[:] = self.data[:].astype(np.float32)
         elif first_estimate == 'first_image_mean':
-            self.estimate[:] = numpy.float32(numpy.mean(self.data[:]))
+            self.estimate[:] = np.float32(np.mean(self.data[:]))
         elif first_estimate == 'sum_of_originals':
             self.estimate[:] = fusion_utils.sum_of_all(self.data,
                                                        self.options.channel,
@@ -261,7 +291,7 @@ class MultiViewFusionRL(object):
                                                            self.options.scale,
                                                            "registered")
         elif first_estimate == 'constant':
-            self.estimate[:] = numpy.float32(self.options.estimate_constant)
+            self.estimate[:] = np.float32(self.options.estimate_constant)
         else:
             raise NotImplementedError(repr(first_estimate))
 
@@ -274,9 +304,9 @@ class MultiViewFusionRL(object):
                                      totalWidth=40,
                                      show_percentage=False)
 
-        self._progress_parameters = numpy.zeros((self.options.max_nof_iterations,
+        self._progress_parameters = np.zeros((self.options.max_nof_iterations,
                                                  len(self.column_headers)),
-                                                dtype=numpy.float32)
+                                                dtype=np.float32)
 
         # The Fusion calculation starts here
         # ====================================================================
@@ -360,7 +390,7 @@ class MultiViewFusionRL(object):
 
             # Zoom to the same voxel size
             zoom_factors = tuple(x / y for x, y in zip(psf_spacing, image_spacing))
-            psf_new = zoom(psf_orig, zoom_factors).astype(numpy.float32)
+            psf_new = zoom(psf_orig, zoom_factors).astype(np.float32)
 
             psf_new /= psf_new.sum()
 
@@ -382,7 +412,7 @@ class MultiViewFusionRL(object):
         print("Caclulating Virtual PSFs")
 
         for i in range(self.n_views):
-            virtual_psf = numpy.ones(self.psfs[0].shape, dtype=self.psfs[0].dtype)
+            virtual_psf = np.ones(self.psfs[0].shape, dtype=self.psfs[0].dtype)
             for j in range(self.n_views):
                 if j == i:
                     pass
@@ -420,40 +450,40 @@ class MultiViewFusionRL(object):
         if self.num_blocks == 1:
             return block_size, image_size
         elif self.num_blocks == 2:
-            multiplier3 = numpy.array([2, 1, 1])
-            multiplier2 = numpy.array([2, 1])
+            multiplier3 = np.array([2, 1, 1])
+            multiplier2 = np.array([2, 1])
         elif self.num_blocks == 4:
-            multiplier3 = numpy.array([4, 1, 1])
-            multiplier2 = numpy.array([2, 2])
+            multiplier3 = np.array([4, 1, 1])
+            multiplier2 = np.array([2, 2])
         elif self.num_blocks == 8:
-            multiplier3 = numpy.array([4, 2, 1])
-            multiplier2 = numpy.array([4, 2])
+            multiplier3 = np.array([4, 2, 1])
+            multiplier2 = np.array([4, 2])
         elif self.num_blocks == 12:
-            multiplier3 = numpy.array([4, 2, 2])
-            multiplier2 = numpy.array([4, 3])
+            multiplier3 = np.array([4, 2, 2])
+            multiplier2 = np.array([4, 3])
         elif self.num_blocks == 24:
-            multiplier3 = numpy.array([4, 3, 2])
-            multiplier2 = numpy.array([6, 4])
+            multiplier3 = np.array([4, 3, 2])
+            multiplier2 = np.array([6, 4])
         elif self.num_blocks == 48:
-            multiplier3 = numpy.array([4, 4, 3])
-            multiplier2 = numpy.array([8, 6])
+            multiplier3 = np.array([4, 4, 3])
+            multiplier2 = np.array([8, 6])
         elif self.num_blocks == 64:
-            multiplier3 = numpy.array([4, 4, 4])
-            multiplier2 = numpy.array([8, 8])
+            multiplier3 = np.array([4, 4, 4])
+            multiplier2 = np.array([8, 8])
         elif self.num_blocks == 96:
-            multiplier3 = numpy.array([6, 4, 4])
-            multiplier2 = numpy.array([12, 8])
+            multiplier3 = np.array([6, 4, 4])
+            multiplier2 = np.array([12, 8])
         elif self.num_blocks == 144:
-            multiplier3 = numpy.array([4, 6, 6])
-            multiplier2 = numpy.array([12, 12])
+            multiplier3 = np.array([4, 6, 6])
+            multiplier2 = np.array([12, 12])
         else:
             raise NotImplementedError
 
         if self.imdims == 2:
-            block_size = numpy.ceil(self.image_size.astype(numpy.float16) / multiplier2).astype(numpy.int64)
+            block_size = np.ceil(self.image_size.astype(np.float16) / multiplier2).astype(np.int64)
             image_size += (multiplier2 * block_size - image_size)
         else:
-            block_size = numpy.ceil(self.image_size.astype(numpy.float16) / multiplier3).astype(numpy.int64)
+            block_size = np.ceil(self.image_size.astype(np.float16) / multiplier3).astype(np.int64)
             image_size += (multiplier3 * block_size - image_size)
 
         return block_size, image_size
@@ -464,12 +494,12 @@ class MultiViewFusionRL(object):
 
         Parameters
         ----------
-        :param image: a numpy.ndarray or or its subclass
+        :param image: a np.ndarray or or its subclass
         :param block_start_index  The real block start index, not considering the padding
 
         Returns
         -------
-        Returns the padded estimate block as a numpy array.
+        Returns the padded estimate block as a np array.
 
         """
 
@@ -484,19 +514,19 @@ class MultiViewFusionRL(object):
         idx = tuple(slice(start, stop) for start, stop in zip(start_index, end_index))
 
         # If the padded block fits within the image boundaries, nothing special
-        # is needed to extract it. Normal numpy slicing notation is used.
+        # is needed to extract it. Normal np slicing notation is used.
         if (image_size >= end_index).all() and (start_index >= 0).all():
             return image[idx]
 
         else:
             block_size = tuple(i + 2 * block_pad for i in self.block_size)
             # Block outside the image boundaries will be filled with zeros.
-            block = numpy.zeros(block_size)
+            block = np.zeros(block_size)
             # If the start_index is close to the image boundaries, it is very
             # probable that padding will introduce negative start_index values.
             # In such case the first pixel index must be corrected.
             if (start_index < 0).any():
-                block_start = numpy.negative(start_index.clip(max=0))
+                block_start = np.negative(start_index.clip(max=0))
                 image_start = start_index + block_start
             else:
                 block_start = (0,) * ndims
