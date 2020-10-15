@@ -42,7 +42,7 @@ If you just want to use the library, you can get everything running as follows:
 
 My preferred tool for explorative tasks is Jupyter Notebook/Lab. Please look for updates in the Examples/ folder (a work in progress). Let me know if you would be interested in some specific example to be included. 
 
-There are also a number of command line scripts (entry points) in the bin/ directory that may be handy in different batch processing tasks. However, some of them may require some work, as I haven't really used the command line interface in a while.
+There are also a number of command line scripts (entry points) in the bin/ directory that may be handy in different batch processing tasks. They are also a good place to start exploring the library.
 
 ## Contribute?
 
@@ -54,7 +54,7 @@ I recenly migrated MIPLIB to Python 3, and have no intention to maintain backwar
 
 ## About GPU acceleration
 
-The deconvolution algorithms can be accelerated with a GPU. On MacOS the CUDA GPU acceleration currently does not work, because there are no NVIDIA drivers available for the latest OS versions. For that reason I have included an environment file that does not install the CUDA specific packages. At some point in future I will hopefully have some time to add GPGPU support (e.g. through [Reikna](https://github.com/fjarri/reikna)).
+The deconvolution algorithms can be accelerated with a GPU. On MacOS the CUDA GPU acceleration currently does not work, because there are no NVIDIA drivers available for the latest OS versions. I recently re-factored the GPU acceleration functions, using the CuPy library. It would in principle be possible to use OpenCL backend, instead of CUDA, but I have not tried that (yet).
 
 ## Publications
 

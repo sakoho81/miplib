@@ -19,8 +19,8 @@ import os
 
 import numpy
 import miplib.processing.ops_ext as ops_ext
-from numba import cuda, vectorize
-from pyculib.fft import FFTPlan, fft_inplace, ifft_inplace
+import cupy as cp
+from cupyx.scipy import fftpack
 
 import miplib.processing.fusion.fusion as fusion
 import miplib.processing.ndarray as ops_array
@@ -38,29 +38,19 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
     MultiViewFusionRLCuda is inherits most of its functionality from
     MultiViewFusionRL (see fusion.py).
     """
-    def __init__(self, data, options):
+    def __init__(self, data, writer , options):
         """
         :param data:    a ImageData object
 
         :param options: command line options that control the behavior
                         of the fusion algorithm
+        :param writer:  a writer object that can save intermediate results
         """
-        fusion.MultiViewFusionRL.__init__(self, data, options)
+        fusion.MultiViewFusionRL.__init__(self, data, writer, options)
 
         padded_block_size = self.block_size + 2*self.options.block_pad
-        threadpergpublock = 32, 32, 8
-        blockpergrid = self.__best_grid_size(
-            tuple(reversed(padded_block_size)), threadpergpublock)
 
-        FFTPlan(padded_block_size, itype=numpy.complex64, otype=numpy.complex64)
-
-
-
-        #yself.scaler = numpy.full(self.image_size, 1.0/self.n_views,
-        # dtype=numpy.float32)
-
-        print(('Optimal kernel config: %s x %s' % (blockpergrid, threadpergpublock)))
-
+        self._fft_plan = fftpack.get_fft_plan(cp.zeros(padded_block_size, dtype=cp.complex64))
         self.__get_fourier_psfs()
 
     def compute_estimate(self):
@@ -68,16 +58,13 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
             Calculates a single RL fusion estimate. There is no reason to call this
             function -- it is used internally by the class during fusion process.
         """
-        print('Beginning the computation of the %i. estimate' % \
-              (self.iteration_count + 1))
+        print(f'Beginning the computation of the {self.iteration_count + 1}. estimate')
 
         if "multiplicative" in self.options.fusion_method:
             self.estimate_new[:] = numpy.ones(self.image_size, dtype=numpy.float32)
         else:
             self.estimate_new[:] = numpy.zeros(self.image_size, dtype=numpy.float32)
 
-        stream1 = cuda.stream()
-        stream2 = cuda.stream()
 
         # Iterate over views
         for idx, view in enumerate(self.views):
@@ -89,6 +76,8 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
                                        self.options.scale, "registered")
 
             weighting = self.weights[idx]
+            background = self.background[idx]
+
             iterables = (range(0, m, n) for m, n in zip(self.image_size, self.block_size))
             pad = self.options.block_pad
             block_idx = tuple(slice(pad, pad + block) for block in self.block_size)
@@ -100,122 +89,59 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
 
                 if self.options.block_pad > 0:
                     h_estimate_block = self.get_padded_block(
-                        index.copy()).astype(numpy.complex64)
+                        self.estimate, index.copy()).astype(numpy.complex64)
                 else:
                     h_estimate_block = self.estimate[estimate_idx].astype(numpy.complex64)
 
-                d_estimate_block = cuda.to_device(h_estimate_block, stream=stream1)
-                d_psf = cuda.to_device(psf_fft, stream=stream2)
+                # Convolve estimate block with the PSF
+                h_estimate_block_new = self._fft_convolve(h_estimate_block, psf_fft)
+                h_estimate_block_new += background
 
-                # Execute: cache = convolve(PSF, estimate), non-normalized
-                fft_inplace(d_estimate_block, stream=stream1)
-                stream2.synchronize()
-
-                self.vmult(d_estimate_block, d_psf, out=d_estimate_block)
-                ifft_inplace(d_estimate_block)
-
-                h_estimate_block_new = d_estimate_block.copy_to_host()
-
-                # Execute: cache = data/cache
+                # Divide image block with the convolution result
                 h_image_block = self.data.get_registered_block(self.block_size,
                                                                self.options.block_pad,
                                                                index.copy()).astype(numpy.float32)
-                h_estimate_block_new *= weighting
                 ops_ext.inverse_division_inplace(h_estimate_block_new,
                                                  h_image_block)
 
-                d_estimate_block = cuda.to_device(h_estimate_block_new,
-                                                  stream=stream1)
-                d_adj_psf = cuda.to_device(adj_psf_fft, stream=stream2)
+                # Correlate with adj PSF
+                h_estimate_block_new = self._fft_convolve(h_estimate_block_new, adj_psf_fft).real
 
-                fft_inplace(d_estimate_block, stream=stream1)
-                stream2.synchronize()
-                self.vmult(d_estimate_block, d_adj_psf, out=d_estimate_block)
-                ifft_inplace(d_estimate_block)
-                h_estimate_block_new = d_estimate_block.copy_to_host().real
+                # Apply weighting
+                h_estimate_block_new *= weighting
 
                 # Update the contribution from a single view to the new estimate
-                if self.options.block_pad == 0:
-                    if "multiplicative" in self.options.fusion_method:
-                        self.estimate_new[estimate_idx] *= h_estimate_block_new
-                    else:
-
-                        self.estimate_new[estimate_idx] += h_estimate_block_new
-                else:
-
-                    if "multiplicative" in self.options.fusion_method:
-                        self.estimate_new[estimate_idx] *= h_estimate_block_new[block_idx]
-
-                    else:
-                        # print "The block size is ", self.block_size
-                        self.estimate_new[estimate_idx] += h_estimate_block_new[block_idx]
-
-        # # Divide with the number of projections
-        # if "summative" in self.options.fusion_method:
-        #     # self.estimate_new[:] = self.float_vmult(self.estimate_new,
-        #     #                                         self.scaler)
-        #     self.estimate_new *= (1.0 / self.n_views)
-        # else:
-        #     self.estimate_new[self.estimate_new < 0] = 0
-        #     self.estimate_new[:] = ops_array.nroot(self.estimate_new,
-        #                                            self.n_views)
+                self._write_estimate_block(h_estimate_block_new, estimate_idx, block_idx)
 
         # TV Regularization (doesn't seem to do anything miraculous).
-        if self.options.rltv_lambda > 0 and self.iteration_count > 0:
+        if self.options.tv_lambda > 0 and self.iteration_count > 0:
             dv_est = ops_ext.div_unit_grad(self.estimate, self.voxel_size)
-            with numpy.errstate(divide="ignore"):
-                self.estimate_new /= (1.0 - self.options.rltv_lambda * dv_est)
-                self.estimate_new[self.estimate_new == numpy.inf] = 0.0
-                self.estimate_new[:] = numpy.nan_to_num(self.estimate_new)
+            self.estimate_new = ops_array.safe_divide(self.estimate, (1.0 - self.options.rltv_lambda * dv_est))
 
         # Update estimate inplace. Get convergence statistics.
         return ops_ext.update_estimate_poisson(self.estimate,
                                                self.estimate_new,
                                                self.options.convergence_epsilon)
 
-    @staticmethod
-    def __best_grid_size(size, tpb):
-        bpg = numpy.ceil(numpy.array(size, dtype=numpy.float) / tpb).astype(numpy.int).tolist()
-        return tuple(bpg)
-
-    @staticmethod
-    @vectorize(['complex64(complex64, complex64)'], target='cuda')
-    def vmult(a, b):
+    def _fft_convolve(self, h_data, h_kernel):
         """
-        Implements complex array multiplication on GPU
+        Calculate a convolution on GPU, using FFTs.
 
-        Parameters
-        ----------
-        :param  a  Two Numpy arrays of the same shape, dtype=numpy.complex64
-        :param  b
-
-        Returns
-        -------
-
-        a*b
-
+        :param h_data: a Numpy array with the data to convolve
+        :param h_kernel: a Numpy array with the convolution kernel. The kernel
+        should already be in Fourier domain (To avoid repeating the transform at
+        every iteration.)
         """
-        return a * b
+        #todo: See whether to add back streams. I removed them on Cupy refactor.
 
-    @staticmethod
-    @vectorize(['float32(float32, float32)'], target='cuda')
-    def float_vmult(a, b):
-        """
-        Implements array multiplication on GPU
+        d_data = cp.asarray(h_data)
+        d_data = fftpack.fftn(d_data, overwrite_x=True, plan=self._fft_plan)
 
-        Parameters
-        ----------
-        :param  a  Two Numpy arrays of the same shape, dtype=numpy.float32
-        :param  b
+        d_kernel = cp.asarray(h_kernel)
+        d_data *= d_kernel
 
-        Returns
-        -------
-
-        a*b
-
-        """
-
-        return a * b
+        d_data = fftpack.ifftn(d_data, overwrite_x=True, plan=self._fft_plan)
+        return cp.asnumpy(d_data)
 
     def __get_fourier_psfs(self):
         """
@@ -250,8 +176,8 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
             self.psfs_fft[idx] = numpy.fft.fftshift(self.psfs_fft[idx])
             self.adj_psfs_fft[idx] = numpy.fft.fftshift(self.adj_psfs_fft[idx])
 
-            fft_inplace(self.psfs_fft[idx])
-            fft_inplace(self.adj_psfs_fft[idx])
+            self.psfs_fft[idx] = fftpack.fftn(self.psfs_fft[idx], plan=self._fft_plan)
+            self.adj_psfs_fft[idx] = fftpack.fftn(self.adj_psfs_fft[idx], plan=self._fft_plan)
 
     def close(self):
         if not self.options.disable_fft_psf_memmap:
