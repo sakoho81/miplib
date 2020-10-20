@@ -1,7 +1,6 @@
 import os
 
 import matplotlib.pyplot as plt
-
 plt.style.use("seaborn-colorblind")
 
 import numpy as np

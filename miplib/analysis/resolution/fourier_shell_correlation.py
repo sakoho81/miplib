@@ -68,8 +68,8 @@ def calculate_one_image_sectioned_fsc(image, args, z_correction=1):
     image1 = Image(windowing.apply_hamming_window(image1), image1.spacing)
     image2 = Image(windowing.apply_hamming_window(image2), image2.spacing)
     
-    iterator = iterators.AxialExcludeHollowConicalFourierShellIterator(image1.shape, args.d_bin, 
-                                                                      args.d_angle, args.d_extract_angle)
+    iterator = iterators.AxialExcludeSectionedFourierShellIterator(image1.shape, args.d_bin,
+                                                                   args.d_angle, args.d_extract_angle)
     fsc_task = DirectionalFSC(image1, image2, iterator)
 
     data = fsc_task.execute()
@@ -98,8 +98,8 @@ def calculate_two_image_sectioned_fsc(image1, image2, args, z_correction=1):
     image1 = Image(windowing.apply_hamming_window(image1), image1.spacing)
     image2 = Image(windowing.apply_hamming_window(image2), image2.spacing)
 
-    iterator = iterators.AxialExcludeHollowConicalFourierShellIterator(image1.shape, args.d_bin, args.d_angle,
-                                                                       args.d_extract_angle)
+    iterator = iterators.AxialExcludeSectionedFourierShellIterator(image1.shape, args.d_bin, args.d_angle,
+                                                                   args.d_extract_angle)
     fsc_task = DirectionalFSC(image1, image2, iterator)
     data = fsc_task.execute()
 

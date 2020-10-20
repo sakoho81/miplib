@@ -500,7 +500,6 @@ def phase_correlation_registration(fixed_image, moving_image, subpixel=100, verb
     :param moving_image: the moving image as MIPLIB Image object
     :return: returns the SimpleITK transform
     """
-
     assert isinstance(fixed_image, Image)
     assert isinstance(moving_image, Image)
 
@@ -510,43 +509,12 @@ def phase_correlation_registration(fixed_image, moving_image, subpixel=100, verb
     if verbose:
         print(("Detected offset (y, x): {}".format(scaled_shifts)))
 
-    resampled = np.abs(np.fft.ifftn(fourier_shift(np.fft.fftn(moving_image),
-                                                  shift)).real)
     if resample:
+        resampled = np.abs(np.fft.ifftn(fourier_shift(np.fft.fftn(moving_image),
+                                                      shift)).real)
+
         return Image(resampled, fixed_image.spacing)
     else:
         return scaled_shifts
 
 # endregion
-
-# region REGISTRATION UTILS
-
-def register_stack_slices(stack, reference=0):
-    """
-    An utility to register slices in an image stack. 
-    :param stack {Image}:  a 3D image stack
-    :param reference: the index (z) of the image that is to be used as a
-    reference for the registration
-    :return: a 3D Image with each slice aligned
-
-    """
-    assert isinstance(stack, Image)
-    assert stack.ndim == 3
-
-    aligned = np.zeros(stack.shape, dtype=np.float32)
-    spacing = stack.spacing
-
-    for i in range(stack.shape[0]):
-        if i == reference:
-            aligned[i] = stack[i]
-        else:
-            aligned[i] = phase_correlation_registration(
-                Image(stack[reference], stack.spacing[1:]), 
-                Image(stack[i], stack.spacing[1:]))
-
-    return Image(aligned, spacing)
-
-
-
-
-# endregions

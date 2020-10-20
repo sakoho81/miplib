@@ -62,7 +62,7 @@ def __tiff(path, image, spacing):
     :param spacing: Pixel size ZXY, as a list.
     """
 
-    if image.ndim == 3:
+    if image.ndim >= 3:
         image_description = "images={} slices={} unit=micron spacing={}".format(image.shape[0],
                                                                                 image.shape[0],
                                                                                 spacing[0])

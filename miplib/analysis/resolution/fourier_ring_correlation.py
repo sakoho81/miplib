@@ -68,9 +68,9 @@ def calculate_single_image_frc(image, args, average=True, trim=True, z_correctio
     result = analyzer.execute(z_correction=z_correction)[0]
     point = result.resolution["resolution-point"][1]
 
-    log_correction = func(point, *params)
-    result.resolution["spacing"] /= log_correction
-    result.resolution["resolution"] /= log_correction
+    cut_off_correction = func(point, *params)
+    result.resolution["spacing"] /= cut_off_correction
+    result.resolution["resolution"] /= cut_off_correction
 
     return result
 
