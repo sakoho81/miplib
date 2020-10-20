@@ -1,9 +1,12 @@
+import os
 import numpy as np
 import pims
+import itertools
 from scipy.io import loadmat
 
 from miplib.data.containers.array_detector_data import ArrayDetectorData
 from miplib.data.containers.image import Image
+from miplib.data.io import read as imread
 
 
 def read_carma_mat(filename):
@@ -80,3 +83,30 @@ def read_airyscan_data(image_path, time_points=1, detectors=32):
             
     return container
 
+
+def read_tiff_sequence(path, detectors=25, channels=1):
+    """
+    Construct ArrayDetectorData from a series of TIF images on disk. The images
+    should be named in a way that the detector channels are in a correct order
+    ((det_0, channel_0), (det_0, channel_1),  (det_1, channel_0), (det_1, channel_1))
+    after a simple sort.
+
+    :param path: the directory that contains the images
+    :param detectors: number of pixels in the array detectors
+    :param channels: number of channels. Can denote photodetectors (pixel time split),
+    color channels, time-points etc.
+
+    :return: the ArrayDetectorData object that cotnains the imported data
+    """
+
+    files = sorted(filter(lambda x: x.endswith(".tif"), os.listdir(path)))
+    if len(files) != detectors * channels:
+        raise RuntimeError("The number of images does not match the data definition.")
+
+    data = ArrayDetectorData(detectors, channels)
+    steps = itertools.product(range(channels), range(detectors))
+    for idx, (channel, detector) in enumerate(steps):
+        image = imread.get_image(os.path.join(path, files[idx]), bioformats=False)
+        data[detector, channel] = image
+
+    return data

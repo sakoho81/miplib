@@ -1,6 +1,38 @@
 import numpy as np
 from ..containers.array_detector_data import ArrayDetectorData
 from ..containers.image_data import ImageData
+from ..containers.image import Image
+
+
+def convert_to_image(data):
+    """
+    Convert ArrayDetectorData into an Image (a Numpy array)
+    :param data: data to convert
+    :return: an Image object (gate, channel, z, y, x)
+    """
+
+    assert isinstance(data, ArrayDetectorData)
+
+    gates = data.ngates
+    channels = data.ndetectors
+
+    dtype = data[0, 0].dtype
+    ndims = data[0, 0].ndim
+    shape = (1, ) * (3 - ndims) + data[0, 0].shape
+    spacing = (1,) * (3 - ndims) + tuple(data[0, 0].spacing)
+
+    im_shape = (gates, channels,) + shape
+    im_data = np.zeros(im_shape, dtype=dtype)
+
+    for gate_idx in range(gates):
+        for channel_idx in range(channels):
+            channel_im = data[gate_idx, channel_idx]
+            if ndims < 3:
+                new_shape = (1,) * (3 - ndims) + channel_im.shape
+                channel_im = np.reshape(channel_im, new_shape)
+            im_data[gate_idx, channel_idx] = channel_im
+
+    return Image(im_data, spacing)
 
 
 def convert_to_imagedata(data, path, data_type="original"):
