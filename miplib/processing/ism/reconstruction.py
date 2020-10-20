@@ -6,7 +6,7 @@ import SimpleITK as sitk
 from miplib.data.containers.array_detector_data import ArrayDetectorData
 from miplib.data.containers.image import Image
 from miplib.processing import itk
-from miplib.processing.registration import registration
+from miplib.processing.registration import registration, stack
 from miplib.processing.windowing import apply_hamming_window
 
 import miplib.processing.ism.helpers as ismutils
@@ -29,7 +29,6 @@ def find_image_shifts(data, options, photosensor=0, fixed_idx=12):
     in physical units (um). The transforms are sitk.TranslationTransform objects that can be used
     to resample the images into a common coordinate system.
     """
-    assert isinstance(data, ArrayDetectorData)
     assert photosensor < data.ngates
 
     fixed_image = itk.convert_to_itk_image(data[photosensor, fixed_idx])
@@ -89,7 +88,6 @@ def find_image_shifts_frequency_domain(data, photosensor=0):
     in physical units (um). The transforms are sitk.TranslationTransform objects that can be used
     to resample the images into a common coordinate system.
     """
-    assert isinstance(data, ArrayDetectorData)
     assert photosensor < data.ngates
 
     spacing = data[0,0].spacing
@@ -127,7 +125,6 @@ def shift_and_sum(data, transforms, photosensor=0, detectors=None, supersampling
     all the images will be used
     :return: reconstruction result Image
     """
-    assert isinstance(data, ArrayDetectorData)
     assert isinstance(transforms, list) and len(transforms) == data.ndetectors
 
     if supersampling != 1.0:
@@ -161,7 +158,6 @@ def shift(data, transforms):
     :return: ArrayDetectorDAta object with shifted images
     """
 
-    assert isinstance(data, ArrayDetectorData)
     assert isinstance(transforms, list) and len(transforms) == data.ndetectors
 
     shifted = ArrayDetectorData(data.ndetectors, data.ngates)
@@ -187,7 +183,6 @@ def sum(data, photosensor=0, detectors=None):
     :param data: ArrayDetectorData object with images
     :return: result Image
     """
-    assert isinstance(data, ArrayDetectorData)
 
     if detectors is None:
         detectors = list(range(data.ndetectors))
@@ -199,3 +194,21 @@ def sum(data, photosensor=0, detectors=None):
 
     return Image(result, data[0, 0].spacing)
 
+
+def drift_correct_ism_stack(data):
+    """
+    Correct for xy-drift in 3D ISM datasets.
+
+    :param data: the data
+    :return: the drift corrected data
+    """
+    sum_image = sum(data)
+    shifts = stack.register_stack_slices(sum_image)
+
+    result = ArrayDetectorData(data.ndetectors, data.ngates)
+
+    for g_idx in range(data.ngates):
+        for c_idx in range(data.ndetectors):
+            result[g_idx, c_idx] = stack.shift_stack_slices(data[g_idx, c_idx], shifts)
+
+    return result
