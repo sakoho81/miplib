@@ -321,9 +321,14 @@ class MultiViewRegistrationISM(RotatedMultiViewRegistration):
             moving_image = self.data.get_itk_image()
 
             # Register
-            self.final_transform = registration.itk_registration_rigid_2d(fixed_image,
-                                                                          moving_image,
-                                                                          self.options)
+            if moving_image.GetDimension() == 2:
+                self.final_transform = registration.itk_registration_rigid_2d(fixed_image,
+                                                                              moving_image,
+                                                                              self.options)
+            else:
+                self.final_transform = registration.itk_registration_rigid_3d(fixed_image,
+                                                                              moving_image,
+                                                                              self.options)
             self.save_result()
 
         print("All views registered and saved to the data structure")

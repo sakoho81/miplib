@@ -1,9 +1,11 @@
 import os
 
 import matplotlib.pyplot as plt
+
 plt.style.use("seaborn-colorblind")
 
 import numpy as np
+from skimage import draw
 import miplib.processing.ndarray as arrayops
 
 from miplib.data.containers.fourier_correlation_data import FourierCorrelationData, FourierCorrelationDataCollection
@@ -92,7 +94,91 @@ def resolution_curves_subplot(ax, data_to_plot, x_idx=0, disable_ax_labels=False
     return ax
 
 
+def power_spectrum_plot_with_contour(image, data, size=(2.5, 2.5)):
+    def draw_contour_3d(data, image, spacing):
+        angles = list()
+        radii = list()
+
+        for dataset in data:
+            angles.append(degrees_to_radians(float(dataset[0])))
+            radii.append(image.shape[0] * (spacing / dataset[1].resolution["resolution"]))
+
+        angles, radii = zip(*sorted(zip(angles, radii)))
+        angles = list(angles)
+        radii = list(radii)
+        angles.append(angles[0])
+        radii.append(radii[0])
+
+        center = list(i / 2 for i in image.shape)
+        xs = list(radius * np.cos(angle) + center[1] for radius, angle in zip(radii, angles))
+        ys = list(radius * np.sin(angle) + center[0] for radius, angle in zip(radii, angles))
+        image[draw.polygon_perimeter(ys, xs)] = 255
+
+        return image
+
+    def draw_contour_2d(data, image, spacing):
+        radius = image.shape[0] * (spacing / data.resolution["resolution"])
+
+        center = tuple(x//2 for x in image.shape)
+        image[draw.circle_perimeter(*center, radius)] = 255
+
+    def get_ps_image(image):
+        fft_image = np.abs(np.fft.fftshift(np.fft.fftn(image))).real
+        if image.ndim == 3:
+            max_proj = np.sum(fft_image, axis=1)
+        else:
+            max_proj = fft_image
+        return max_proj
+
+    ps = 20*np.log10(get_ps_image(image))
+    spacing = image.spacing[0]
+
+    if image.ndim == 3:
+        ps = draw_contour_3d(data, ps, spacing)
+    else:
+        ps = draw_contour_2d(data, ps, spacing)
+
+
+    fig = plt.figure(figsize=size)
+    ax = plt.subplot(111)
+    ax.imshow(ps)
+
+    return ax
+
+
+
+
+def fsc_polar_plot(ax, data):
+    """ Generate a polar plot from SFSC data. This is mainly used to overlay several plots
+    with ...
+
+   :param ax: pyplot ax instance that is to be used for the plotting
+   :param data: FourierCorrelationDataCollection instance that includes the data to plot.
+   :return: returns the same ax instance for further modifications
+   """
+
+    angles = list()
+    radii = list()
+
+    for dataset in data:
+        angles.append(degrees_to_radians(float(dataset[0])))
+        radii.append(dataset[1].resolution["resolution"])
+
+    angles, radii = zip(*sorted(zip(angles, radii)))
+    angles = list(angles)
+    radii = list(radii)
+    angles.append(angles[0])
+    radii.append(radii[0])
+
+    ax.plot(angles, radii)
+
+    ax.set_rlabel_position(-80)  # get radial labels away from plotted line
+
+    return ax
+
+
 class FourierDataPlotter(object):
+    # todo: consider making this plotter class disappear. It is often easier to just use the functions as above.
     """
     An attempt of sorts to make a class to handle the various types of FRC/FSC plots. I'm not quite sure
     how much sense that makes. It might be better to just have individual funcitons, more Python.
