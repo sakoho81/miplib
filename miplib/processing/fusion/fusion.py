@@ -76,7 +76,7 @@ class MultiViewFusionRL(object):
         
         # Get background correction
         background = self.options.fusion_background
-        if background and not isiterable(background):
+        if not isiterable(background) and background:
             self.background = np.full(self.n_views, background)
         elif isiterable(background):
             if len(background) == self.n_views:
@@ -193,6 +193,9 @@ class MultiViewFusionRL(object):
                 # Execute: cache = convolve(PSF, estimate), non-normalized
                 estimate_block_new = fftconvolve(estimate_block, psf, mode='same')
 
+                # Apply weighting
+                estimate_block_new *= weighting
+
                 # Add background bias
                 estimate_block_new += background
 
@@ -208,19 +211,14 @@ class MultiViewFusionRL(object):
                 # necessary
                 estimate_block_new = fftconvolve(estimate_block_new, adj_psf, mode='same')
 
-                # Apply weighting
-                estimate_block_new *= weighting
-
                 self._write_estimate_block(estimate_block_new, estimate_idx, block_idx)
 
-        # I changed the weighting scheme a little bit
-        # I'm not sure if this thing is necessary; maybe in the multiplicative?
         # Divide with the number of projections
-        # if "summative" in self.options.fusion_method:
-        #     self.estimate_new *= (1.0 / self.n_views)
-        # else:
-        #     self.estimate_new[:] = ops_array.nroot(self.estimate_new,
-        #                                            self.n_views)
+        if "summative" in self.options.fusion_method:
+            self.estimate_new *= (1.0 / self.n_views)
+        else:
+            self.estimate_new[:] = ops_array.nroot(self.estimate_new,
+                                                   self.n_views)
 
         # TV Regularization (doesn't seem to do anything miraculous).
         if self.options.tv_lambda > 0 and self.iteration_count > 0:
@@ -450,10 +448,10 @@ class MultiViewFusionRL(object):
         if self.num_blocks == 1:
             return block_size, image_size
         elif self.num_blocks == 2:
-            multiplier3 = np.array([2, 1, 1])
+            multiplier3 = np.array([1, 1, 2])
             multiplier2 = np.array([2, 1])
         elif self.num_blocks == 4:
-            multiplier3 = np.array([4, 1, 1])
+            multiplier3 = np.array([1, 2, 2])
             multiplier2 = np.array([2, 2])
         elif self.num_blocks == 8:
             multiplier3 = np.array([4, 2, 1])

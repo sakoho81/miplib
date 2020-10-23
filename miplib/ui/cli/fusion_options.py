@@ -92,7 +92,7 @@ def get_fusion_options_group(parser):
         help='Specify parameter for tau-stopping criteria.'
     )
     group.add_argument(
-        '--rltv-lambda',
+        '--tv-lambda',
         type=float,
         default=0,
         help="Enable Total Variation regularization by selecting value > 0"

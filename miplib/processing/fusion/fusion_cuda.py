@@ -95,23 +95,37 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
 
                 # Convolve estimate block with the PSF
                 h_estimate_block_new = self._fft_convolve(h_estimate_block, psf_fft)
+
+                # Apply weighting
+                h_estimate_block_new *= weighting
+
+                # Apply background
                 h_estimate_block_new += background
 
                 # Divide image block with the convolution result
                 h_image_block = self.data.get_registered_block(self.block_size,
                                                                self.options.block_pad,
                                                                index.copy()).astype(numpy.float32)
+
+                #h_estimate_block_new = ops_array.safe_divide(h_image_block, h_estimate_block_new)
                 ops_ext.inverse_division_inplace(h_estimate_block_new,
                                                  h_image_block)
 
                 # Correlate with adj PSF
                 h_estimate_block_new = self._fft_convolve(h_estimate_block_new, adj_psf_fft).real
 
-                # Apply weighting
-                h_estimate_block_new *= weighting
-
                 # Update the contribution from a single view to the new estimate
                 self._write_estimate_block(h_estimate_block_new, estimate_idx, block_idx)
+
+        # Divide with the number of projections
+        if "summative" in self.options.fusion_method:
+            # self.estimate_new[:] = self.float_vmult(self.estimate_new,
+            #                                         self.scaler)
+            self.estimate_new *= (1.0 / self.n_views)
+        else:
+            self.estimate_new[self.estimate_new < 0] = 0
+            self.estimate_new[:] = ops_array.nroot(self.estimate_new,
+                                                   self.n_views)
 
         # TV Regularization (doesn't seem to do anything miraculous).
         if self.options.tv_lambda > 0 and self.iteration_count > 0:
@@ -151,22 +165,16 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
 
         padded_block_size = tuple(self.block_size + 2*self.options.block_pad)
 
-        memmap_shape = numpy.insert(numpy.array(padded_block_size), 0,
-                                    len(self.views))
+        memmap_shape = (self.n_views,) + padded_block_size
 
         if self.options.disable_fft_psf_memmap:
-            self.psfs_fft = numpy.zeros(tuple(memmap_shape),
-                                        dtype=numpy.complex64)
-            self.adj_psfs_fft = numpy.zeros(tuple(memmap_shape),
-                                            dtype=numpy.complex64)
+            self.psfs_fft = numpy.zeros(memmap_shape, dtype=numpy.complex64)
+            self.adj_psfs_fft = numpy.zeros(memmap_shape, dtype=numpy.complex64)
         else:
-            psfs_fft_f = os.path.join(self.memmap_directory, 'psf_fft_f.dat')
-            self.psfs_fft = numpy.memmap(psfs_fft_f, dtype='complex64',
-                                         mode='w+', shape=tuple(memmap_shape))
-            adj_psfs_fft_f = os.path.join(self.memmap_directory,
-                                          'adj_psf_fft_f.dat')
-            self.adj_psfs_fft = numpy.memmap(adj_psfs_fft_f, dtype='complex64',
-                                             mode='w+', shape=tuple(memmap_shape))
+            psfs_fft_f = os.path.join(self.memmap_directory, "psf_fft_f.dat")
+            self.psfs_fft = numpy.memmap(psfs_fft_f, dtype='complex64', mode='w+', shape=memmap_shape)
+            adj_psfs_fft_f = os.path.join(self.memmap_directory, "adj_psf_fft_f.dat")
+            self.adj_psfs_fft = numpy.memmap(adj_psfs_fft_f, dtype='complex64', mode='w+', shape=memmap_shape)
 
         for idx in range(self.n_views):
             self.psfs_fft[idx] = ops_array.expand_to_shape(
@@ -176,8 +184,8 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
             self.psfs_fft[idx] = numpy.fft.fftshift(self.psfs_fft[idx])
             self.adj_psfs_fft[idx] = numpy.fft.fftshift(self.adj_psfs_fft[idx])
 
-            self.psfs_fft[idx] = fftpack.fftn(self.psfs_fft[idx], plan=self._fft_plan)
-            self.adj_psfs_fft[idx] = fftpack.fftn(self.adj_psfs_fft[idx], plan=self._fft_plan)
+            self.psfs_fft[idx] = cp.asnumpy(fftpack.fftn(cp.asarray(self.psfs_fft[idx]), plan=self._fft_plan))
+            self.adj_psfs_fft[idx] = cp.asnumpy(fftpack.fftn(cp.asarray(self.adj_psfs_fft[idx]), plan=self._fft_plan))
 
     def close(self):
         if not self.options.disable_fft_psf_memmap:
