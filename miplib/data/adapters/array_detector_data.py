@@ -50,4 +50,23 @@ class ImageAdapter(object):
         return self.data[gate, detector]
 
 
+class ArrayAdapter(object):
+    def __init__(self, data, spacing):
+        self.data = data
+        self.spacing = spacing
+
+    @property
+    def ndetectors(self):
+        return self.data.shape[1]
+
+    @property
+    def ngates(self):
+        return self.data.shape[0]
+
+    def __getitem__(self, item):
+        gate, detector = item
+
+        return Image(self.data[gate, detector], self.spacing)
+
+
 
