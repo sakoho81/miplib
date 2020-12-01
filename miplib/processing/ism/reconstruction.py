@@ -92,22 +92,20 @@ def find_image_shifts_frequency_domain(data, photosensor=0):
 
     spacing = data[0,0].spacing
     fixed_image = Image(apply_hamming_window(data[photosensor, int(floor(data.ndetectors / 2))]), spacing)
-    x = []
-    y = []
     transforms = []
+    shifts = np.zeros((data.ndetectors, fixed_image.ndim), dtype=np.float)
 
     for idx in range(data.ndetectors):
         moving_image = Image(apply_hamming_window(data[photosensor, idx]), spacing)
-        y_new, x_new = registration.phase_correlation_registration(fixed_image, moving_image,
-                                                                   verbose=True, resample=False)
-        tfm = sitk.TranslationTransform(2)
-        tfm.SetParameters((x_new, y_new))
-
-        x.append(x_new)
-        y.append(y_new)
+        shifts_ = registration.phase_correlation_registration(fixed_image, moving_image,
+                                                              verbose=False, resample=False)
+        tfm = sitk.TranslationTransform(len(shifts_))
+        tfm.SetParameters(shifts_[::-1])
         transforms.append(tfm)
 
-    return x, y, transforms
+        shifts[idx] = shifts_
+
+    return shifts, transforms
 
 
 def shift_and_sum(data, transforms, photosensor=0, detectors=None, supersampling=1.0):
