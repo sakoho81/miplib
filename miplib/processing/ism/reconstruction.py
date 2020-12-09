@@ -99,7 +99,7 @@ def find_image_shifts_frequency_domain(data, photosensor=0):
     for idx in range(data.ndetectors):
         moving_image = Image(apply_hamming_window(data[photosensor, idx]), spacing)
         y_new, x_new = registration.phase_correlation_registration(fixed_image, moving_image,
-                                                                   verbose=True, resample=False)
+                                                                   verbose=False, resample=False)
         tfm = sitk.TranslationTransform(2)
         tfm.SetParameters((x_new, y_new))
 
