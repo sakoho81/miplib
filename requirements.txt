@@ -4,7 +4,6 @@ pandas
 h5py
 matplotlib
 numba=0.39
-pyculib
 SimpleITK
 scipy
 numpy

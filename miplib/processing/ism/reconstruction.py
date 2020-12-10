@@ -32,20 +32,18 @@ def find_image_shifts(data, options, photosensor=0, fixed_idx=12):
     assert photosensor < data.ngates
 
     fixed_image = itk.convert_to_itk_image(data[photosensor, fixed_idx])
-    x = []
-    y = []
     transforms = []
+    shifts = np.zeros((data.ndetectors, fixed_image.GetDimension()), dtype=np.float)
 
     for idx in range(data.ndetectors):
         image = data[photosensor, idx]
         moving_image = itk.convert_to_itk_image(image)
         transform = registration.itk_registration_rigid_2d(fixed_image, moving_image, options)
-        x_new, y_new = transform.GetParameters()
-        x.append(x_new)
-        y.append(y_new)
+        shifts_ = transform.GetParameters()
+        shifts[idx] = shifts_[::-1]
         transforms.append(transform)
 
-    return x, y, transforms
+    return shifts, transforms
 
 
 def find_static_image_shifts(pitch, wavelength, fov, na, alpha=0.5, width=5, rotation=0):
