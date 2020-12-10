@@ -216,8 +216,6 @@ def start_to_offset_idx(start, offset):
 
 def reverse_array(array):
 
-    assert isinstance(array, np.ndarray)
-
     temp = array.copy()
     for i in range(temp.ndim):
         temp = np.flip(temp, i)
