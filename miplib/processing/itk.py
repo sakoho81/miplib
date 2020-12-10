@@ -458,26 +458,22 @@ def make_composite_rgb_image(red, green, blue=None, return_numpy=False):
             return sitk.Compose(red, green, blue)
 
 
-def make_translation_transforms_from_xy(xs, ys):
+def make_translation_transforms_from_offsets(offsets):
     """
-    Makes translation transforms from a set of (x,y) shift coordinate pairs
-    :param xs: a list of x shifts
-    :param ys: a list of y shifts
-    :return: a list of sitk.TranslationTransforms
+    Makes translation transforms from offsets.
+    :param offsets: a Numpy array or similar with each row defining an offset
+    in n dimensions
+    :return: returns the itk transforms
     """
-    assert len(xs) == len(ys)
+    ndims = len(offsets[0])
     transforms = []
 
-    for x, y in zip(xs, ys):
-        tfm = sitk.TranslationTransform(2)
-        tfm.SetParameters((x, y))
-
+    for offset in offsets:
+        tfm = sitk.TranslationTransform(ndims)
+        tfm.SetParameters(offset)
         transforms.append(tfm)
 
     return transforms
-
-
-
 
 
 

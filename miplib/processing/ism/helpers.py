@@ -1,13 +1,9 @@
 import itertools
 
-import numpy as np
 import matplotlib.pyplot as plt
-
-from miplib.data.containers.image_data import ImageData
+import numpy as np
 
 plt.style.use("seaborn-paper")
-
-from miplib.data.containers.array_detector_data import ArrayDetectorData
 
 
 def make_template_image(data, imagesz=250):
@@ -17,7 +13,6 @@ def make_template_image(data, imagesz=250):
     :param imagesz: integer Size of the images in pixels
     :return: returns a tuple of images (one for each channel)
     """
-    assert isinstance(data, ArrayDetectorData)
 
     blocksz = int(imagesz/np.sqrt(data.ndetectors))
 
@@ -48,25 +43,15 @@ def make_psf_plot(data, size=(5,5)):
     """
     Makes a 5x5 matrix plot of Point-Spread-Functions (PSFs) that are used in the
     blind multi-image APR-ISM image fusion
-    :param data: ArrayDetectorData or ImageData object that contains the 25 psfs
+    :param data: ArrayDetectorData or a compatible adapter with the 25 PSF images
     :param size: Size of the plot
     :return:     Returns the figure
     """
-    if isinstance(data, ArrayDetectorData):
-        hdf = False
-    elif isinstance(data, ImageData):
-        hdf = True
-    else:
-        raise ValueError("data needs to be ArrayDetecorData or ImageData object")
 
     fig, axs = plt.subplots(5, 5, figsize=size)
 
     for idx, ax in enumerate(axs.flatten()):
-        if hdf:
-            data.set_active_image(idx, 0, 100, "psf")
-            ax.imshow(data[:], cmap="hot")
-        else:
-            ax.imshow(data[0,idx])
+        ax.imshow(data[0,idx])
 
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
