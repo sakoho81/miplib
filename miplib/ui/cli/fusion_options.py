@@ -125,5 +125,10 @@ def get_fusion_options_group(parser):
         '--disable-fft-psf-memmap',
         action='store_true'
     )
+
+    group.add_argument(
+        '--fusion-background',
+        default=0
+    )
     return parser
 

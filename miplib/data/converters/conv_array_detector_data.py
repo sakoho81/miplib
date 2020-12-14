@@ -11,7 +11,6 @@ def convert_to_image(data):
     :return: an Image object (gate, channel, z, y, x)
     """
 
-    assert isinstance(data, ArrayDetectorData)
 
     gates = data.ngates
     channels = data.ndetectors
@@ -45,8 +44,6 @@ def convert_to_imagedata(data, path, data_type="original"):
     :return: returns a handle to the new hdf5 file. The file is left open, so remember
     to call close() method in order to ensure that all the data is written on the disk.
     """
-    assert isinstance(data, ArrayDetectorData)
-
     image_data = ImageData(path)
 
     for gate_idx in range(data.ngates):
