@@ -11,46 +11,97 @@ Microscope Image Processing Library (*MIPLIB*) is a Python based software librar
 
 The library is distributed under a BSD open source license.
 
-## How do I install it?
+## Installation
 
-I would recommend going with the *Anaconda* Python distribution, as it removes all the hassle from installing the necessary packages. MIPLIB should work on all platforms (Windows, MacOS, Linux), however I do not actively test it on Windows. 
+MIPLIB uses modern Python packaging with [uv](https://docs.astral.sh/uv/) for fast, reliable dependency management. The library requires **Python 3.11+** and works on all platforms (Windows, macOS, Linux).
 
+### Prerequisites
 
-### Here's how to setup your machine for development:
+1. **Python 3.11+**: MIPLIB requires a modern Python version
+2. **C Compiler**: For compiling Cython extensions
+   - **macOS**: Install Xcode command line tools: `xcode-select --install`
+   - **Windows**: Install [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+   - **Linux**: Install `build-essential` (Ubuntu/Debian) or equivalent
+3. **Java Runtime (Optional)**: Required only if using the Bioformats reader for microscopy formats
+   - Set `JAVA_HOME` environment variable
+   - See [JPype installation guide](https://jpype.readthedocs.io/en/latest/install.html) for details
 
-  1. There are some C extensions in *miplib* that need to be compiled. Therefore, if you are on a *mac*, you will also need to install XCode command line tools. In order to do this, Open *Terminal* and write `xcode-select --install`. If you are on *Windows*, you will need the [C++ compiler](https://wiki.python.org/moin/WindowsCompilers)
+### Quick Installation
 
-  2. The Bioformats plugin that I leverage in MIPLIB to read microscopy image formats requires Java. Therefore, make sure that you have JRE installed if you want to use the bioformats reader.  If you are on Windows, also make sure that the JAVA_HOME environment variable is set. You may also have to add the JAVA_HOME to your PATH. More info on that can be found here: [JPYPE](https://jpype.readthedocs.io/en/latest/install.html). 
+1. **Install uv** (if not already installed):
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   # Or on Windows: powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+   ```
 
-3. Fork and clone the *MIBLIB* repository (`git clone git@github.com:<your_account>/miplib.git`). The code will be saved to a sub-directory called *miplib* of the current directory. Put the code somewhere where it can stay. You may need to generate an SSH key, if you have not used GitHub previously.
+2. **Clone the repository**:
+   ```bash
+   git clone https://github.com/sakoho81/miplib.git
+   cd miplib
+   ```
 
-4. Go to the *miplib* directory and create a new Python virtual environment `conda env create -f environment.yml`. Alternatively use `environment_nocuda.yml`, if you do not want to use GPU acceleration. 
+3. **Install MIPLIB** (creates virtual environment automatically):
+   ```bash
+   uv sync
+   ```
 
-5. Activate the created virtual environment by writing `conda activate miplib`
+4. **Activate the environment**:
+   ```bash
+   source .venv/bin/activate  # On Unix/macOS
+   # Or on Windows: .venv\Scripts\activate
+   ```
 
-6. Now, install the *miplib* package to the new environment by executing the following in the *miplib* directory `python setup.py develop`. This will only create a link to the source code, so don't delete the *miplib* directory afterwards. 
+### Development Setup
 
-### And if you are not a developer
+For contributors and developers:
 
-If you just want to use the library, you can get everything running as follows:
+1. **Fork and clone** the repository:
+   ```bash
+   git clone git@github.com:<your_account>/miplib.git
+   cd miplib
+   ```
 
-1. Download the *environment_client.yml* file and create a Python virtual environment `conda env create -f environment_client.yml`. 
+2. **Install with development dependencies**:
+   ```bash
+   uv sync --extra dev
+   ```
 
-2. Activate the created virtual environment by writing `conda activate miplib`
+3. **Install pre-commit hooks** (recommended):
+   ```bash
+   source .venv/bin/activate
+   pre-commit install
+   ```
+
+4. **Run tests** to verify everything works:
+   ```bash
+   source .venv/bin/activate
+   pytest tests/
+   ```
+
+### Optional GPU Support
+
+For CUDA acceleration (NVIDIA GPUs):
+```bash
+uv sync --extra cuda
+```
+
+### Installation from PyPI (Coming Soon)
+
+Once published to PyPI:
+```bash
+uv add miplib
+# Or with pip: pip install miplib
+```
 
 ## How do I use it?
 
-My preferred tool for explorative tasks is Jupyter Notebook/Lab. Please look for updates in the Examples/ folder (a work in progress). Let me know if you would be interested in some specific example to be included. 
+My preferred tool for explorative tasks is Jupyter Notebook/Lab. Please look for updates in the notebooks/ folder (a work in progress). Let me know if you would be interested in some specific example to be included.
 
 There are also a number of command line scripts (entry points) in the bin/ directory that may be handy in different batch processing tasks. They are also a good place to start exploring the library.
 
 ## Contribute?
 
-*MIPLIB* was born as a combination of several previously separate libraries. The code and structure, although working, might (does) not in all places make sense. Any suggestions for improvements, new features etc. are welcome. 
-
-## Regarding Python versions
-
-I recenly migrated MIPLIB to Python 3, and have no intention to maintain backwards compatibility to Python 2.7. You can checkout an older version of the library, if you need to work on Python 2.7.
+*MIPLIB* was born as a combination of several previously separate libraries. The code and structure, although working, might (does) not in all places make sense. Any suggestions for improvements, new features etc. are welcome.
 
 ## About GPU acceleration
 
@@ -73,4 +124,3 @@ Prabhakar, Neeraj, Markus Peurla, Sami Koho, Takahiro Deguchi, Tuomas Näreoja, 
 Deguchi, Takahiro, Sami Koho, Tuomas Näreoja, and Pekka Hänninen. 2014. “Axial Super-Resolution by Mirror-Reflected Stimulated Emission Depletion Microscopy.” Optical Review 21 (3): 389–94.
 
 Deguchi, Takahiro, Sami V. Koho, Tuomas Näreoja, Juha Peltonen, and Pekka Hänninen. 2015. “Tomographic STED Microscopy to Study Bone Resorption.” In Proceedings of the SPIE, 9330:93301M – 93301M – 6.
-

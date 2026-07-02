@@ -1,2 +1,101 @@
 [build-system]
-requires = ["setuptools", "wheel", "oldest-supported-numpy"]
+requires = ["setuptools>=61.0", "wheel", "numpy>=1.21.0", "cython>=0.29.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "miplib"
+version = "1.0.5"
+description = "A Python software library for (optical) microscopy image restoration, reconstruction and analysis."
+readme = "Readme.md"
+license = "BSD-3-Clause"
+authors = [
+    {name = "Sami Koho", email = "sami.koho@gmail.com"},
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.21.0",
+    "scipy>=1.7.0",
+    "h5py>=3.0.0",
+    "SimpleITK>=2.0.0",
+    "jpype1>=1.3.0",
+    "matplotlib>=3.5.0",
+    "pandas>=1.3.0",
+    "pims>=0.5.0",
+    "scikit-image>=0.19.0",
+    "psf>=0.1.0",
+    "numba>=0.56.0",
+    "tifffile>=2020.1.1",
+    "cython>=0.29.0",
+]
+
+[project.optional-dependencies]
+cuda = [
+    "cupy-cuda12x>=11.0.0",
+]
+dev = [
+    "pytest>=6.0.0",
+    "pytest-cov",
+    "pytest-xdist",
+    "black",
+    "flake8",
+    "mypy",
+    "pre-commit",
+    "isort",
+]
+notebooks = [
+    "jupyter",
+    "notebook",
+]
+
+[project.scripts]
+"miplib.import" = "miplib.bin.import:main"
+"miplib.correlatem" = "miplib.bin.correlatem:main"
+"miplib.fuse" = "miplib.bin.fuse:main"
+"miplib.register" = "miplib.bin.register:main"
+"miplib.resolution" = "miplib.bin.resolution:main"
+"miplib.ism" = "miplib.bin.ism:main"
+"pyimq.main" = "miplib.bin.pyimq:main"
+"pyimq.subjective" = "miplib.bin.subjective:main"
+"pyimq.power" = "miplib.bin.power:main"
+
+[project.urls]
+Homepage = "https://github.com/sakoho81/miplib"
+Download = "https://github.com/sakoho81/miplib/archive/v1.0.5.tar.gz"
+Repository = "https://github.com/sakoho81/miplib"
+
+[tool.setuptools]
+packages = ["miplib"]
+py-modules = []
+
+[tool.setuptools.package-data]
+miplib = ["**/*.so"]
+
+[tool.black]
+line-length = 88
+target-version = ['py311', 'py312', 'py313']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | build
+  | dist
+)/
+'''
