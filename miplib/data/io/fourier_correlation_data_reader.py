@@ -2,21 +2,23 @@ import os
 
 import h5py
 
-from miplib.data.containers.fourier_correlation_data import FourierCorrelationDataCollection, FourierCorrelationData
+from miplib.data.containers.fourier_correlation_data import (
+    FourierCorrelationData,
+    FourierCorrelationDataCollection,
+)
 from miplib.data.containers.image import Image
 
 
-class FourierCorrelationDataReader(object):
+class FourierCorrelationDataReader:
     """
     A class for writing Fourier Correlation Data into a file.
     """
 
     # region Constructor and Destructor
     def __init__(self, file_path):
-
         # Create output dir, if it doesn't exist output dir if
         if not os.path.isfile(file_path) or not file_path.endswith(".hdf5"):
-            raise ValueError("Not a valid filename: %s" % file_path)
+            raise ValueError(f"Not a valid filename: {file_path}")
 
         self.data = h5py.File(file_path, mode="r")
 
@@ -43,12 +45,12 @@ class FourierCorrelationDataReader(object):
         if index is not None:
             image_name = "image_%i" % index
             data_set = self.data["images"][image_name]
-            spacing = data_set.attrs["pixel_size"].split()[0:len(data_set.shape)]
+            spacing = data_set.attrs["pixel_size"].split()[0 : len(data_set.shape)]
             return Image(data_set[:], spacing)
 
         images = []
         for data_set in self.data["images"]:
-            spacing = data_set.attrs["pixel_size"].split()[0:len(data_set.shape)]
+            spacing = data_set.attrs["pixel_size"].split()[0 : len(data_set.shape)]
             images.append(Image(data_set[:], spacing))
 
         return images
@@ -69,18 +71,25 @@ class FourierCorrelationDataReader(object):
                 correlation_group = self.data[group_name]["correlation"]
 
                 data_set.resolution["threshold"] = resolution_group["threshold"][:]
-                data_set.resolution["resolution-point"] = \
-                    resolution_group.attrs["resolution-point"].split()[:-1]
+                data_set.resolution["resolution-point"] = resolution_group.attrs[
+                    "resolution-point"
+                ].split()[:-1]
                 data_set.resolution["criterion"] = resolution_group.attrs["criterion"]
-                data_set.resolution["resolution-threshold-coefficients"] = \
+                data_set.resolution["resolution-threshold-coefficients"] = (
                     resolution_group["resolution-threshold-coefficients"][:]
+                )
 
-                data_set.correlation["correlation"] = correlation_group["correlation"][:]
+                data_set.correlation["correlation"] = correlation_group["correlation"][
+                    :
+                ]
                 data_set.correlation["frequency"] = correlation_group["frequency"][:]
-                data_set.correlation["points-x-bin"] = correlation_group["points-x-bin"][:]
+                data_set.correlation["points-x-bin"] = correlation_group[
+                    "points-x-bin"
+                ][:]
                 data_set.correlation["curve-fit"] = correlation_group["curve-fit"][:]
-                data_set.correlation["curve-fit-coefficients"] = \
-                    correlation_group["curve-fit-coefficients"][:]
+                data_set.correlation["curve-fit-coefficients"] = correlation_group[
+                    "curve-fit-coefficients"
+                ][:]
 
                 data_sets[int(angle)] = data_set
 
@@ -92,4 +101,3 @@ class FourierCorrelationDataReader(object):
         :return:
         """
         self.data.close()
-

@@ -53,16 +53,18 @@ psf_scale_<scale>_index_<index>_channel_<channel>_angle_<angle>.<suffix>
 
 
 """
+
 import os
 import sys
 
 import numpy
 
 from miplib.data.containers import image_data
-from miplib.data.definitions import *
+from miplib.data.definitions import image_types_c, params_c
 from miplib.data.io import read
 from miplib.processing import itk as itkutils
-from ..ui.cli import miplib_entry_point_options 
+
+from ..ui.cli import miplib_entry_point_options
 
 
 def main():
@@ -86,10 +88,12 @@ def main():
             continue
 
         if options.normalize_inputs:
-            images = (images * (255.0/images.max())).astype(numpy.uint8)
+            images = (images * (255.0 / images.max())).astype(numpy.uint8)
 
-        if not all(x in image_name for x in params_c) or not any(x in image_name for x in image_types_c):
-            print("Unrecognized image name %s. Skipping it." % image_name)
+        if not all(x in image_name for x in params_c) or not any(
+            x in image_name for x in image_types_c
+        ):
+            print(f"Unrecognized image name {image_name}. Skipping it.")
             continue
 
         image_type = image_name.split("_scale")[0]
@@ -111,7 +115,9 @@ def main():
     # Calculate resampled images
     if options.scales is not None:
         for scale in options.scales:
-            print("Creating %s percent downsampled versions of the original images" % scale)
+            print(
+                f"Creating {scale} percent downsampled versions of the original images"
+            )
             data.create_rescaled_images("original", scale)
 
     # Add transforms for registered images.
@@ -119,8 +125,11 @@ def main():
         if not transform_name.endswith(".txt"):
             continue
 
-        if not all(x in transform_name for x in params_c) or not "transform" in transform_name:
-            print("Unrecognized transform name %s. Skipping it." % transform_name)
+        if (
+            not all(x in transform_name for x in params_c)
+            or "transform" not in transform_name
+        ):
+            print(f"Unrecognized transform name {transform_name}. Skipping it.")
             continue
 
         scale = transform_name.split("scale_")[-1].split("_index")[0]

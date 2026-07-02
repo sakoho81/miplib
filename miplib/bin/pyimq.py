@@ -83,19 +83,20 @@ def main():
     file_path = None
     csv_data = None
 
-    print("Mode option is %s" % options.mode)
+    print(f"Mode option is {options.mode}")
 
     if "file" in options.mode:
         # In "file" mode a single file is analyzed and the various parameter
         # values are printed on screen. This functionality is provided mainly
         # for debugging purposes.
-        assert options.file is not None, "You have to specify a file with a " \
-                                         "--file option"
+        assert options.file is not None, (
+            "You have to specify a file with a --file option"
+        )
         path = os.path.join(path, options.file)
         assert os.path.isfile(path)
         image = read.get_image(path, channel=options.rgb_channel)
 
-        print("The shape is %s" % str(image.shape))
+        print(f"The shape is {str(image.shape)}")
 
         task = filters.LocalImageQuality(image, options)
         task.set_smoothing_kernel_size(100)
@@ -104,15 +105,15 @@ def main():
         finfo = task2.analyze_power_spectrum()
 
         print("SPATIAL MEASURES:")
-        print("The entropy value of %s is %f" % (path, entropy))
+        print(f"The entropy value of {path} is {entropy:f}")
         print("ANALYSIS OF THE POWER SPECTRUM TAIL")
-        print("The mean is: %e" % finfo[0])
-        print("The std is: %e" % finfo[1])
-        print("The entropy is %e" % finfo[2])
-        print("The threshold frequency is %f Hz" % finfo[3])
-        print("Power at high frequencies %e" % finfo[4])
-        print("The skewness is %f" % finfo[5])
-        print("The kurtosis is %f" % finfo[6])
+        print(f"The mean is: {finfo[0]:e}")
+        print(f"The std is: {finfo[1]:e}")
+        print(f"The entropy is {finfo[2]:e}")
+        print(f"The threshold frequency is {finfo[3]:f} Hz")
+        print(f"Power at high frequencies {finfo[4]:e}")
+        print(f"The skewness is {finfo[5]:f}")
+        print(f"The kurtosis is {finfo[6]:f}")
 
     if "directory" in options.mode:
         # In directory mode every image in a given directory is analyzed in a
@@ -121,26 +122,42 @@ def main():
         assert os.path.isdir(path), path
 
         # Create output directory
-        output_dir = datetime.datetime.now().strftime("%Y-%m-%d")+'_PyIQ_output'
+        output_dir = datetime.datetime.now().strftime("%Y-%m-%d") + "_PyIQ_output"
         output_dir = os.path.join(options.working_directory, output_dir)
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
         # Create output file
         date_now = datetime.datetime.now().strftime("%H-%M-%S")
-        file_name = date_now + '_PyIQ_out' + '.csv'
+        file_name = date_now + "_PyIQ_out" + ".csv"
         file_path = os.path.join(output_dir, file_name)
-        output_file = open(file_path, 'wt')
+        output_file = open(file_path, "w")
         output_writer = csv.writer(
-            output_file, quoting=csv.QUOTE_NONNUMERIC, delimiter=",")
+            output_file, quoting=csv.QUOTE_NONNUMERIC, delimiter=","
+        )
         output_writer.writerow(
-            ("Filename", "tEntropy", "tBrenner", "fMoments", "fMean", "fSTD", "fEntropy",
-             "fTh", "fMaxPw", "Skew", "Kurtosis", "MeanBin"))
+            (
+                "Filename",
+                "tEntropy",
+                "tBrenner",
+                "fMoments",
+                "fMean",
+                "fSTD",
+                "fEntropy",
+                "fTh",
+                "fMaxPw",
+                "Skew",
+                "Kurtosis",
+                "MeanBin",
+            )
+        )
 
         for image_name in os.listdir(path):
             if options.file_filter is None or options.file_filter in image_name:
                 real_path = os.path.join(path, image_name)
                 # Only process images
-                if not os.path.isfile(real_path) or not real_path.endswith((".jpg", ".tif", ".tiff", ".png")):
+                if not os.path.isfile(real_path) or not real_path.endswith(
+                    (".jpg", ".tif", ".tiff", ".png")
+                ):
                     continue
                 # ImageJ files have particular TIFF tags that can be processed correctly
                 # with the options.imagej switch
@@ -155,7 +172,10 @@ def main():
                 # dataset in a single piece may be challenging. Therefore the beginning of
                 # the dataset can be separated from the end, by selecting a minimum value
                 # for average grayscale pixel value here.
-                if options.average_filter > 0 and image.average() < options.average_filter:
+                if (
+                    options.average_filter > 0
+                    and image.average() < options.average_filter
+                ):
                     continue
 
                 # Run spatial domain analysis
@@ -179,63 +199,70 @@ def main():
                 results.insert(0, os.path.join(path, image_name))
                 output_writer.writerow(results)
 
-                print("Done analyzing %s" % image_name)
+                print(f"Done analyzing {image_name}")
 
         output_file.close()
-        print("The results were saved to %s" % file_path)
+        print(f"The results were saved to {file_path}")
 
     if "analyze" in options.mode:
-    # In analyze mode the previously created quality ranking variables are
-    # normalized to the highest value of every given variable. In addition
-    # some new parameters are calculated. The results are saved into a new
-    # csv file.
+        # In analyze mode the previously created quality ranking variables are
+        # normalized to the highest value of every given variable. In addition
+        # some new parameters are calculated. The results are saved into a new
+        # csv file.
         if file_path is None:
-            assert options.file is not None, "You have to specify a data file" \
-                                             "with the --file option"
+            assert options.file is not None, (
+                "You have to specify a data filewith the --file option"
+            )
             path = os.path.join(options.working_directory, options.file)
             print(path)
             file_path = path
-            assert os.path.isfile(path), "Not a valid file %s" % path
-            assert path.endswith(".csv"), "Unknown suffix %s" % path.split(".")[-1]
+            assert os.path.isfile(path), f"Not a valid file {path}"
+            assert path.endswith(".csv"), "Unknown suffix {}".format(
+                path.split(".")[-1]
+            )
 
         csv_data = pandas.read_csv(file_path)
-        csv_data["cv"] = csv_data.fSTD/csv_data.fMean
-        csv_data["SpatEntNorm"] = csv_data.tEntropy/csv_data.tEntropy.max()
-        csv_data["SpectMean"] = csv_data.fMean/csv_data.fMean.max()
-        csv_data["SpectSTDNorm"] = csv_data.fSTD/csv_data.fSTD.max()
-        csv_data["InvSpectSTDNorm"] = 1- csv_data.SpectSTDNorm
-        csv_data["SpectEntNorm"] = csv_data.fEntropy/csv_data.fEntropy.max()
-        csv_data["SkewNorm"] = 1 - abs(csv_data.Skew)/abs(csv_data.Skew).max()
-        csv_data["KurtosisNorm"] = abs(csv_data.Kurtosis)/abs(csv_data.Kurtosis).max()
-        csv_data["SpectHighPowerNorm"] = csv_data.fMaxPw/csv_data.fMaxPw.max()
-        csv_data["MeanBinNorm"] = csv_data.MeanBin/csv_data.MeanBin.max()
-        csv_data["BrennerNorm"] = csv_data.tBrenner/csv_data.tBrenner.max()
-        csv_data["SpectMomentsNorm"] = csv_data.fMoments/csv_data.fMoments.max()
+        csv_data["cv"] = csv_data.fSTD / csv_data.fMean
+        csv_data["SpatEntNorm"] = csv_data.tEntropy / csv_data.tEntropy.max()
+        csv_data["SpectMean"] = csv_data.fMean / csv_data.fMean.max()
+        csv_data["SpectSTDNorm"] = csv_data.fSTD / csv_data.fSTD.max()
+        csv_data["InvSpectSTDNorm"] = 1 - csv_data.SpectSTDNorm
+        csv_data["SpectEntNorm"] = csv_data.fEntropy / csv_data.fEntropy.max()
+        csv_data["SkewNorm"] = 1 - abs(csv_data.Skew) / abs(csv_data.Skew).max()
+        csv_data["KurtosisNorm"] = abs(csv_data.Kurtosis) / abs(csv_data.Kurtosis).max()
+        csv_data["SpectHighPowerNorm"] = csv_data.fMaxPw / csv_data.fMaxPw.max()
+        csv_data["MeanBinNorm"] = csv_data.MeanBin / csv_data.MeanBin.max()
+        csv_data["BrennerNorm"] = csv_data.tBrenner / csv_data.tBrenner.max()
+        csv_data["SpectMomentsNorm"] = csv_data.fMoments / csv_data.fMoments.max()
 
         # Create output directory
-        output_dir = datetime.datetime.now().strftime("%Y-%m-%d")+'_PyIQ_output'
+        output_dir = datetime.datetime.now().strftime("%Y-%m-%d") + "_PyIQ_output"
         output_dir = os.path.join(options.working_directory, output_dir)
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
         date_now = datetime.datetime.now().strftime("%H-%M-%S")
-        file_name = date_now + '_PyIQ_analyze_out' + '.csv'
+        file_name = date_now + "_PyIQ_analyze_out" + ".csv"
         file_path = os.path.join(output_dir, file_name)
 
         csv_data.to_csv(file_path)
-        print("The results were saved to %s" % file_path)
+        print(f"The results were saved to {file_path}")
 
     if "plot" in options.mode:
-    # With the plot option the dataset is sorted according to the desired ranking variable.
-    # The changes are saved to the original csv file. In addition a plot is created to show
-    # a subset of highest and lowest ranked images (the amount of images to show is
-    # controlled by the options.npics parameter
+        # With the plot option the dataset is sorted according to the desired ranking variable.
+        # The changes are saved to the original csv file. In addition a plot is created to show
+        # a subset of highest and lowest ranked images (the amount of images to show is
+        # controlled by the options.npics parameter
         if csv_data is None:
             file_path = os.path.join(options.working_directory, options.file)
-            assert os.path.isfile(file_path), "Not a valid file %s" % path
-            assert path.endswith(".csv"), "Unknown suffix %s" % path.split(".")[-1]
+            assert os.path.isfile(file_path), f"Not a valid file {path}"
+            assert path.endswith(".csv"), "Unknown suffix {}".format(
+                path.split(".")[-1]
+            )
             csv_data = pandas.read_csv(file_path)
         if options.result == "average":
-            csv_data["Average"] = csv_data[["InvSpectSTDNorm", "SpatEntNorm"]].mean(axis=1)
+            csv_data["Average"] = csv_data[["InvSpectSTDNorm", "SpatEntNorm"]].mean(
+                axis=1
+            )
             csv_data.sort(columns="Average", ascending=False, inplace=True)
         elif options.result == "fskew":
             csv_data.sort(columns="SkewNorm", ascending=False, inplace=True)
@@ -256,7 +283,7 @@ def main():
         elif options.result == "meanbin":
             csv_data.sort(columns="MeanBinNorm", ascending=False, inplace=True)
         else:
-            print("Unknown results sorting method %s" % options.result)
+            print(f"Unknown results sorting method {options.result}")
             sys.exit()
 
         best_pics = csv_data["Filename"].head(options.npics).as_matrix()

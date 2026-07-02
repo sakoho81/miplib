@@ -1,8 +1,8 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 
-def plot_histogram(data, bins=50, figsize=(2,2)):
+def plot_histogram(data, bins=50, figsize=(2, 2)):
     """
     Calculate histogram for data
 
@@ -13,11 +13,11 @@ def plot_histogram(data, bins=50, figsize=(2,2)):
     """
     assert issubclass(np.ndarray, data)
 
-    fig, ax = plt.subplots(1,1, figsize=figsize)
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
 
     hist, bins = np.histogram(data.astype(np.uint16), bins=bins)
     width = 0.7 * (bins[1] - bins[0])
     center = (bins[:-1] + bins[1:]) / 2
-    ax.bar(center, hist, align='center', width=width)
+    ax.bar(center, hist, align="center", width=width)
 
     return fig

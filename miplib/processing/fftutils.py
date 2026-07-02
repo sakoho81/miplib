@@ -1,12 +1,14 @@
-import numpy as np
 from math import floor
+
+import numpy as np
+
 from miplib.data.containers.image import Image
 from miplib.data.coordinates import polar as indexers
-from miplib.processing import windowing, ndarray
+from miplib.processing import ndarray, windowing
 
 
-def fft(array, interpolation=1.0, window='tukey', *kwargs):
-    """ A n-dimensional Forward Discrete Fourier transform with some extra bells and whistles
+def fft(array, interpolation=1.0, window="tukey", *kwargs):
+    """A n-dimensional Forward Discrete Fourier transform with some extra bells and whistles
     added on top of the standard Numpy method.
 
     :param array: the image to be transformed
@@ -22,9 +24,9 @@ def fft(array, interpolation=1.0, window='tukey', *kwargs):
     # Apply a Window if requested
     if window is None:
         pass
-    elif window == 'tukey':
+    elif window == "tukey":
         array = windowing.apply_tukey_window(array, *kwargs)
-    elif window == 'hamming':
+    elif window == "hamming":
         array = windowing.apply_hamming_window(array)
 
     # Add extra padding
@@ -39,7 +41,7 @@ def fft(array, interpolation=1.0, window='tukey', *kwargs):
 
 
 def ifft(array_f, interpolation=1.0):
-    """ A n-dimensional Inverse Discrete Fourier transform with some extra bells and whistles
+    """A n-dimensional Inverse Discrete Fourier transform with some extra bells and whistles
     added on top of the standard Numpy method. Assumes a FFT shifted Fourier domain image.
 
     :param array_f: the image to be transformed
@@ -61,7 +63,7 @@ def ifft(array_f, interpolation=1.0):
     return iarray_f
 
 
-def ideal_fft_filter(image, threshold, kind='low'):
+def ideal_fft_filter(image, threshold, kind="low"):
     """
     An ideal high/low pass frequency domain noise filter.
     :param image: an Image object
@@ -76,16 +78,16 @@ def ideal_fft_filter(image, threshold, kind='low'):
 
     fft_image = np.fft.fftshift(np.fft.fftn(image))
 
-    if kind == 'low':
+    if kind == "low":
         indexer = indexers.PolarLowPassIndexer(image.shape)
-    elif kind == 'high':
+    elif kind == "high":
         indexer = indexers.PolarHighPassIndexer(image.shape)
     else:
-        raise ValueError("Unknown filter kind: {}".format(kind))
+        raise ValueError(f"Unknown filter kind: {kind}")
 
     r_max = floor(min(image.shape) / 2)
 
-    fft_image *= indexer[threshold*r_max]
+    fft_image *= indexer[threshold * r_max]
 
     return Image(np.abs(np.fft.ifftn(fft_image).real), spacing)
 
@@ -103,12 +105,12 @@ def butterworth_fft_filter(image, threshold, n=3):
     :Returns:
        numpy.ndarray
          filter kernel in 2D centered
-   """
+    """
     if not 0 < threshold <= 1.0:
-        raise ValueError('Cutoff frequency must be between 0 and 1.0')
+        raise ValueError("Cutoff frequency must be between 0 and 1.0")
 
     if not isinstance(n, int):
-        raise ValueError('n must be an integer >= 1')
+        raise ValueError("n must be an integer >= 1")
 
     assert isinstance(image, Image)
 
@@ -140,9 +142,9 @@ def gaussian_fft_filter(image, threshold):
            the transition is.
     :Returns:
        numpy.ndarray:  filter kernel in 2D centered
-   """
+    """
     if not 0 < threshold <= 1.0:
-        raise ValueError('Cutoff frequency must be between 0 and 1.0')
+        raise ValueError("Cutoff frequency must be between 0 and 1.0")
 
     assert isinstance(image, Image)
 
@@ -153,9 +155,8 @@ def gaussian_fft_filter(image, threshold):
 
     r /= image.shape[0]
 
-    gauss = np.exp(-(r**2/(2*(threshold**2))))
+    gauss = np.exp(-(r**2 / (2 * (threshold**2))))
     fft_image = np.fft.fftshift(np.fft.fftn(image))
     fft_image *= gauss
 
     return Image(np.abs(np.fft.ifftn(fft_image).real), spacing)
-

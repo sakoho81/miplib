@@ -1,15 +1,17 @@
 import os
 
 import matplotlib.pyplot as plt
-
-plt.style.use("seaborn-colorblind")
-
 import numpy as np
 from skimage import draw
-import miplib.processing.ndarray as arrayops
 
-from miplib.data.containers.fourier_correlation_data import FourierCorrelationData, FourierCorrelationDataCollection
+import miplib.processing.ndarray as arrayops
+from miplib.data.containers.fourier_correlation_data import (
+    FourierCorrelationData,
+    FourierCorrelationDataCollection,
+)
 from miplib.processing.converters import degrees_to_radians
+
+plt.style.use("seaborn-colorblind")
 
 
 def plot_resolution_curves(data_to_plot, x_idx=0, size=(2, 2), disable_ax_labels=False):
@@ -35,7 +37,9 @@ def plot_resolution_curves(data_to_plot, x_idx=0, size=(2, 2), disable_ax_labels
     return fig
 
 
-def resolution_curves_subplot(ax, data_to_plot, x_idx=0, disable_ax_labels=False, line_style='-'):
+def resolution_curves_subplot(
+    ax, data_to_plot, x_idx=0, disable_ax_labels=False, line_style="-"
+):
     """
     Does the actual owrk fo the plot_resolution_curves function, but requires an axis as an input. It is useful eg.
     when one desires to have several subplots.
@@ -49,18 +53,20 @@ def resolution_curves_subplot(ax, data_to_plot, x_idx=0, disable_ax_labels=False
                         later for instance
     :return:            returns the matplotlib.pyplot.Figure object that you can use to make further modificaitons
                         to the plot
-        """
+    """
     assert isinstance(data_to_plot, FourierCorrelationDataCollection)
 
-    angles = list()
-    datasets = list()
+    angles = []
+    datasets = []
 
     # Sort datasets by angle.
     for dataset in data_to_plot:
-        angles.append((int(dataset[0])))
+        angles.append(int(dataset[0]))
         datasets.append(dataset[1])
 
-    angles, datasets = list(zip(*sorted(zip(angles, datasets))))
+    angles, datasets = list(
+        zip(*sorted(zip(angles, datasets, strict=False)), strict=False)
+    )
 
     # plot threshold
     dataset = datasets[int(x_idx)]
@@ -73,15 +79,15 @@ def resolution_curves_subplot(ax, data_to_plot, x_idx=0, disable_ax_labels=False
 
     x_axis = arrayops.safe_divide(x, 2 * dataset.resolution["spacing"])
 
-    ax.plot(x_axis, y, linestyle='--', color='#b5b5b3')
+    ax.plot(x_axis, y, linestyle="--", color="#b5b5b3")
 
     if not disable_ax_labels:
-        xlabel = r'Frequency ($\mathrm{\mu m}^{-1}$)'
-        ylabel = 'Correlation'
+        xlabel = r"Frequency ($\mathrm{\mu m}^{-1}$)"
+        ylabel = "Correlation"
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
 
-    for idx, dataset in enumerate(datasets):
+    for _idx, dataset in enumerate(datasets):
         ax.set_ylim([0, 1.2])
 
         # Plot calculated FRC values as xy scatter.
@@ -96,22 +102,30 @@ def resolution_curves_subplot(ax, data_to_plot, x_idx=0, disable_ax_labels=False
 
 def power_spectrum_plot_with_contour(image, data, size=(2.5, 2.5)):
     def draw_contour_3d(data, image, spacing):
-        angles = list()
-        radii = list()
+        angles = []
+        radii = []
 
         for dataset in data:
             angles.append(degrees_to_radians(float(dataset[0])))
-            radii.append(image.shape[0] * (spacing / dataset[1].resolution["resolution"]))
+            radii.append(
+                image.shape[0] * (spacing / dataset[1].resolution["resolution"])
+            )
 
-        angles, radii = zip(*sorted(zip(angles, radii)))
+        angles, radii = zip(*sorted(zip(angles, radii, strict=False)), strict=False)
         angles = list(angles)
         radii = list(radii)
         angles.append(angles[0])
         radii.append(radii[0])
 
-        center = list(i / 2 for i in image.shape)
-        xs = list(radius * np.cos(angle) + center[1] for radius, angle in zip(radii, angles))
-        ys = list(radius * np.sin(angle) + center[0] for radius, angle in zip(radii, angles))
+        center = [i / 2 for i in image.shape]
+        xs = [
+            radius * np.cos(angle) + center[1]
+            for radius, angle in zip(radii, angles, strict=False)
+        ]
+        ys = [
+            radius * np.sin(angle) + center[0]
+            for radius, angle in zip(radii, angles, strict=False)
+        ]
         image[draw.polygon_perimeter(ys, xs)] = 255
 
         return image
@@ -119,7 +133,7 @@ def power_spectrum_plot_with_contour(image, data, size=(2.5, 2.5)):
     def draw_contour_2d(data, image, spacing):
         radius = image.shape[0] * (spacing / data.resolution["resolution"])
 
-        center = tuple(x//2 for x in image.shape)
+        center = tuple(x // 2 for x in image.shape)
         image[draw.circle_perimeter(*center, radius)] = 255
 
     def get_ps_image(image):
@@ -130,7 +144,7 @@ def power_spectrum_plot_with_contour(image, data, size=(2.5, 2.5)):
             max_proj = fft_image
         return max_proj
 
-    ps = 20*np.log10(get_ps_image(image))
+    ps = 20 * np.log10(get_ps_image(image))
     spacing = image.spacing[0]
 
     if image.ndim == 3:
@@ -138,33 +152,30 @@ def power_spectrum_plot_with_contour(image, data, size=(2.5, 2.5)):
     else:
         ps = draw_contour_2d(data, ps, spacing)
 
-
-    fig = plt.figure(figsize=size)
+    plt.figure(figsize=size)
     ax = plt.subplot(111)
     ax.imshow(ps)
 
     return ax
 
 
-
-
 def fsc_polar_plot(ax, data):
-    """ Generate a polar plot from SFSC data. This is mainly used to overlay several plots
-    with ...
+    """Generate a polar plot from SFSC data. This is mainly used to overlay several plots
+     with ...
 
-   :param ax: pyplot ax instance that is to be used for the plotting
-   :param data: FourierCorrelationDataCollection instance that includes the data to plot.
-   :return: returns the same ax instance for further modifications
-   """
+    :param ax: pyplot ax instance that is to be used for the plotting
+    :param data: FourierCorrelationDataCollection instance that includes the data to plot.
+    :return: returns the same ax instance for further modifications
+    """
 
-    angles = list()
-    radii = list()
+    angles = []
+    radii = []
 
     for dataset in data:
         angles.append(degrees_to_radians(float(dataset[0])))
         radii.append(dataset[1].resolution["resolution"])
 
-    angles, radii = zip(*sorted(zip(angles, radii)))
+    angles, radii = zip(*sorted(zip(angles, radii, strict=False)), strict=False)
     angles = list(angles)
     radii = list(radii)
     angles.append(angles[0])
@@ -177,7 +188,7 @@ def fsc_polar_plot(ax, data):
     return ax
 
 
-class FourierDataPlotter(object):
+class FourierDataPlotter:
     # todo: consider making this plotter class disappear. It is often easier to just use the functions as above.
     """
     An attempt of sorts to make a class to handle the various types of FRC/FSC plots. I'm not quite sure
@@ -209,35 +220,37 @@ class FourierDataPlotter(object):
         that was supplied to the constructor.
 
         """
-        axescolor = '#f6f6f6'
 
         size = (6, self._rows * 2) if save_fig else (12, self._rows * 4)
 
-        fig, plots = plt.subplots(self._rows, self._columns,
-                                  figsize=size)
+        fig, plots = plt.subplots(self._rows, self._columns, figsize=size)
         # rect = fig.patch
         # rect.set_facecolor('white')
 
         fig.tight_layout(pad=0.4, w_pad=2, h_pad=6)
 
-        angles = list()
-        datasets = list()
+        angles = []
+        datasets = []
 
         # Sort datasets by angle.
         for dataset in self.data:
-            angles.append((int(dataset[0])))
+            angles.append(int(dataset[0]))
             datasets.append(dataset[1])
 
-        angles, datasets = list(zip(*sorted(zip(angles, datasets))))
+        angles, datasets = list(
+            zip(*sorted(zip(angles, datasets, strict=False)), strict=False)
+        )
 
         if custom_titles is None:
-            titles = list("FRC @ angle %i" % angle for angle in angles)
+            titles = ["FRC @ angle %i" % angle for angle in angles]
         else:
             assert len(custom_titles) == len(angles)
             titles = custom_titles
 
         # Make subplots
-        for title, dataset, plot in zip(titles, datasets, plots.flatten()):
+        for title, dataset, plot in zip(
+            titles, datasets, plots.flatten(), strict=False
+        ):
             self.__make_frc_subplot(plot, dataset, title)
 
         if save_fig:
@@ -253,48 +266,61 @@ class FourierDataPlotter(object):
         fig, plot = plt.subplots(1, 1, figsize=size, tight_layout=True)
         # plot.set(aspect='equal')
 
-        angles = list()
-        datasets = list()
+        angles = []
+        datasets = []
 
         # Sort datasets by angle.
         for dataset in self.data:
-            angles.append((int(dataset[0])))
+            angles.append(int(dataset[0]))
             datasets.append(dataset[1])
 
-        angles, datasets = list(zip(*sorted(zip(angles, datasets))))
+        angles, datasets = list(
+            zip(*sorted(zip(angles, datasets, strict=False)), strict=False)
+        )
 
         if custom_titles is None:
-            titles = list("FRC @ angle %i" % angle for angle in angles)
+            titles = ["FRC @ angle %i" % angle for angle in angles]
         else:
             assert len(custom_titles) == len(angles)
             titles = custom_titles
 
         # Make subplots
-        for title, dataset in zip(titles, datasets):
-            self.__make_printable_frc_subplot(plot, dataset, title=(title if header else None))
-            file_name = os.path.join(self.path, "{}.eps".format(title))
+        for title, dataset in zip(titles, datasets, strict=False):
+            self.__make_printable_frc_subplot(
+                plot, dataset, title=(title if header else None)
+            )
+            file_name = os.path.join(self.path, f"{title}.eps")
             plt.savefig(file_name, dpi=1200)
             plt.cla()
 
     def plot_one(self, angle):
-
         plt.figure(figsize=(5, 4))
         ax = plt.subplot(111)
 
-        self.__make_frc_subplot(ax, self.data[int(angle)], "FRC at angle %s" % str(angle))
+        self.__make_frc_subplot(ax, self.data[int(angle)], f"FRC at angle {str(angle)}")
 
         plt.show()
 
-    def plot_one_to_file(self, angle, filename, title=None, size=(2, 2), coerce_ticks=True, legend=False):
+    def plot_one_to_file(
+        self, angle, filename, title=None, size=(2, 2), coerce_ticks=True, legend=False
+    ):
         fig, ax = plt.subplots(1, 1, figsize=size)
 
-        self.__make_printable_frc_subplot(ax, self.data[int(angle)], title, coerce_ticks=coerce_ticks)
-        file_name = os.path.join(self.path, "{}.eps".format(filename))
+        self.__make_printable_frc_subplot(
+            ax, self.data[int(angle)], title, coerce_ticks=coerce_ticks
+        )
+        file_name = os.path.join(self.path, f"{filename}.eps")
         if legend:
-            fig.legend(('FRC', 'curve-fit', 'threshold', 'resolution-point'), bbox_to_anchor=(1.10, 1.0), loc=2,
-                       borderaxespad=0.)
+            fig.legend(
+                ("FRC", "curve-fit", "threshold", "resolution-point"),
+                bbox_to_anchor=(1.10, 1.0),
+                loc=2,
+                borderaxespad=0.0,
+            )
 
-        plt.savefig(file_name, dpi=1200, bbox_inches='tight', pad_inches=0, transparent=True)
+        plt.savefig(
+            file_name, dpi=1200, bbox_inches="tight", pad_inches=0, transparent=True
+        )
 
     def plot_polar(self):
         """
@@ -302,28 +328,30 @@ class FourierDataPlotter(object):
         as a function of rotatino angle.
         """
 
-        angles = list()
-        radii = list()
+        angles = []
+        radii = []
 
         for dataset in self.data:
             angles.append(degrees_to_radians(float(dataset[0])))
             radii.append(dataset[1].resolution["resolution"])
 
-        angles, radii = list(zip(*sorted(zip(angles, radii))))
+        angles, radii = list(
+            zip(*sorted(zip(angles, radii, strict=False)), strict=False)
+        )
         angles = list(angles)
         radii = list(radii)
         angles.append(angles[0])
         radii.append(radii[0])
 
-        radii_norm = list(i / max(radii) for i in radii)
-        fig = plt.figure(figsize=(4, 4))
+        radii_norm = [i / max(radii) for i in radii]
+        plt.figure(figsize=(4, 4))
         ax = plt.subplot(111, projection="polar")
-        ax.plot(angles, radii_norm, color='#61a2da')
+        ax.plot(angles, radii_norm, color="#61a2da")
         ax.set_rmax(1.2)
         r_ticks = np.linspace(0.1, 1.0, 5)
         r_ticks_scale = r_ticks * max(radii)
 
-        x_labels = ['%.2f' % n for n in r_ticks_scale]
+        x_labels = [f"{n:.2f}" for n in r_ticks_scale]
 
         ax.set_rticks(r_ticks)
         ax.set_yticklabels(x_labels)
@@ -343,23 +371,25 @@ class FourierDataPlotter(object):
         as a function of rotatino angle.
         """
 
-        angles = list()
-        radii = list()
+        angles = []
+        radii = []
 
         for dataset in self.data:
             angles.append(degrees_to_radians(float(dataset[0])))
             radii.append(dataset[1].resolution["resolution"])
 
-        angles, radii = list(zip(*sorted(zip(angles, radii))))
+        angles, radii = list(
+            zip(*sorted(zip(angles, radii, strict=False)), strict=False)
+        )
         angles = list(angles)
         radii = list(radii)
         angles.append(angles[0])
         radii.append(radii[0])
 
-        radii_norm = list(i / max(radii) for i in radii)
+        radii_norm = [i / max(radii) for i in radii]
         plt.figure(figsize=size)
         ax = plt.subplot(111, projection="polar")
-        ax.plot(angles, radii_norm, color='#61a2da')
+        ax.plot(angles, radii_norm, color="#61a2da")
         ax.set_rmax(1.2)
         r_ticks = np.linspace(0.1, 1.0, 5)
         r_ticks_scale = r_ticks * max(radii)
@@ -367,7 +397,7 @@ class FourierDataPlotter(object):
         print(r_ticks_scale)
         print(max(radii))
 
-        x_labels = ['%.2f' % n for n in r_ticks_scale]
+        x_labels = [f"{n:.2f}" for n in r_ticks_scale]
 
         print(x_labels)
         ax.set_rticks(r_ticks)
@@ -380,9 +410,11 @@ class FourierDataPlotter(object):
         # ax.set_xlabel("XY")
         # ax.set_ylabel("Z")
 
-        file_name = os.path.join(self.path, "{}.eps".format(filename))
+        file_name = os.path.join(self.path, f"{filename}.eps")
 
-        plt.savefig(file_name, dpi=1200, bbox_inches='tight', pad_inches=0, transparent=True)
+        plt.savefig(
+            file_name, dpi=1200, bbox_inches="tight", pad_inches=0, transparent=True
+        )
 
     @staticmethod
     def __make_frc_subplot(ax, frc, title):
@@ -401,12 +433,11 @@ class FourierDataPlotter(object):
         # rc('text', usetex=True)
 
         # Enable grid
-        gridLineWidth = 0.2
         # ax.yaxis.grid(True, linewidth=gridLineWidth, linestyle='-', color='0.05')
 
         # Axis labelling
-        xlabel = 'Frequency (1/um)'
-        ylabel = 'Correlation'
+        xlabel = "Frequency (1/um)"
+        ylabel = "Correlation"
         # ax.set_xlabel(xlabel, fontsize=12, position=(0.5, -0.2))
         # ax.set_ylabel(ylabel, fontsize=12, position=(0.5, 0.5))
         ax.set_xlabel(xlabel)
@@ -422,23 +453,21 @@ class FourierDataPlotter(object):
         x = frc.correlation["frequency"]
         x_axis = arrayops.safe_divide(x, 2 * frc.resolution["spacing"])
 
-        ax.plot(x_axis, y, '^', markersize=6, color='#b5b5b3',
-                label='FRC')
+        ax.plot(x_axis, y, "^", markersize=6, color="#b5b5b3", label="FRC")
 
         # Plot polynomial fit as a line plot over the FRC scatter
         y = frc.correlation["curve-fit"]
-        ax.plot(x_axis, y, linewidth=3, color='#61a2da',
-                label='Least-squares fit')
+        ax.plot(x_axis, y, linewidth=3, color="#61a2da", label="Least-squares fit")
 
         # Plot the resolution threshold curve
         y = frc.resolution["threshold"]
         res_crit = frc.resolution["criterion"]
-        if res_crit == 'one-bit':
-            label = 'One-bit curve'
-        elif res_crit == 'half-bit':
-            label = 'Half-bit curve'
-        elif res_crit == 'fixed':
-            label = 'y = %f' % y[0]
+        if res_crit == "one-bit":
+            label = "One-bit curve"
+        elif res_crit == "half-bit":
+            label = "Half-bit curve"
+        elif res_crit == "fixed":
+            label = f"y = {y[0]:f}"
         else:
             label = "Threshold"
 
@@ -448,23 +477,21 @@ class FourierDataPlotter(object):
 
         x_axis = arrayops.safe_divide(x, 2 * frc.resolution["spacing"])
 
-        ax.plot(x_axis, y, color='#d77186',
-                label=label, lw=2, linestyle='--')
+        ax.plot(x_axis, y, color="#d77186", label=label, lw=2, linestyle="--")
 
         # Plot resolution point
         y0 = frc.resolution["resolution-point"][0]
         x0 = frc.resolution["resolution-point"][1] / (2 * frc.resolution["spacing"])
 
-        ax.plot(x0, y0, 'ro', markersize=8, label='Resolution point', color='#D75725')
+        ax.plot(x0, y0, "ro", markersize=8, label="Resolution point", color="#D75725")
 
         verts = [(x0, 0), (x0, y0)]
-        xs, ys = list(zip(*verts))
+        xs, ys = list(zip(*verts, strict=False))
 
-        ax.plot(xs, ys, 'x--', lw=3, color='#D75725', ms=10)
+        ax.plot(xs, ys, "x--", lw=3, color="#D75725", ms=10)
         # ax.text(x0, y0 + 0.10, 'RESOL-FREQ', fontsize=12)
 
-        resolution = "The resolution is {} um.".format(
-            frc.resolution["resolution"])
+        resolution = "The resolution is {} um.".format(frc.resolution["resolution"])
         ax.text(0.5, -0.3, resolution, ha="center", fontsize=12)
 
         # x_axis = arrayops.safe_divide(np.linspace(0.0, 1.0, num=len(ax.get_xticklabels())),
@@ -494,16 +521,14 @@ class FourierDataPlotter(object):
         # rc('text', usetex=True)
 
         # Enable grid
-        gridLineWidth = 0.2
         # ax.yaxis.grid(True, linewidth=gridLineWidth, linestyle='-', color='0.05')
 
         # Marker setup
-        colorArray = ['blue', 'green', 'red', 'orange', 'brown', 'black', 'violet', 'pink']
-        marker_array = ['^', 's', 'o', 'd', '1', 'v', '*', 'p']
+        marker_array = ["^", "s", "o", "d", "1", "v", "*", "p"]
 
         # Axis labelling
-        xlabel = 'Frequency'
-        ylabel = 'Correlation'
+        xlabel = "Frequency"
+        ylabel = "Correlation"
         # ax.set_xlabel(xlabel, fontsize=12, position=(0.5, -0.2))
         # ax.set_ylabel(ylabel, fontsize=12, position=(0.5, 0.5))
         ax.set_xlabel(xlabel)
@@ -519,45 +544,44 @@ class FourierDataPlotter(object):
         y = frc.correlation["correlation"]
         x_raw = frc.correlation["frequency"]
         x = arrayops.safe_divide(x_raw, 2 * frc.resolution["spacing"])
-        ax.plot(x, y, marker_array[0], color='#b5b5b3',
-                label='FRC')
+        ax.plot(x, y, marker_array[0], color="#b5b5b3", label="FRC")
 
         # Plot polynomial fit as a line plot over the FRC scatter
         y = frc.correlation["curve-fit"]
-        ax.plot(x, y, color='#61a2da',
-                label='Least-squares fit')
+        ax.plot(x, y, color="#61a2da", label="Least-squares fit")
 
         # Plot the resolution threshold curve
         y = frc.resolution["threshold"]
         res_crit = frc.resolution["criterion"]
-        if res_crit == 'one-bit':
-            label = 'One-bit curve'
-        elif res_crit == 'half-bit':
-            label = 'Half-bit curve'
-        elif res_crit == 'fixed':
-            label = 'y = %f' % y[0]
+        if res_crit == "one-bit":
+            label = "One-bit curve"
+        elif res_crit == "half-bit":
+            label = "Half-bit curve"
+        elif res_crit == "fixed":
+            label = f"y = {y[0]:f}"
         else:
             label = "Threshold"
 
         if x_raw[-1] < 1.0:
-            x_th = arrayops.safe_divide(np.append(x_raw, 1.0), 2 * frc.resolution["spacing"])
+            x_th = arrayops.safe_divide(
+                np.append(x_raw, 1.0), 2 * frc.resolution["spacing"]
+            )
             y = np.append(y, y[-1])
         else:
             x_th = x
 
-        ax.plot(x_th, y, color='#d77186',
-                label=label, linestyle='--')
+        ax.plot(x_th, y, color="#d77186", label=label, linestyle="--")
 
         # Plot resolution point
         y0 = frc.resolution["resolution-point"][0]
         x0 = frc.resolution["resolution-point"][1] / (2 * frc.resolution["spacing"])
 
-        ax.plot(x0, y0, 'ro', label='Resolution point', color='#D75725')
+        ax.plot(x0, y0, "ro", label="Resolution point", color="#D75725")
 
         verts = [(x0, 0), (x0, y0)]
-        xs, ys = list(zip(*verts))
+        xs, ys = list(zip(*verts, strict=False))
 
-        ax.plot(xs, ys, 'x--', color='#D75725', ms=10)
+        ax.plot(xs, ys, "x--", color="#D75725", ms=10)
 
         # x_axis = arrayops.safe_divide(np.linspace(0.0, 1.0, num=len(ax.get_xticklabels())),
         #                               2 * frc.resolution["spacing"])

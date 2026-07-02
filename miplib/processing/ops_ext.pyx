@@ -673,9 +673,6 @@ cdef cnp.ndarray _compute_unit_gradient_divergence_f32(cnp.ndarray image, double
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef cnp.ndarray _compute_unit_gradient_divergence_f64(cnp.ndarray image, double spacing_x, double spacing_y, double spacing_z):
-    """Same as f32 version but with float64 precision"""
-    # Implementation would be identical to f32 version but with float64_t types
-    # For brevity, showing structure only - full implementation would mirror above
     cdef Py_ssize_t size_x = image.shape[0]
     cdef Py_ssize_t size_y = image.shape[1]
     cdef Py_ssize_t size_z = image.shape[2]
@@ -684,7 +681,108 @@ cdef cnp.ndarray _compute_unit_gradient_divergence_f64(cnp.ndarray image, double
     cdef float64_t[:, :, :] image_view = image
     cdef float64_t[:, :, :] result_view = result
 
-    # ... (rest of implementation identical to f32 version with float64_t types)
+    cdef Py_ssize_t i, j, k
+    cdef Py_ssize_t prev_i, next_i, prev_j, next_j, prev_k, next_k
+
+    cdef double center_val, neighbor_x_pos, neighbor_x_neg, neighbor_y_pos, neighbor_y_neg, neighbor_z_pos, neighbor_z_neg
+    cdef double val_xneg_yneg, val_xneg_zneg, val_xneg_ypos, val_xneg_zpos
+    cdef double val_yneg_zneg, val_yneg_zpos, val_ypos_zneg
+    cdef double val_xpos_yneg, val_xpos_zneg
+
+    cdef double grad_x_forward, grad_x_backward, grad_y_forward, grad_y_backward, grad_z_forward, grad_z_backward
+    cdef double unit_x_center, unit_y_center, unit_z_center
+    cdef double unit_x_backward, unit_y_backward, unit_z_backward
+    cdef double divergence_x, divergence_y, divergence_z
+
+    cdef double epsilon = 0.0
+
+    for i in range(size_x):
+        prev_i = i - 1 if i > 0 else 0
+        next_i = i + 1 if i + 1 < size_x else i
+
+        for j in range(size_y):
+            prev_j = j - 1 if j > 0 else 0
+            next_j = j + 1 if j + 1 < size_y else j
+
+            for k in range(size_z):
+                prev_k = k - 1 if k > 0 else 0
+                next_k = k + 1 if k + 1 < size_z else k
+
+                val_xneg_yneg = image_view[prev_i, prev_j, k]
+                neighbor_x_neg = image_view[prev_i, j, k]
+                val_xneg_zneg = image_view[prev_i, j, prev_k]
+                val_xneg_zpos = image_view[prev_i, j, next_k]
+                val_xneg_ypos = image_view[prev_i, next_j, k]
+
+                val_yneg_zneg = image_view[i, prev_j, prev_k]
+                neighbor_y_neg = image_view[i, prev_j, k]
+                val_yneg_zpos = image_view[i, prev_j, next_k]
+
+                neighbor_z_neg = image_view[i, j, prev_k]
+                center_val = image_view[i, j, k]
+                neighbor_z_pos = image_view[i, j, next_k]
+
+                val_ypos_zneg = image_view[i, next_j, prev_k]
+                neighbor_y_pos = image_view[i, next_j, k]
+
+                val_xpos_yneg = image_view[next_i, prev_j, k]
+                val_xpos_zneg = image_view[next_i, j, prev_k]
+                neighbor_x_pos = image_view[next_i, j, k]
+
+                grad_x_forward = (neighbor_x_pos - center_val) / spacing_x
+                grad_y_forward = (neighbor_y_pos - center_val) / spacing_y
+                grad_z_forward = (neighbor_z_pos - center_val) / spacing_z
+
+                magnitude = magnitude_3d(grad_x_forward,
+                                         minmax_select(grad_y_forward, grad_y_backward),
+                                         minmax_select(grad_z_forward, grad_z_backward))
+                unit_x_center = grad_x_forward / magnitude if magnitude > epsilon else 0.0
+
+                magnitude = magnitude_3d(grad_y_forward,
+                                         minmax_select(grad_x_forward, grad_x_backward),
+                                         minmax_select(grad_z_forward, grad_z_backward))
+                unit_y_center = grad_y_forward / magnitude if magnitude > epsilon else 0.0
+
+                magnitude = magnitude_3d(grad_z_forward,
+                                         minmax_select(grad_y_forward, grad_y_backward),
+                                         minmax_select(grad_x_forward, grad_x_backward))
+                unit_z_center = grad_z_forward / magnitude if magnitude > epsilon else 0.0
+
+                grad_x_backward = (center_val - neighbor_x_neg) / spacing_x
+                grad_y_forward = (val_xneg_ypos - neighbor_x_neg) / spacing_y
+                grad_y_backward = (neighbor_x_neg - val_xneg_yneg) / spacing_y
+                grad_z_forward = (val_xneg_zpos - neighbor_x_neg) / spacing_z
+                grad_z_backward = (neighbor_x_neg - val_xneg_zneg) / spacing_z
+                magnitude = magnitude_3d(grad_x_backward,
+                                         minmax_select(grad_y_forward, grad_y_backward),
+                                         minmax_select(grad_z_forward, grad_z_backward))
+                unit_x_backward = grad_x_backward / magnitude if magnitude > epsilon else 0.0
+
+                grad_x_forward = (val_xpos_yneg - neighbor_y_neg) / spacing_x
+                grad_x_backward = (neighbor_y_neg - val_xneg_yneg) / spacing_x
+                grad_y_backward = (center_val - neighbor_y_neg) / spacing_y
+                grad_z_forward = (val_yneg_zpos - neighbor_y_neg) / spacing_z
+                grad_z_backward = (neighbor_y_neg - val_yneg_zneg) / spacing_z
+                magnitude = magnitude_3d(grad_y_backward,
+                                         minmax_select(grad_x_forward, grad_x_backward),
+                                         minmax_select(grad_z_forward, grad_z_backward))
+                unit_y_backward = grad_y_backward / magnitude if magnitude > epsilon else 0.0
+
+                grad_x_forward = (val_xpos_zneg - neighbor_z_neg) / spacing_x
+                grad_x_backward = (neighbor_y_neg - val_xneg_zneg) / spacing_x
+                grad_y_forward = (val_ypos_zneg - neighbor_z_neg) / spacing_y
+                grad_y_backward = (neighbor_z_neg - val_yneg_zneg) / spacing_y
+                grad_z_backward = (center_val - neighbor_z_neg) / spacing_z
+                magnitude = magnitude_3d(grad_z_backward,
+                                         minmax_select(grad_y_forward, grad_y_backward),
+                                         minmax_select(grad_x_forward, grad_x_backward))
+                unit_z_backward = grad_z_backward / magnitude if magnitude > epsilon else 0.0
+
+                divergence_x = (unit_x_center - unit_x_backward) / spacing_x
+                divergence_y = (unit_y_center - unit_y_backward) / spacing_y
+                divergence_z = (unit_z_center - unit_z_backward) / spacing_z
+
+                result_view[i, j, k] = divergence_x + divergence_y + divergence_z
 
     return result
 

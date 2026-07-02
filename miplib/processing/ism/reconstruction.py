@@ -3,14 +3,13 @@ from math import floor
 import numpy as np
 import SimpleITK as sitk
 
+import miplib.processing.ism.helpers as ismutils
 from miplib.data.containers.array_detector_data import ArrayDetectorData
 from miplib.data.containers.image import Image
 from miplib.processing import itk
+from miplib.processing import transform as tfm
 from miplib.processing.registration import registration, stack
 from miplib.processing.windowing import apply_hamming_window
-
-import miplib.processing.ism.helpers as ismutils
-from miplib.processing import transform as tfm
 
 
 def find_image_shifts(data, options, photosensor=0, fixed_idx=12):
@@ -38,7 +37,9 @@ def find_image_shifts(data, options, photosensor=0, fixed_idx=12):
     for idx in range(data.ndetectors):
         image = data[photosensor, idx]
         moving_image = itk.convert_to_itk_image(image)
-        transform = registration.itk_registration_rigid_2d(fixed_image, moving_image, options)
+        transform = registration.itk_registration_rigid_2d(
+            fixed_image, moving_image, options
+        )
         shifts_ = transform.GetParameters()
         shifts[idx] = shifts_[::-1]
         transforms.append(transform)
@@ -46,7 +47,9 @@ def find_image_shifts(data, options, photosensor=0, fixed_idx=12):
     return shifts, transforms
 
 
-def find_static_image_shifts(pitch, wavelength, fov, na, alpha=0.5, width=5, rotation=0):
+def find_static_image_shifts(
+    pitch, wavelength, fov, na, alpha=0.5, width=5, rotation=0
+):
     """
     Generate spatial transforms for ISM image reconstruction, based on theoretical values.
     :param pitch: the detector pixel spacing
@@ -61,14 +64,14 @@ def find_static_image_shifts(pitch, wavelength, fov, na, alpha=0.5, width=5, rot
     assert 0 < alpha <= 1
 
     d_airy = 1.22 * wavelength / na
-    d_detector_sp = fov*d_airy
-    d_detector_ip = pitch*width
+    d_detector_sp = fov * d_airy
+    d_detector_ip = pitch * width
 
-    magnification = d_detector_ip/d_detector_sp
+    magnification = d_detector_ip / d_detector_sp
 
-    x,y = ismutils.calculate_theoretical_shifts_xy(pitch, magnification, alpha=alpha)
+    x, y = ismutils.calculate_theoretical_shifts_xy(pitch, magnification, alpha=alpha)
     if rotation != 0:
-        x,y = tfm.rotate_xy_points_lists(y, x, rotation)
+        x, y = tfm.rotate_xy_points_lists(y, x, rotation)
 
     return x, y, tfm.make_translation_transforms_from_xy(y, x)
 
@@ -88,15 +91,19 @@ def find_image_shifts_frequency_domain(data, photosensor=0):
     """
     assert photosensor < data.ngates
 
-    spacing = data[0,0].spacing
-    fixed_image = Image(apply_hamming_window(data[photosensor, int(floor(data.ndetectors / 2))]), spacing)
+    spacing = data[0, 0].spacing
+    fixed_image = Image(
+        apply_hamming_window(data[photosensor, int(floor(data.ndetectors / 2))]),
+        spacing,
+    )
     transforms = []
     shifts = np.zeros((data.ndetectors, fixed_image.ndim), dtype=np.float)
 
     for idx in range(data.ndetectors):
         moving_image = Image(apply_hamming_window(data[photosensor, idx]), spacing)
-        shifts_ = registration.phase_correlation_registration(fixed_image, moving_image,
-                                                              verbose=False, resample=False)
+        shifts_ = registration.phase_correlation_registration(
+            fixed_image, moving_image, verbose=False, resample=False
+        )
         tfm = sitk.TranslationTransform(len(shifts_))
         tfm.SetParameters(shifts_[::-1])
         transforms.append(tfm)
@@ -124,11 +131,14 @@ def shift_and_sum(data, transforms, photosensor=0, detectors=None, supersampling
     assert isinstance(transforms, list) and len(transforms) == data.ndetectors
 
     if supersampling != 1.0:
-        new_shape = list(int(i*supersampling) for i in data[photosensor, 0].shape)
-        new_spacing = list(i/supersampling for i in data[photosensor, 0].spacing)
+        new_shape = [int(i * supersampling) for i in data[photosensor, 0].shape]
+        new_spacing = [i / supersampling for i in data[photosensor, 0].spacing]
         output = Image(np.zeros(new_shape, dtype=np.float64), new_spacing)
     else:
-        output = Image(np.zeros(data[photosensor, 0].shape, dtype=np.float64), data[photosensor, 0].spacing)
+        output = Image(
+            np.zeros(data[photosensor, 0].shape, dtype=np.float64),
+            data[photosensor, 0].spacing,
+        )
 
     if detectors is None:
         detectors = list(range(data.ndetectors))
@@ -137,7 +147,8 @@ def shift_and_sum(data, transforms, photosensor=0, detectors=None, supersampling
         image = itk.resample_image(
             itk.convert_to_itk_image(data[photosensor, i]),
             transforms[i],
-            reference=itk.convert_to_itk_image(output))
+            reference=itk.convert_to_itk_image(output),
+        )
 
         output += itk.convert_from_itk_image(image)
 
@@ -161,8 +172,8 @@ def shift(data, transforms):
     for gate in range(data.ngates):
         for i in range(data.ndetectors):
             image = itk.resample_image(
-                itk.convert_to_itk_image(data[gate, i]),
-                transforms[i])
+                itk.convert_to_itk_image(data[gate, i]), transforms[i]
+            )
 
             shifted[gate, i] = itk.convert_from_itk_image(image)
 
@@ -183,7 +194,7 @@ def sum(data, photosensor=0, detectors=None):
     if detectors is None:
         detectors = list(range(data.ndetectors))
 
-    result = np.zeros(data[0,0].shape, dtype=np.float64)
+    result = np.zeros(data[0, 0].shape, dtype=np.float64)
 
     for i in detectors:
         result += data[photosensor, i]

@@ -1,14 +1,13 @@
-# coding=utf-8
 from math import floor
 
 import numpy as np
 
 import miplib.processing.converters as converters
-import miplib.processing.ndarray as nputils
 import miplib.processing.itk as itkutils
+import miplib.processing.ndarray as nputils
 
 
-class FourierShellIterator(object):
+class FourierShellIterator:
     """
     A Simple Fourier Shell Iterator. Basically the same as a Fourier Ring Iterator,
     but for 3D.
@@ -23,7 +22,7 @@ class FourierShellIterator(object):
         self.meshgrid = (z, y, x)
 
         # Create OP vector array
-        self.r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+        self.r = np.sqrt(x**2 + y**2 + z**2)
 
         self.shell_start = 0
         self.shell_stop = int(floor(shape[0] / (2 * self.d_bin))) - 1
@@ -43,11 +42,10 @@ class FourierShellIterator(object):
         return self.freq_nyq
 
     def get_points_on_shell(self, shell_start, shell_stop):
-
         arr_inf = self.r >= shell_start
         arr_sup = self.r < shell_stop
 
-        return arr_inf*arr_sup
+        return arr_inf * arr_sup
 
     def __getitem__(self, limits):
         """
@@ -67,12 +65,12 @@ class FourierShellIterator(object):
         return self
 
     def __next__(self):
-
         shell_idx = self.current_shell
 
         if shell_idx <= self.shell_stop:
-            shell = self.get_points_on_shell(self.current_shell * self.d_bin,
-                                             (self.current_shell + 1) * self.d_bin)
+            shell = self.get_points_on_shell(
+                self.current_shell * self.d_bin, (self.current_shell + 1) * self.d_bin
+            )
         else:
             raise StopIteration
 
@@ -86,6 +84,7 @@ class SectionedFourierShellIterator(FourierShellIterator):
     A sectioned Fourier Shell iterator. Allows dividing a shell into sections, to access
     anisotropic features in the Fourier transform.
     """
+
     def __init__(self, shape, d_bin, d_angle):
         """
         :param shape: Shape of the data
@@ -102,8 +101,8 @@ class SectionedFourierShellIterator(FourierShellIterator):
         # Create inclination and azimuth angle arrays
         self.phi = np.arctan2(y, z) + np.pi
 
-        self.phi += self.d_angle/2
-        self.phi[self.phi >= 2*np.pi] -= 2*np.pi
+        self.phi += self.d_angle / 2
+        self.phi[self.phi >= 2 * np.pi] -= 2 * np.pi
 
         self.rotation_start = 0
         self.rotation_stop = 360 / d_angle - 1
@@ -154,19 +153,21 @@ class SectionedFourierShellIterator(FourierShellIterator):
         shell = self.get_points_on_shell(shell_start, shell_stop)
         cone = self.get_angle_sector(angle_min, angle_max)
 
-        return np.where(shell*cone)
+        return np.where(shell * cone)
 
     def __next__(self):
-
         rotation_idx = self.current_rotation
         shell_idx = self.current_shell
 
         if rotation_idx <= self.rotation_stop and shell_idx <= self.shell_stop:
-            shell = self.get_points_on_shell(self.current_shell * self.d_bin,
-                                             (self.current_shell + 1) * self.d_bin)
+            shell = self.get_points_on_shell(
+                self.current_shell * self.d_bin, (self.current_shell + 1) * self.d_bin
+            )
 
-            cone = self.get_angle_sector(self.current_rotation * self.d_angle,
-                                          (self.current_rotation + 1) * self.d_angle)
+            cone = self.get_angle_sector(
+                self.current_rotation * self.d_angle,
+                (self.current_rotation + 1) * self.d_angle,
+            )
         else:
             raise StopIteration
 
@@ -176,7 +177,7 @@ class SectionedFourierShellIterator(FourierShellIterator):
         else:
             self.current_rotation += 1
 
-        return np.where(shell*cone), shell_idx, rotation_idx
+        return np.where(shell * cone), shell_idx, rotation_idx
 
 
 class HollowSectionedFourierShellIterator(SectionedFourierShellIterator):
@@ -185,8 +186,7 @@ class HollowSectionedFourierShellIterator(SectionedFourierShellIterator):
     a central section of the cone, to better deal with interpolation artefacts etc.
     """
 
-    def __init__(self,  shape, d_bin, d_angle, d_extract_angle=5):
-
+    def __init__(self, shape, d_bin, d_angle, d_extract_angle=5):
         SectionedFourierShellIterator.__init__(self, shape, d_bin, d_angle)
 
         self.d_extract_angle = converters.degrees_to_radians(d_extract_angle)
@@ -218,7 +218,7 @@ class HollowSectionedFourierShellIterator(SectionedFourierShellIterator):
         full_section = arr_inf * arr_sup + arr_inf_neg * arr_sup_neg
 
         # Calculate part of the section to exclude
-        sector_center = phi_min + (phi_max-phi_min)/2
+        sector_center = phi_min + (phi_max - phi_min) / 2
         phi_min_ext = sector_center - self.d_extract_angle
         phi_max_ext = sector_center + self.d_extract_angle
 
@@ -239,10 +239,8 @@ class AxialExcludeSectionedFourierShellIterator(HollowSectionedFourierShellItera
     a central section of the cone, to better deal with interpolation artefacts etc.
     """
 
-    def __init__(self,  shape, d_bin, d_angle, d_extract_angle=5):
-
+    def __init__(self, shape, d_bin, d_angle, d_extract_angle=5):
         HollowSectionedFourierShellIterator.__init__(self, shape, d_bin, d_angle)
-
 
     def get_angle_sector(self, phi_min, phi_max):
         """
@@ -270,15 +268,14 @@ class AxialExcludeSectionedFourierShellIterator(HollowSectionedFourierShellItera
 
         full_section = arr_inf * arr_sup + arr_inf_neg * arr_sup_neg
 
-        axis_pos = converters.degrees_to_radians(90) + self.d_angle/2
-        axis_neg = converters.degrees_to_radians(270) + self.d_angle/2
+        axis_pos = converters.degrees_to_radians(90) + self.d_angle / 2
+        axis_neg = converters.degrees_to_radians(270) + self.d_angle / 2
 
         if phi_min <= axis_pos <= phi_max:
             phi_min_ext = axis_pos - self.d_extract_angle
             phi_max_ext = axis_pos + self.d_extract_angle
 
         elif phi_min <= axis_neg <= phi_max:
-
             # Calculate part of the section to exclude
             phi_min_ext = axis_neg - self.d_extract_angle
             phi_max_ext = axis_neg + self.d_extract_angle
@@ -326,9 +323,7 @@ class RotatingFourierShellIterator(FourierShellIterator):
 
         plane = nputils.expand_to_shape(np.ones((1, shape[1], shape[2])), shape)
 
-        self.plane = itkutils.convert_from_numpy(
-            plane,
-            (1, 1, 1))
+        self.plane = itkutils.convert_from_numpy(plane, (1, 1, 1))
 
         self.rotated_plane = plane > 0
 
@@ -352,7 +347,8 @@ class RotatingFourierShellIterator(FourierShellIterator):
         """
         (shell_start, shell_stop, angle) = limits
         rotated_plane = itkutils.convert_from_itk_image(
-            itkutils.rotate_image(self.plane, angle))
+            itkutils.rotate_image(self.plane, angle)
+        )
 
         points_on_plane = rotated_plane > 0
         points_on_shell = self.get_points_on_shell(shell_start, shell_stop)
@@ -360,32 +356,32 @@ class RotatingFourierShellIterator(FourierShellIterator):
         return np.where(points_on_plane * points_on_shell)
 
     def __next__(self):
-
         rotation_idx = self.current_rotation + 1
         shell_idx = self.current_shell
 
         if shell_idx <= self.shell_stop:
-            shell = self.get_points_on_shell(self.current_shell * self.d_bin,
-                                             (self.current_shell + 1) * self.d_bin)
+            shell = self.get_points_on_shell(
+                self.current_shell * self.d_bin, (self.current_shell + 1) * self.d_bin
+            )
             self.current_shell += 1
 
         elif rotation_idx <= self.rotation_stop:
-
             rotated_plane = itkutils.convert_from_itk_image(
-                itkutils.rotate_image(self.plane, self.angles[rotation_idx],
-                                      interpolation='linear'))
+                itkutils.rotate_image(
+                    self.plane, self.angles[rotation_idx], interpolation="linear"
+                )
+            )
 
             self.rotated_plane = rotated_plane > 0
             self.current_shell = 0
             shell_idx = 0
             self.current_rotation += 1
 
-            shell = self.get_points_on_shell(self.current_shell * self.d_bin,
-                                             (self.current_shell + 1) * self.d_bin)
+            shell = self.get_points_on_shell(
+                self.current_shell * self.d_bin, (self.current_shell + 1) * self.d_bin
+            )
 
         else:
             raise StopIteration
 
         return np.where(shell * self.rotated_plane), shell_idx, self.current_rotation
-
-

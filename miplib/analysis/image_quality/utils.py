@@ -29,17 +29,9 @@ def calculate_entropy(data):
     Calculate the Shannon entropy for data
     """
     # Calculate histogram
-    histogram = ndimage.histogram(
-        data,
-        data.min(),
-        data.max(), 50)
+    histogram = ndimage.histogram(data, data.min(), data.max(), 50)
     # Exclude zeros
     histogram = histogram[numpy.nonzero(histogram)]
     # Normalize histogram bins to sum to one
     histogram = histogram.astype(float) / histogram.sum()
     return -numpy.sum(histogram * numpy.log2(histogram))
-
-
-
-
-

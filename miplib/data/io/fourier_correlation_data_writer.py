@@ -3,17 +3,19 @@ import os
 import h5py
 
 import miplib.ui.utils as uiutils
-from miplib.data.containers.fourier_correlation_data import FourierCorrelationDataCollection
+from miplib.data.containers.fourier_correlation_data import (
+    FourierCorrelationDataCollection,
+)
 from miplib.data.containers.image import Image
 
 
-class FourierCorrelationDataWriter(object):
+class FourierCorrelationDataWriter:
     """
     A class for wrtiting Fourier Correlation Data into a file.
     """
+
     # region Constructor and Destructor
     def __init__(self, output_dir, filename, append=False):
-
         # Create output dir, if it doesn't exist output dir if
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -29,6 +31,7 @@ class FourierCorrelationDataWriter(object):
 
     def __del__(self):
         self.close()
+
     # endregion
 
     def write_metadata(self, metadata):
@@ -56,12 +59,16 @@ class FourierCorrelationDataWriter(object):
 
         image_name_prefix = "image_"
         for idx, image in enumerate(images):
-            image_name = image_name_prefix+str(idx)
+            image_name = image_name_prefix + str(idx)
             self.data["images"].create_dataset(image_name, data=image)
             if image.ndim == 2:
-                self.data["images"][image_name].attrs["pixel_size"] = "%d %d (yx)" % image.spacing
+                self.data["images"][image_name].attrs["pixel_size"] = (
+                    "%d %d (yx)" % image.spacing
+                )
             else:
-                self.data["images"][image_name].attrs["pixel_size"] = "%d %d %d (zyx)" % image.spacing
+                self.data["images"][image_name].attrs["pixel_size"] = (
+                    "%d %d %d (zyx)" % image.spacing
+                )
 
     def write_data_set(self, data):
         """
@@ -77,8 +84,9 @@ class FourierCorrelationDataWriter(object):
             group_name = group_prefix + angle
             if group_name in self.data:
                 if not uiutils.get_user_input(
-                        "The dataset %s already exists in the file structure. Do you want"
-                        "to overwrite it?" % angle):
+                    f"The dataset {angle} already exists in the file structure. Do you want"
+                    "to overwrite it?"
+                ):
                     continue
 
                 # Create a group fot every dataset and sub-groups for the two dictionaries
@@ -87,19 +95,35 @@ class FourierCorrelationDataWriter(object):
                 resolution_group = data_set_group.create_group("resolution")
                 correlation_group = data_set_group.create_group("correlation")
 
-                resolution_group.create_dataset("threshold", data=data_set.resolution["threshold"])
+                resolution_group.create_dataset(
+                    "threshold", data=data_set.resolution["threshold"]
+                )
                 resolution_group.attrs["resolution"] = data_set.resolution["resolution"]
-                resolution_group.attrs["resolution-point"] = "%d %d (yx)" % data_set.resolution["resolution-point"]
+                resolution_group.attrs["resolution-point"] = (
+                    "%d %d (yx)" % data_set.resolution["resolution-point"]
+                )
                 resolution_group.attrs["criterion"] = data_set.resolution["criterion"]
-                resolution_group.create_dataset("resolution-threshold-coefficients",
-                                                data=data_set.resolution["resolution-threshold-coefficients"])
+                resolution_group.create_dataset(
+                    "resolution-threshold-coefficients",
+                    data=data_set.resolution["resolution-threshold-coefficients"],
+                )
 
-                correlation_group.create_dataset("correlation", data=data_set.correlation["correlation"])
-                correlation_group.create_dataset("frequency", data=data_set.correlation["frequency"])
-                correlation_group.create_dataset("points-x-bin", data=data_set.correlation["points-x-bin"])
-                correlation_group.create_dataset("curve-fit", data=data_set.correlation["curve-fit"])
-                correlation_group.create_dataset("curve-fit-coefficients",
-                                                 data=data_set.correlation["curve-fit-coefficients"])
+                correlation_group.create_dataset(
+                    "correlation", data=data_set.correlation["correlation"]
+                )
+                correlation_group.create_dataset(
+                    "frequency", data=data_set.correlation["frequency"]
+                )
+                correlation_group.create_dataset(
+                    "points-x-bin", data=data_set.correlation["points-x-bin"]
+                )
+                correlation_group.create_dataset(
+                    "curve-fit", data=data_set.correlation["curve-fit"]
+                )
+                correlation_group.create_dataset(
+                    "curve-fit-coefficients",
+                    data=data_set.correlation["curve-fit-coefficients"],
+                )
 
     def close(self):
         """
@@ -107,4 +131,3 @@ class FourierCorrelationDataWriter(object):
         :return:
         """
         self.data.close()
-

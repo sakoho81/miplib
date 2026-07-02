@@ -89,14 +89,9 @@ select = [
     "W",  # pycodestyle warnings
     "F",  # pyflakes
     "I",  # isort
-    "B",  # flake8-bugbear
-    "C4", # flake8-comprehensions
-    "UP", # pyupgrade
 ]
 ignore = [
-    "E501",  # line too long (handled by formatter)
-    "B008",  # do not perform function calls in argument defaults
-    "C901",  # too complex (let developers decide)
+    "E501", # line too long (handled by formatter)
 ]
 
 [tool.ruff.lint.isort]
@@ -110,5 +105,10 @@ line-ending = "auto"
 
 [dependency-groups]
 dev = [
-    "ruff>=0.12.11",
+    "pytest>=6.0.0",
+    "pytest-cov",
+    "pytest-xdist",
+    "ruff",
+    "mypy",
+    "pre-commit",
 ]
