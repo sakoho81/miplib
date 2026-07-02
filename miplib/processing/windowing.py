@@ -1,6 +1,5 @@
-
 import numpy as np
-from scipy.signal import tukey
+from scipy.signal.windows import tukey
 
 
 def _nd_window(data, filter_function, **kwargs):
@@ -19,11 +18,13 @@ def _nd_window(data, filter_function, **kwargs):
     result = data.copy().astype(np.float64)
     for axis, axis_size in enumerate(data.shape):
         # set up shape for numpy broadcasting
-        filter_shape = [1, ] * data.ndim
+        filter_shape = [
+            1,
+        ] * data.ndim
         filter_shape[axis] = axis_size
         window = filter_function(axis_size, **kwargs).reshape(filter_shape)
         # scale the window intensities to maintain array intensity
-        np.power(window, (1.0/data.ndim), out=window)
+        np.power(window, (1.0 / data.ndim), out=window)
         result *= window
     return result
 

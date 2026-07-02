@@ -1,27 +1,27 @@
 import datetime
+import logging
 import os
 import tempfile
 
-import miplib.data.io.tiffile
+import tifffile
+
+logger = logging.getLogger(__name__)
 
 
-class TempData():
-
+class TempData:
     def __init__(self, directory=None):
         if directory is None:
-            self.dir = tempfile.mkdtemp('-miplib.temp.data')
+            self.dir = tempfile.mkdtemp("-miplib.temp.data")
         else:
             date_now = datetime.datetime.now().strftime("%y_%m_%d_")
-            self.dir = '{}_supertomo_temp_data'.format(date_now)
+            self.dir = f"{date_now}_supertomo_temp_data"
             if not os.path.exists(self.dir):
                 os.mkdir(self.dir)
         self.data_file = None
 
     def create_data_file(self, filename, col_names, append=False):
         data_file_name = os.path.join(self.dir, filename)
-        self.data_file = RowFile(data_file_name,
-                                 titles=col_names,
-                                 append=append)
+        self.data_file = RowFile(data_file_name, titles=col_names, append=append)
 
     def write_comment(self, comment):
         self.data_file.comment(comment)
@@ -31,7 +31,7 @@ class TempData():
 
     def save_image(self, data, filename):
         image_path = os.path.join(self.dir, filename)
-        miplib.data.io.tiffile.imsave(image_path, data)
+        tifffile.imsave(image_path, data)
 
     def close_data_file(self):
         self.data_file.close()
@@ -52,7 +52,7 @@ class RowFile:
     - lines starting with ``#`` are ignored as comment lines
     """
 
-    def __init__(self, filename, titles = None, append=False):
+    def __init__(self, filename, titles=None, append=False):
         """
         Parameters
         ----------
@@ -76,9 +76,9 @@ class RowFile:
         if titles is not None:
             self.header(*titles)
 
-        self.data_sep = ', '
+        self.data_sep = ", "
 
-    def __del__ (self):
+    def __del__(self):
         if self.file is not None:
             self.file.close()
 
@@ -93,12 +93,16 @@ class RowFile:
                 data_file = RowFile(self.filename)
                 data, data_titles = data_file.read(with_titles=True)
                 data_file.close()
-                if data_titles!=titles:
-                    self.extra_titles = extra_titles = tuple([t for t in data_titles if t not in titles])
-            self.file = open(self.filename, 'w')
+                if data_titles != titles:
+                    self.extra_titles = extra_titles = tuple(
+                        [t for t in data_titles if t not in titles]
+                    )
+            self.file = open(self.filename, "w")
             self.nof_cols = len(titles + extra_titles)
-            self.comment('@,@'.join(titles + extra_titles))
-            self.comment('To read data from this file, use ioc.microscope.data.RowFile(%r).read().' % (self.filename))
+            self.comment("@,@".join(titles + extra_titles))
+            self.comment(
+                f"To read data from this file, use ioc.microscope.data.RowFile({self.filename!r}).read()."
+            )
 
             if data is not None:
                 for i in range(len(data[data_titles[0]])):
@@ -110,31 +114,31 @@ class RowFile:
                             data_line.append(0)
                     self.write(*data_line)
 
-    def comment (self, msg):
+    def comment(self, msg):
         """
         Write a comment to file.
         """
         if self.file is not None:
-            self.file.write ('#%s\n' % msg)
-            self.file.flush ()
+            self.file.write(f"#{msg}\n")
+            self.file.flush()
 
     def write(self, *data):
         """
         Write a row of data to file.
         """
-        if len (data) < self.nof_cols:
-            data = data + (0, ) * (self.nof_cols - len (data))
+        if len(data) < self.nof_cols:
+            data = data + (0,) * (self.nof_cols - len(data))
         assert len(data) == self.nof_cols
-        self.file.write(', '.join(str(i).strip('[]') for i in data) + '\n')
+        self.file.write(", ".join(str(i).strip("[]") for i in data) + "\n")
         self.file.flush()
 
-    def _get_titles (self, line):
-        if line.startswith('"'): # csv file header
-            self.data_sep = '\t'
-            return tuple([t[1:-1] for t in line.strip().split('\t')])
-        return tuple([t.strip() for t in line[1:].split('@,@')])
+    def _get_titles(self, line):
+        if line.startswith('"'):  # csv file header
+            self.data_sep = "\t"
+            return tuple([t[1:-1] for t in line.strip().split("\t")])
+        return tuple([t.strip() for t in line[1:].split("@,@")])
 
-    def read(self, with_titles = False):
+    def read(self, with_titles=False):
         """
         Read data from a row file.
 
@@ -150,7 +154,7 @@ class RowFile:
         titles : tuple
           Column titles.
         """
-        f = open (self.filename, 'r')
+        f = open(self.filename)
         titles = None
         d = {}
         for line in f.readlines():
@@ -159,13 +163,13 @@ class RowFile:
                 for t in titles:
                     d[t] = []
                 continue
-            if line.startswith ('#'):
+            if line.startswith("#"):
                 continue
             data = line.strip().split(self.data_sep)
-            for i, t in enumerate (titles):
+            for i, t in enumerate(titles):
                 try:
                     v = float(data[i])
-                except (IndexError,ValueError):
+                except (IndexError, ValueError):
                     v = 0.0
                 d[t].append(v)
         f.close()
@@ -173,11 +177,11 @@ class RowFile:
             return d, titles
         return d
 
-    def close (self):
+    def close(self):
         """
         Close row file.
         """
         if self.file is not None:
-            print('Closing ',self.filename)
-            self.file.close ()
+            logger.info("Closing %s", self.filename)
+            self.file.close()
             self.file = None
