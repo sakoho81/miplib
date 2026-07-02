@@ -1,5 +1,6 @@
 from matplotlib import pyplot as plt
 
+
 def save_figure(figure, path, dpi=1200):
     """
     A really simple utility to save a figure to file.
@@ -11,4 +12,4 @@ def save_figure(figure, path, dpi=1200):
     """
     assert isinstance(figure, plt.Figure)
 
-    figure.savefig(path, dpi=dpi, bbox_inches='tight', pad_inches=0, transparent=True)
+    figure.savefig(path, dpi=dpi, bbox_inches="tight", pad_inches=0, transparent=True)

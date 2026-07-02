@@ -18,18 +18,15 @@ information 3. mattes mutual information are supported implemented
 
 """
 
-
-import SimpleITK as sitk
 import matplotlib.pyplot as plt
-from skimage.feature import register_translation
+import numpy as np
+import SimpleITK as sitk
 from scipy.ndimage import fourier_shift
+from skimage.feature import register_translation
 
 import miplib.processing.itk as ops_itk
 import miplib.ui.plots.image as show
-import miplib.processing.image as imops
 from miplib.data.containers.image import Image
-
-import numpy as np
 
 # region OBSERVERS
 
@@ -50,10 +47,10 @@ def end_plot(fixed, moving, transform):
 
     # Plot metric values
     plt.subplot(1, 2, 1)
-    plt.plot(metric_values, 'r')
+    plt.plot(metric_values, "r")
     plt.title("Metric values")
-    plt.xlabel('Iteration Number', fontsize=12)
-    plt.ylabel('Metric Value', fontsize=12)
+    plt.xlabel("Iteration Number", fontsize=12)
+    plt.ylabel("Metric Value", fontsize=12)
 
     # Plot image overlay
     resampled = ops_itk.resample_image(moving, transform, reference=fixed)
@@ -71,7 +68,6 @@ def end_plot(fixed, moving, transform):
     plt.title("Overlay")
     show.display_2d_image_overlay(fixed, resampled)
 
-
     del metric_values
 
 
@@ -87,7 +83,8 @@ def plot_values(registration_method):
 
 # region RIGID SPATIAL DOMAIN REGISTRATION METHODS
 
-#todo: Make a single method for n-dimensions. Too complicated now
+# todo: Make a single method for n-dimensions. Too complicated now
+
 
 def itk_registration_rigid_3d(fixed_image, moving_image, options):
     """
@@ -103,7 +100,7 @@ def itk_registration_rigid_3d(fixed_image, moving_image, options):
     :return:
                             The final transform as a sitk.Euler2DTransform
     """
-    print('Setting up registration job')
+    print("Setting up registration job")
 
     assert isinstance(fixed_image, sitk.Image)
     assert isinstance(moving_image, sitk.Image)
@@ -122,7 +119,7 @@ def itk_registration_rigid_3d(fixed_image, moving_image, options):
         options.min_step_length,
         options.registration_max_iterations,
         relaxationFactor=options.relaxation_factor,
-        estimateLearningRate=registration.EachIteration
+        estimateLearningRate=registration.EachIteration,
     )
 
     registration.SetOptimizerScalesFromJacobian()
@@ -134,17 +131,17 @@ def itk_registration_rigid_3d(fixed_image, moving_image, options):
     registration.SetInterpolator(sitk.sitkLinear)
 
     # METRIC
-    if options.registration_method == 'mattes':
+    if options.registration_method == "mattes":
         registration.SetMetricAsMattesMutualInformation(
             numberOfHistogramBins=options.mattes_histogram_bins
         )
-    elif options.registration_method == 'correlation':
+    elif options.registration_method == "correlation":
         registration.SetMetricAsCorrelation()
 
-    elif options.registration_method == 'mean-squared-difference':
+    elif options.registration_method == "mean-squared-difference":
         registration.SetMetricAsMeanSquares()
     else:
-        raise ValueError("Unknown metric: %s" % options.registration_method)
+        raise ValueError(f"Unknown metric: {options.registration_method}")
 
     registration.SetMetricSamplingStrategy(registration.RANDOM)
     registration.SetMetricSamplingPercentage(options.sampling_percentage)
@@ -152,14 +149,13 @@ def itk_registration_rigid_3d(fixed_image, moving_image, options):
     if options.reg_translate_only:
         tx = sitk.TranslationTransform(3)
     else:
-
         tx = sitk.Euler3DTransform()
 
         transform = sitk.CenteredTransformInitializer(
             fixed_image,
             moving_image,
             tx,
-            sitk.CenteredTransformInitializerFilter.MOMENTS
+            sitk.CenteredTransformInitializerFilter.MOMENTS,
         )
         registration.SetInitialTransform(transform)
 
@@ -170,7 +166,9 @@ def itk_registration_rigid_3d(fixed_image, moving_image, options):
     if options.reg_enable_observers:
         # OBSERVERS
         registration.AddCommand(sitk.sitkStartEvent, start_plot)
-        registration.AddCommand(sitk.sitkIterationEvent, lambda: plot_values(registration))
+        registration.AddCommand(
+            sitk.sitkIterationEvent, lambda: plot_values(registration)
+        )
 
     # START
     # ========================================================================
@@ -178,8 +176,10 @@ def itk_registration_rigid_3d(fixed_image, moving_image, options):
     print("Starting registration")
     final_transform = registration.Execute(fixed_image, moving_image)
 
-    print(('Final metric value: {0}'.format(registration.GetMetricValue())))
-    print(('Optimizer\'s stopping condition, {0}'.format(registration.GetOptimizerStopConditionDescription())))
+    print(f"Final metric value: {registration.GetMetricValue()}")
+    print(
+        f"Optimizer's stopping condition, {registration.GetOptimizerStopConditionDescription()}"
+    )
 
     if options.reg_enable_observers:
         end_plot(fixed_image, moving_image, final_transform)
@@ -202,7 +202,7 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
                             The final transform as a sitk.Euler2DTransform
     """
     if options.verbose:
-        print('Setting up registration job')
+        print("Setting up registration job")
 
     assert isinstance(fixed_image, sitk.Image)
     assert isinstance(moving_image, sitk.Image)
@@ -221,27 +221,27 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
         options.min_step_length,
         options.registration_max_iterations,
         relaxationFactor=options.relaxation_factor,
-        estimateLearningRate=registration.EachIteration
+        estimateLearningRate=registration.EachIteration,
     )
 
-    translation_scale = 1.0/options.translation_scale
+    translation_scale = 1.0 / options.translation_scale
     registration.SetOptimizerScales([1.0, translation_scale, translation_scale])
 
     # INTERPOLATOR
     registration.SetInterpolator(sitk.sitkLinear)
 
     # METRIC
-    if options.registration_method == 'mattes':
+    if options.registration_method == "mattes":
         registration.SetMetricAsMattesMutualInformation(
             numberOfHistogramBins=options.mattes_histogram_bins
         )
-    elif options.registration_method == 'correlation':
+    elif options.registration_method == "correlation":
         registration.SetMetricAsCorrelation()
 
-    elif options.registration_method == 'mean-squared-difference':
+    elif options.registration_method == "mean-squared-difference":
         registration.SetMetricAsMeanSquares()
     else:
-        raise ValueError("Unknown metric: %s" % options.registration_method)
+        raise ValueError(f"Unknown metric: {options.registration_method}")
 
     registration.SetMetricSamplingStrategy(registration.RANDOM)
     registration.SetMetricSamplingPercentage(options.sampling_percentage)
@@ -249,17 +249,16 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
     if options.reg_translate_only:
         tx = sitk.TranslationTransform(2)
     else:
-
         tx = sitk.Euler2DTransform()
         tx.SetAngle(options.set_rotation)
         if options.initializer:
             if options.verbose:
-                print('Calculating initial registration parameters')
+                print("Calculating initial registration parameters")
             transform = sitk.CenteredTransformInitializer(
                 fixed_image,
                 moving_image,
                 tx,
-                sitk.CenteredTransformInitializerFilter.GEOMETRY
+                sitk.CenteredTransformInitializerFilter.GEOMETRY,
             )
             registration.SetInitialTransform(transform)
 
@@ -272,7 +271,9 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
     if options.reg_enable_observers:
         # OBSERVERS
         registration.AddCommand(sitk.sitkStartEvent, start_plot)
-        registration.AddCommand(sitk.sitkIterationEvent, lambda: plot_values(registration))
+        registration.AddCommand(
+            sitk.sitkIterationEvent, lambda: plot_values(registration)
+        )
 
     # START
     # ========================================================================
@@ -281,17 +282,21 @@ def itk_registration_rigid_2d(fixed_image, moving_image, options):
     final_transform = registration.Execute(fixed_image, moving_image)
 
     if options.verbose:
-        print(('Final metric value: {0}'.format(registration.GetMetricValue())))
-        print(('Optimizer\'s stopping condition, {0}'.format(registration.GetOptimizerStopConditionDescription())))
+        print(f"Final metric value: {registration.GetMetricValue()}")
+        print(
+            f"Optimizer's stopping condition, {registration.GetOptimizerStopConditionDescription()}"
+        )
 
     if options.reg_enable_observers:
         end_plot(fixed_image, moving_image, final_transform)
 
     return final_transform
 
+
 # endregion
 
 # region DEFORMABLE SPATILA DOMAIN REGISTRATION METHDOS
+
 
 def itk_registration_similarity_2d(fixed_image, moving_image, options):
     """
@@ -308,7 +313,7 @@ def itk_registration_similarity_2d(fixed_image, moving_image, options):
 
     :return:                The final transform as a sitk.Similarity2DTransform
     """
-    print('Setting up registration job')
+    print("Setting up registration job")
 
     assert isinstance(fixed_image, sitk.Image)
     assert isinstance(moving_image, sitk.Image)
@@ -326,33 +331,35 @@ def itk_registration_similarity_2d(fixed_image, moving_image, options):
         options.max_step_length,
         options.min_step_length,
         options.registration_max_iterations,
-        relaxationFactor=options.relaxation_factor
+        relaxationFactor=options.relaxation_factor,
     )
     translation_scale = 1.0 / options.translation_scale
     scaling_scale = 1.0 / options.scaling_scale
 
-    registration.SetOptimizerScales([scaling_scale, 1.0, translation_scale, translation_scale])
+    registration.SetOptimizerScales(
+        [scaling_scale, 1.0, translation_scale, translation_scale]
+    )
 
     # INTERPOLATOR
     registration.SetInterpolator(sitk.sitkLinear)
 
     # METRIC
-    if options.registration_method == 'mattes':
+    if options.registration_method == "mattes":
         registration.SetMetricAsMattesMutualInformation(
             numberOfHistogramBins=options.mattes_histogram_bins
         )
         registration.SetMetricSamplingStrategy(registration.RANDOM)
         registration.SetMetricSamplingPercentage(options.mattes_sampling_percentage)
 
-    elif options.registration_method == 'correlation':
+    elif options.registration_method == "correlation":
         registration.SetMetricAsCorrelation()
 
-    elif options.registration_method == 'mean-squared-difference':
+    elif options.registration_method == "mean-squared-difference":
         registration.SetMetricAsMeanSquares()
     else:
-        raise ValueError("Unknown metric: %s" % options.registration_method)
+        raise ValueError(f"Unknown metric: {options.registration_method}")
 
-    print('Calculating initial registration parameters')
+    print("Calculating initial registration parameters")
     tx = sitk.Similarity2DTransform()
     tx.SetAngle(options.set_rotation)
     tx.SetScale(options.set_scale)
@@ -362,7 +369,7 @@ def itk_registration_similarity_2d(fixed_image, moving_image, options):
             fixed_image,
             moving_image,
             tx,
-            sitk.CenteredTransformInitializerFilter.GEOMETRY
+            sitk.CenteredTransformInitializerFilter.GEOMETRY,
         )
         registration.SetInitialTransform(transform)
     else:
@@ -373,7 +380,7 @@ def itk_registration_similarity_2d(fixed_image, moving_image, options):
     # OBSERVERS
 
     registration.AddCommand(sitk.sitkStartEvent, start_plot)
-    #registration.AddCommand(sitk.sitkEndEvent, end_plot)
+    # registration.AddCommand(sitk.sitkEndEvent, end_plot)
     registration.AddCommand(sitk.sitkIterationEvent, lambda: plot_values(registration))
 
     # START
@@ -382,8 +389,10 @@ def itk_registration_similarity_2d(fixed_image, moving_image, options):
     print("Starting registration")
     final_transform = registration.Execute(fixed_image, moving_image)
 
-    print(('Final metric value: {0}'.format(registration.GetMetricValue())))
-    print(('Optimizer\'s stopping condition, {0}'.format(registration.GetOptimizerStopConditionDescription())))
+    print(f"Final metric value: {registration.GetMetricValue()}")
+    print(
+        f"Optimizer's stopping condition, {registration.GetOptimizerStopConditionDescription()}"
+    )
 
     end_plot(fixed_image, moving_image, final_transform)
 
@@ -405,7 +414,7 @@ def itk_registration_affine_2d(fixed_image, moving_image, options):
 
     :return:                The final transform as a sitk.Similarity2DTransform
     """
-    print('Setting up registration job')
+    print("Setting up registration job")
 
     assert isinstance(fixed_image, sitk.Image)
     assert isinstance(moving_image, sitk.Image)
@@ -423,42 +432,43 @@ def itk_registration_affine_2d(fixed_image, moving_image, options):
         options.max_step_length,
         options.min_step_length,
         options.registration_max_iterations,
-        relaxationFactor=options.relaxation_factor
+        relaxationFactor=options.relaxation_factor,
     )
     translation_scale = 1.0 / options.translation_scale
     scaling_scale = 1.0 / options.scaling_scale
 
-    registration.SetOptimizerScales([scaling_scale, 1.0, translation_scale, translation_scale])
+    registration.SetOptimizerScales(
+        [scaling_scale, 1.0, translation_scale, translation_scale]
+    )
 
     # INTERPOLATOR
     registration.SetInterpolator(sitk.sitkLinear)
 
     # METRIC
-    if options.registration_method == 'mattes':
+    if options.registration_method == "mattes":
         registration.SetMetricAsMattesMutualInformation(
             numberOfHistogramBins=options.mattes_histogram_bins
         )
         registration.SetMetricSamplingStrategy(registration.RANDOM)
         registration.SetMetricSamplingPercentage(options.mattes_sampling_percentage)
 
-    elif options.registration_method == 'correlation':
+    elif options.registration_method == "correlation":
         registration.SetMetricAsCorrelation()
 
-    elif options.registration_method == 'mean-squared-difference':
+    elif options.registration_method == "mean-squared-difference":
         registration.SetMetricAsMeanSquares()
     else:
-        raise ValueError("Unknown metric: %s" % options.registration_method)
+        raise ValueError(f"Unknown metric: {options.registration_method}")
 
-    print('Calculating initial registration parameters')
+    print("Calculating initial registration parameters")
     tx = sitk.AffineTransform()
-
 
     if options.initializer:
         transform = sitk.CenteredTransformInitializer(
             fixed_image,
             moving_image,
             tx,
-            sitk.CenteredTransformInitializerFilter.MOMENTS
+            sitk.CenteredTransformInitializerFilter.MOMENTS,
         )
         registration.SetInitialTransform(transform)
     else:
@@ -469,7 +479,7 @@ def itk_registration_affine_2d(fixed_image, moving_image, options):
     # OBSERVERS
 
     registration.AddCommand(sitk.sitkStartEvent, start_plot)
-    #registration.AddCommand(sitk.sitkEndEvent, end_plot)
+    # registration.AddCommand(sitk.sitkEndEvent, end_plot)
     registration.AddCommand(sitk.sitkIterationEvent, lambda: plot_values(registration))
 
     # START
@@ -478,19 +488,24 @@ def itk_registration_affine_2d(fixed_image, moving_image, options):
     print("Starting registration")
     final_transform = registration.Execute(fixed_image, moving_image)
 
-    print(('Final metric value: {0}'.format(registration.GetMetricValue())))
-    print(('Optimizer\'s stopping condition, {0}'.format(registration.GetOptimizerStopConditionDescription())))
+    print(f"Final metric value: {registration.GetMetricValue()}")
+    print(
+        f"Optimizer's stopping condition, {registration.GetOptimizerStopConditionDescription()}"
+    )
 
     end_plot(fixed_image, moving_image, final_transform)
 
     return final_transform
+
 
 # endregion
 
 # region RIGID FREQUENCY DOMAIN REGISTRATION METHODS
 
 
-def phase_correlation_registration(fixed_image, moving_image, subpixel=100, verbose=False, resample=True):
+def phase_correlation_registration(
+    fixed_image, moving_image, subpixel=100, verbose=False, resample=True
+):
     """
     A simple Phase Correlation based image registration method.
     :param verbose:  enable print functions
@@ -505,16 +520,21 @@ def phase_correlation_registration(fixed_image, moving_image, subpixel=100, verb
 
     shift, error, diffphase = register_translation(fixed_image, moving_image, subpixel)
 
-    scaled_shifts = list(-offset * spacing for offset, spacing in zip(shift, fixed_image.spacing))
+    scaled_shifts = [
+        -offset * spacing
+        for offset, spacing in zip(shift, fixed_image.spacing, strict=False)
+    ]
     if verbose:
-        print(("Detected offset (y, x): {}".format(scaled_shifts)))
+        print(f"Detected offset (y, x): {scaled_shifts}")
 
     if resample:
-        resampled = np.abs(np.fft.ifftn(fourier_shift(np.fft.fftn(moving_image),
-                                                      shift)).real)
+        resampled = np.abs(
+            np.fft.ifftn(fourier_shift(np.fft.fftn(moving_image), shift)).real
+        )
 
         return Image(resampled, fixed_image.spacing)
     else:
         return scaled_shifts
+
 
 # endregion

@@ -1,22 +1,22 @@
 from .image import Image
 
 
-class ArrayDetectorData(object):
+class ArrayDetectorData:
     """
     A class to handle multi-dimensional data from an array detector.
     The data consists of Images recorded with each pixel of the detector
     array. In addition, each pixel can be split by laser gates into several
     images.
     """
-    def __init__(self, detectors, gates):
 
+    def __init__(self, detectors, gates):
         self._data_container = [[None] * detectors] * gates
 
         self._nDetectors = detectors
         self._nGates = gates
 
         # Iterator helper variables
-        self._iteration_axis = 'detectors'
+        self._iteration_axis = "detectors"
         self.gate_idx = 0
         self.detector_idx = 0
 
@@ -36,11 +36,13 @@ class ArrayDetectorData(object):
 
     @iteration_axis.setter
     def iteration_axis(self, value):
-        if value != 'detectors' and value != 'gates':
-            raise ValueError("Not a valid iteration axis. Please choose between "
-                             "detectors or gates.")
+        if value != "detectors" and value != "gates":
+            raise ValueError(
+                "Not a valid iteration axis. Please choose between detectors or gates."
+            )
         else:
             self._iteration_axis = value
+
     # endregion
 
     def __setitem__(self, key, value):
@@ -63,7 +65,7 @@ class ArrayDetectorData(object):
     def __next__(self):
         if self.gate_idx < self._nGates and self.detector_idx < self._nDetectors:
             data = self._data_container[self.gate_idx][self.detector_idx]
-            if self._iteration_axis == 'detectors':
+            if self._iteration_axis == "detectors":
                 if self.detector_idx < (self._nDetectors - 1):
                     self.detector_idx += 1
                 else:
@@ -71,7 +73,7 @@ class ArrayDetectorData(object):
                     self.gate_idx += 1
             else:
                 if self.gate_idx < (self._nGates < 1):
-                    self.gate_idx +=1
+                    self.gate_idx += 1
                 else:
                     self.gate_idx = 0
                     self.detector_idx += 1
@@ -84,7 +86,7 @@ class ArrayDetectorData(object):
             raise StopIteration
 
     def get_photosensor(self, photosensor):
-            data = ArrayDetectorData(self.ndetectors, 1)
-            for i in range(self.ndetectors):
-                data[0, i] = self._data_container[photosensor][i]
-            return data
+        data = ArrayDetectorData(self.ndetectors, 1)
+        for i in range(self.ndetectors):
+            data[0, i] = self._data_container[photosensor][i]
+        return data

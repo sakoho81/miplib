@@ -1,12 +1,10 @@
-
-
 import numpy as np
 from mayavi import mlab
 
-from miplib.data.iterators.fourier_shell_iterators import SectionedFourierShellIterator
 from miplib.data.containers.image import Image
+from miplib.data.iterators.fourier_shell_iterators import SectionedFourierShellIterator
 
-dataset = Image(np.ones((255,255,255), dtype=np.uint8)*20, (0.05,0.05,0.05))
+dataset = Image(np.ones((255, 255, 255), dtype=np.uint8) * 20, (0.05, 0.05, 0.05))
 
 iterator = SectionedFourierShellIterator(dataset.shape, 6, 20)
 

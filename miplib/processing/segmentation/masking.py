@@ -1,7 +1,6 @@
 import numpy as np
 from scipy import ndimage
 
-
 from miplib.data.containers.image import Image
 
 

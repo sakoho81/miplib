@@ -1,25 +1,32 @@
 import math
-from psf import psf, _psf
+
+from psf import _psf, psf
 
 from miplib.analysis.resolution import fourier_ring_correlation as frc
 from miplib.data.containers.image import Image
 
 
-class PsfFromFwhm(object):
-
-    def __init__(self, fwhm, shape=(128, 128), dims=(4., 4.)):
+class PsfFromFwhm:
+    def __init__(self, fwhm, shape=(128, 128), dims=(4.0, 4.0)):
         assert isinstance(fwhm, list)
 
         if len(fwhm) == 1:
-            print ("Only one resolution value given. Assuming the same"
-                   " resolution for the axial direction.")
-            fwhm = [fwhm, ] * 2
+            print(
+                "Only one resolution value given. Assuming the same"
+                " resolution for the axial direction."
+            )
+            fwhm = [
+                fwhm,
+            ] * 2
 
         self.shape = int(shape[0]), int(shape[1])
         self.dims = psf.Dimensions(px=shape, um=(float(dims[0]), float(dims[1])))
 
-        self.spacing = list(x/y for x, y in zip(self.dims.um, self.dims.px))
-        self.sigma_px = list(x/(2*math.sqrt(2*math.log(2))*y) for x, y in zip(fwhm, self.spacing))
+        self.spacing = [x / y for x, y in zip(self.dims.um, self.dims.px, strict=False)]
+        self.sigma_px = [
+            x / (2 * math.sqrt(2 * math.log(2)) * y)
+            for x, y in zip(fwhm, self.spacing, strict=False)
+        ]
 
         self.data = _psf.gaussian2d(self.dims.px, self.sigma_px)
 
@@ -45,7 +52,9 @@ class PsfFromFwhm(object):
 
 
 def generate_frc_based_psf(image, args):
-    fwhm = [frc.calculate_single_image_frc(image, args).resolution["resolution"], ] * 2
+    fwhm = [
+        frc.calculate_single_image_frc(image, args).resolution["resolution"],
+    ] * 2
     psf_generator = PsfFromFwhm(fwhm)
 
     if image.ndim == 2:

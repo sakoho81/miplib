@@ -13,12 +13,17 @@ have been implemented in similar manner, so it should be rather
 easy to include additional filters.
 
 """
-import SimpleITK as sitk
+
+import logging
+
 import numpy
 import scipy
+import SimpleITK as sitk
 
 from miplib.data.containers.image import Image
 from miplib.processing import converters
+
+logger = logging.getLogger(__name__)
 
 
 def convert_from_itk_image(image):
@@ -72,12 +77,12 @@ def make_itk_transform(type, dims, parameters, fixed_parameters):
 
     return transform
 
-def get_itk_transform_parameters(transform):
 
+def get_itk_transform_parameters(transform):
     tfm_type = transform.GetName()
     params = transform.GetParameters()
     fixed_params = transform.GetFixedParameters()
-    
+
     return tfm_type, params, fixed_params
 
 
@@ -164,7 +169,7 @@ def rotate_psf(psf, transform, spacing=None, return_numpy=False):
                       itk:Image, or a ImageStack.
 
     """
-    #assert isinstance(transform, sitk.VersorRigid3DTransform)
+    # assert isinstance(transform, sitk.VersorRigid3DTransform)
 
     if isinstance(psf, numpy.ndarray):
         image = convert_from_numpy(psf, spacing)
@@ -174,7 +179,7 @@ def rotate_psf(psf, transform, spacing=None, return_numpy=False):
     assert isinstance(image, sitk.Image)
 
     if isinstance(transform, sitk.AffineTransform):
-        #print "Hep"
+        # print "Hep"
 
         array = numpy.array(transform.GetMatrix()).reshape(3, 3)
         rotation = scipy.linalg.polar(array, "right")[0]
@@ -185,7 +190,9 @@ def rotate_psf(psf, transform, spacing=None, return_numpy=False):
     else:
         # We don't want to translate, but only rotate
         parameters = transform.GetParameters()
-        parameters = tuple(0.0 if i in range(3, 6) else parameters[i] for i in range(len(parameters)))
+        parameters = tuple(
+            0.0 if i in range(3, 6) else parameters[i] for i in range(len(parameters))
+        )
         transform.SetParameters(parameters)
 
     # Find  and set center of rotation This assumes that the PSF is in
@@ -194,9 +201,7 @@ def rotate_psf(psf, transform, spacing=None, return_numpy=False):
     imdims = image.GetSize()
     imspacing = image.GetSpacing()
 
-    center = list(map(
-        lambda size, spacing: spacing * size / 2, imdims, imspacing
-    ))
+    center = list(map(lambda size, spacing: spacing * size / 2, imdims, imspacing))
 
     transform.SetFixedParameters(center)
 
@@ -231,15 +236,17 @@ def resample_to_isotropic(itk_image):
     spacing = itk_image.GetSpacing()
 
     if len(spacing) != 3:
-        print("The function resample_to_isotropic(itk_image, image_type) is" \
-              "intended for processing 3D images. The input image has %d " \
-              "dimensions" % len(spacing))
+        logger.warning(
+            f"The function resample_to_isotropic(itk_image, image_type) is"
+            f"intended for processing 3D images. The input image has {len(spacing)} "
+            f"dimensions"
+        )
         return
 
-    scaling = spacing[2]/spacing[0]
+    scaling = spacing[2] / spacing[0]
 
     spacing[:] = spacing[0]
-        
+
     method.SetOutputSpacing(spacing)
     method.SetOutputDirection(itk_image.GetDirection())
     method.SetOutputOrigin(itk_image.GetOrigin())
@@ -247,7 +254,7 @@ def resample_to_isotropic(itk_image):
     # Set Output Image Size
     region = itk_image.GetLargestPossibleRegion()
     size = region.GetSize()
-    size[2] = int(size[2]*scaling)
+    size[2] = int(size[2] * scaling)
     method.SetSize(size)
 
     transform.SetIdentity()
@@ -270,13 +277,15 @@ def rescale_intensity(image):
     assert isinstance(image, sitk.Image)
     method = sitk.RescaleIntensityImageFilter()
     image_type = image.GetPixelIDTypeAsString()
-    if image_type == '8-bit unsigned integer':
+    if image_type == "8-bit unsigned integer":
         method.SetOutputMinimum(0)
         method.SetOutputMaximum(255)
-    else:    
-        print("The rescale intensity filter has not been implemented for ", image_type)
+    else:
+        logger.warning(
+            "The rescale intensity filter has not been implemented for %s", image_type
+        )
         return image
-    
+
     # TODO: Add pixel type check that is needed to check the bounds of re-scaling
     return method.Execute(image)
 
@@ -326,7 +335,9 @@ def median_filter(image, kernel_radius):
     :return:                filtered image
     """
     method = sitk.MedianImageFilter()
-    kernel = [kernel_radius,] * image.GetDimension()
+    kernel = [
+        kernel_radius,
+    ] * image.GetDimension()
     method.SetRadius(kernel)
 
     return method.Execute(image)
@@ -343,8 +354,7 @@ def normalize_image_filter(image):
     return method.Execute(image)
 
 
-def threshold_image_filter(image, threshold, th_value=0,
-                           th_method="below"):
+def threshold_image_filter(image, threshold, th_value=0, th_method="below"):
     """
     Thresholds an image by setting pixel values above or below "threshold"
     to "th_value". The result is not a binary image, but a thresholded
@@ -352,9 +362,9 @@ def threshold_image_filter(image, threshold, th_value=0,
     """
 
     method = sitk.ThresholdImageFilter()
-    if th_method is "above":
+    if th_method == "above":
         method.SetLower(threshold)
-    elif th_method is "below":
+    elif th_method == "below":
         method.SetUpper(threshold)
 
     method.SetOutsideValue(th_value)
@@ -417,10 +427,7 @@ def calculate_center_of_image(image, center_of_mass=False):
         center = scipy.ndimage.center_of_mass(np_image)
         center *= numpy.array(spacing)
     else:
-        center = list(map(
-            lambda size, spacing: spacing * size / 2,
-            imdims, imspacing
-        ))
+        center = list(map(lambda size, spacing: spacing * size / 2, imdims, imspacing))
     return center
 
 
@@ -447,13 +454,18 @@ def make_composite_rgb_image(red, green, blue=None, return_numpy=False):
         blue.CopyInformation(red)
         if return_numpy:
             import numpy as np
-            images = (convert_from_itk_image(red)[0],
-                      convert_from_itk_image(green)[0],
-                      convert_from_itk_image(blue)[0])
+
+            images = (
+                convert_from_itk_image(red)[0],
+                convert_from_itk_image(green)[0],
+                convert_from_itk_image(blue)[0],
+            )
 
             spacing = convert_from_itk_image(red)[1]
-            return np.concatenate(
-                [aux[..., np.newaxis] for aux in images], axis=-1), spacing
+            return (
+                np.concatenate([aux[..., np.newaxis] for aux in images], axis=-1),
+                spacing,
+            )
         else:
             return sitk.Compose(red, green, blue)
 
@@ -474,20 +486,3 @@ def make_translation_transforms_from_offsets(offsets):
         transforms.append(tfm)
 
     return transforms
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

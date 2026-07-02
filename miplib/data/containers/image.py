@@ -28,9 +28,9 @@ class Image(numpy.ndarray):
         return obj
 
     def __array__finalize__(self, obj):
+        self.spacing = obj.spacing
+        self.filename = getattr(obj, "filename", None)
 
-        self.spacing = getattr(obj, 'spacing')
-        self.filename = getattr(obj, 'filename', None)
     # endregion
 
     # region Properties
@@ -47,6 +47,7 @@ class Image(numpy.ndarray):
 
     # endregion
 
+
 # region Command Line Arguments (refactor)
 def get_options(parser):
     """
@@ -58,44 +59,34 @@ def get_options(parser):
     group.add_argument(
         "--imagej",
         help="Defines wheter the image are in ImageJ tiff format, "
-             "and thus contain the pixel size info etc in the TIFF tags. "
-             "By default true",
-        action="store_true"
+        "and thus contain the pixel size info etc in the TIFF tags. "
+        "By default true",
+        action="store_true",
     )
     group.add_argument(
         "--rgb-channel",
-        help="Select which channel in an RGB image is to be used for quality"
-             " analysis",
+        help="Select which channel in an RGB image is to be used for quality analysis",
         dest="rgb_channel",
         type=int,
         choices=[0, 1, 2],
-        default=1
+        default=1,
     )
-     # File filtering for batch mode processing
+    # File filtering for batch mode processing
     parser.add_argument(
         "--average-filter",
         dest="average_filter",
         type=int,
         default=0,
         help="Analyze only images with similar amount of detail, by selecting a "
-             "grayscale average pixel value threshold here"
+        "grayscale average pixel value threshold here",
     )
     parser.add_argument(
         "--file-filter",
         dest="file_filter",
         default=None,
-        help="Define a common string in the files to be analysed"
+        help="Define a common string in the files to be analysed",
     )
     return parser
+
+
 # endregion
-
-
-
-
-
-
-
-
-
-
-

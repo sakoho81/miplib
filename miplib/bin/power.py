@@ -10,6 +10,7 @@ A utility script for extracting 1D power spectra of all images within
 a defined input directory. The spectra are saved in a single csv
 file, each column denoting a single image.
 """
+
 import datetime
 import os
 import sys
@@ -30,14 +31,14 @@ def main():
     assert os.path.isdir(path)
 
     # Create output directory
-    output_dir = datetime.datetime.now().strftime("%Y-%m-%d")+'_PyIQ_output'
+    output_dir = datetime.datetime.now().strftime("%Y-%m-%d") + "_PyIQ_output"
     output_dir = os.path.join(options.working_directory, output_dir)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     # Create output file
     date_now = datetime.datetime.now().strftime("%H-%M-%S")
-    file_name = date_now + '_PyIQ_power_spectra' + '.csv'
+    file_name = date_now + "_PyIQ_power_spectra" + ".csv"
     file_path = os.path.join(output_dir, file_name)
 
     csv_data = pandas.DataFrame()

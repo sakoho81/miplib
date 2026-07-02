@@ -1,5 +1,10 @@
-import numpy as np
+import logging
 from functools import reduce
+
+import numpy as np
+
+logger = logging.getLogger(__name__)
+
 
 def nroot(array, n):
     """
@@ -23,13 +28,12 @@ def normalize(array):
 
 
 def float2dtype(float_type):
-    """Return numpy float dtype object from float type label.
-    """
-    if float_type == 'single' or float_type is None:
+    """Return numpy float dtype object from float type label."""
+    if float_type == "single" or float_type is None:
         return np.float32
-    if float_type == 'double':
+    if float_type == "double":
         return np.float64
-    raise NotImplementedError (repr(float_type))
+    raise NotImplementedError(repr(float_type))
 
 
 def contract_to_shape(data, shape):
@@ -37,12 +41,11 @@ def contract_to_shape(data, shape):
     Remove padding from input data array. The function
     expects the padding to be symmetric on all sides
     """
-    assert all(x <= y for x,y in zip(shape, data.shape))
+    assert all(x <= y for x, y in zip(shape, data.shape, strict=False))
 
-    if any(x != y for x,y in zip(shape, data.shape)):
-
+    if any(x != y for x, y in zip(shape, data.shape, strict=False)):
         slices = []
-        for s1, s2 in zip(data.shape, shape):
+        for s1, s2 in zip(data.shape, shape, strict=False):
             slices.append(slice((s1 - s2) // 2, (s1 + s2) // 2))
 
         image = data[tuple(slices)]
@@ -63,9 +66,9 @@ def expand_to_shape(data, shape, dtype=None, background=None):
     data_start = np.negative(start_index.clip(max=0))
     data = cast_to_dtype(data, dtype, rescale=False)
     if data.ndim == 3:
-        data = data[data_start[0]:, data_start[1]:, data_start[2]:]
+        data = data[data_start[0] :, data_start[1] :, data_start[2] :]
     else:
-        data = data[data_start[0]:, data_start[1]:]
+        data = data[data_start[0] :, data_start[1] :]
 
     if background is None:
         background = 0
@@ -74,7 +77,7 @@ def expand_to_shape(data, shape, dtype=None, background=None):
         expanded_data = np.zeros(shape, dtype=dtype) + background
         slices = []
         rhs_slices = []
-        for s1, s2 in zip(shape, data.shape):
+        for s1, s2 in zip(shape, data.shape, strict=False):
             a, b = (s1 - s2 + 1) // 2, (s1 + s2 + 1) // 2
             c, d = 0, s2
             while a < 0:
@@ -87,7 +90,7 @@ def expand_to_shape(data, shape, dtype=None, background=None):
         try:
             expanded_data[tuple(slices)] = data[tuple(rhs_slices)]
         except ValueError:
-            print(data.shape, shape)
+            logger.debug("data.shape: %s, shape: %s", data.shape, shape)
             raise
         return expanded_data
     else:
@@ -96,16 +99,6 @@ def expand_to_shape(data, shape, dtype=None, background=None):
 
 def mul_seq(seq):
     return reduce(lambda x, y: x * y, seq, 1)
-
-
-def float2dtype(float_type):
-    """Return numpy float dtype object from float type label.
-    """
-    if float_type == 'single' or float_type is None:
-        return np.float32
-    if float_type == 'double':
-        return np.float64
-    raise NotImplementedError(repr(float_type))
 
 
 def cast_to_dtype(data, dtype, rescale=True, remove_outliers=False):
@@ -131,22 +124,23 @@ def cast_to_dtype(data, dtype, rescale=True, remove_outliers=False):
     if data.dtype == dtype:
         return data
 
-    if 'int' in str(dtype):
+    if "int" in str(dtype):
         data_info = np.iinfo(dtype)
         data_max = data_info.max
         data_min = data_info.min
-    elif 'float' in str(dtype):
+    elif "float" in str(dtype):
         data_info = np.finfo(dtype)
         data_max = data_info.max
         data_min = data_info.min
     else:
         data_max = data.max()
         data_min = data.min()
-        print("Warning casting into unknown data type. Detail clipping" \
-              "may occur")
+        logger.warning(
+            "Warning casting into unknown data type. Detail clipping may occur"
+        )
 
     # In case of unsigned integers, numbers below zero need to be clipped
-    if 'uint' in str(dtype):
+    if "uint" in str(dtype):
         data_max = 255
         data_min = 0
 
@@ -177,6 +171,7 @@ def rescale_to_min_max(data, data_min, data_max):
     else:
         return data_min / data.min() * data
 
+
 def safe_divide(numerator, denominator):
     """
     Division of numpy arrays that can handle division by zero. NaN results are
@@ -199,7 +194,7 @@ def start_to_stop_idx(start, stop):
     :param stop: stop indexes
     :return:
     """
-    return tuple(slice(a, b) for a, b in zip(start, stop))
+    return tuple(slice(a, b) for a, b in zip(start, stop, strict=False))
 
 
 def start_to_offset_idx(start, offset):
@@ -211,11 +206,10 @@ def start_to_offset_idx(start, offset):
     :return:
     """
     stop = start + offset
-    return tuple(slice(a, b) for a, b in zip(start, stop))
+    return tuple(slice(a, b) for a, b in zip(start, stop, strict=False))
 
 
 def reverse_array(array):
-
     temp = array.copy()
     for i in range(temp.ndim):
         temp = np.flip(temp, i)
@@ -231,7 +225,7 @@ def first_order_derivative_2d(array):
     """
     d1 = np.vstack([np.zeros((1, array.shape[1])), np.diff(array, axis=0)])
     d2 = np.hstack([np.zeros((array.shape[0], 1)), np.diff(array, axis=1)])
-    return d1 ** 2 + d2 ** 2
+    return d1**2 + d2**2
 
 
 def get_rounded_kernel(diameter):
@@ -242,9 +236,9 @@ def get_rounded_kernel(diameter):
     """
     dd = np.linspace(-1, 1, diameter)
     xx1, yy1 = np.meshgrid(dd, dd)
-    rr = np.sqrt(xx1 ** 2 + yy1 ** 2)
+    rr = np.sqrt(xx1**2 + yy1**2)
 
-    kernel = np.zeros((diameter,)*2)
+    kernel = np.zeros((diameter,) * 2)
     kernel[rr < 1] = 1
 
     return kernel

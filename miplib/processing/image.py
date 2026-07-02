@@ -1,8 +1,13 @@
+import logging
+
 import numpy as np
 from scipy.ndimage import interpolation
 
-from . import ndarray
 from miplib.data.containers.image import Image
+
+from . import ndarray
+
+logger = logging.getLogger(__name__)
 
 
 def zoom_to_isotropic_spacing(image, order=3):
@@ -19,28 +24,30 @@ def zoom_to_isotropic_spacing(image, order=3):
     old_shape = image.shape
     min_spacing = min(spacing)
     zoom = tuple(pixel_spacing / min_spacing for pixel_spacing in spacing)
-    new_shape = tuple(int(pixels * dim_zoom) for (pixels, dim_zoom) in zip(old_shape, zoom))
+    new_shape = tuple(
+        int(pixels * dim_zoom)
+        for (pixels, dim_zoom) in zip(old_shape, zoom, strict=False)
+    )
 
     if new_shape == old_shape:
         return image
     else:
         return resize(image, new_shape, order)
 
-def zoom_to_spacing(image, spacing, order=3, verbose=False):
 
+def zoom_to_spacing(image, spacing, order=3):
     assert isinstance(image, Image)
     assert image.ndim == len(spacing)
 
-    zoom = tuple(i/j for i, j in zip(image.spacing, spacing))
-    if verbose:
-        print("The zoom is ", zoom)
+    zoom = tuple(i / j for i, j in zip(image.spacing, spacing, strict=False))
+    logger.debug("The zoom is %s", zoom)
 
     array = interpolation.zoom(image, zoom, order=order)
 
     return Image(array, spacing)
 
 
-def resize(image, size, order=3, verbose=False):  # type: (Image, tuple) -> Image
+def resize(image, size, order=3):  # type: (Image, tuple, int) -> Image
     """
     Resize the image, using interpolation.
 
@@ -52,12 +59,11 @@ def resize(image, size, order=3, verbose=False):  # type: (Image, tuple) -> Imag
     assert isinstance(size, tuple)
     assert isinstance(image, Image)
 
-    zoom = [float(a) / b for a, b in zip(size, image.shape)]
-    if verbose:
-        print("The zoom is %s" % zoom)
+    zoom = [float(a) / b for a, b in zip(size, image.shape, strict=False)]
+    logger.debug("The zoom is %s", zoom)
 
     array = interpolation.zoom(image, tuple(zoom), order=order)
-    spacing = tuple(i / j for i, j in zip(image.spacing, zoom))
+    spacing = tuple(i / j for i, j in zip(image.spacing, zoom, strict=False))
 
     return Image(array, spacing)
 
@@ -71,7 +77,7 @@ def apply_hanning(image):  # type: (Image) -> Image
 
     windows = (np.hanning(i) for i in image.shape)
 
-    result = Image(image.astype('float64'), image.spacing)
+    result = Image(image.astype("float64"), image.spacing)
     for window in windows:
         result *= window
 
@@ -106,7 +112,7 @@ def zero_pad_to_matching_shape(image1, image2):
     assert isinstance(image1, Image)
     assert isinstance(image2, Image)
 
-    shape = tuple(max(x, y) for x, y in zip(image1.shape, image2.shape))
+    shape = tuple(max(x, y) for x, y in zip(image1.shape, image2.shape, strict=False))
 
     if any(map(lambda x, y: x != y, image1.shape, shape)):
         image1 = zero_pad_to_shape(image1, shape)
@@ -130,7 +136,7 @@ def remove_zero_padding(image, shape):
     return Image(ndarray.contract_to_shape(image, shape), image.spacing)
 
 
-def checkerboard_split(image, disable_3d_sum = False):
+def checkerboard_split(image, disable_3d_sum=False):
     """
     Splits an image in two, by using a checkerboard pattern.
 
@@ -141,8 +147,8 @@ def checkerboard_split(image, disable_3d_sum = False):
 
     # Make an index chess board structure
     shape = image.shape
-    odd_index = list(np.arange(1, shape[i], 2) for i in range(len(shape)))
-    even_index = list(np.arange(0, shape[i], 2) for i in range(len(shape)))
+    odd_index = [np.arange(1, shape[i], 2) for i in range(len(shape))]
+    even_index = [np.arange(0, shape[i], 2) for i in range(len(shape))]
 
     # Create the two pseudo images
     if image.ndim == 2:
@@ -151,14 +157,28 @@ def checkerboard_split(image, disable_3d_sum = False):
     else:
         if disable_3d_sum:
             image1 = image[odd_index[0], :, :][:, odd_index[1], :][:, :, odd_index[2]]
-            image2 = image[even_index[0], :, :][:, even_index[1], :][:, :, even_index[2]]
+            image2 = image[even_index[0], :, :][:, even_index[1], :][
+                :, :, even_index[2]
+            ]
 
         else:
-            image1 = image.astype(np.uint32)[even_index[0], :, :][:, odd_index[1], :][:, :, odd_index[2]] + \
-                     image.astype(np.uint32)[odd_index[0], :, :][:, odd_index[1], :][:, :, odd_index[2]]
+            image1 = (
+                image.astype(np.uint32)[even_index[0], :, :][:, odd_index[1], :][
+                    :, :, odd_index[2]
+                ]
+                + image.astype(np.uint32)[odd_index[0], :, :][:, odd_index[1], :][
+                    :, :, odd_index[2]
+                ]
+            )
 
-            image2 = image.astype(np.uint32)[even_index[0], :, :][:, even_index[1], :][:, :, even_index[2]] + \
-                     image.astype(np.uint32)[odd_index[0], :, :][:, even_index[1], :][:, :, even_index[2]]
+            image2 = (
+                image.astype(np.uint32)[even_index[0], :, :][:, even_index[1], :][
+                    :, :, even_index[2]
+                ]
+                + image.astype(np.uint32)[odd_index[0], :, :][:, even_index[1], :][
+                    :, :, even_index[2]
+                ]
+            )
 
     # image1.spacing = tuple(i * np.sqrt(2) for i in image.spacing)
     image1.spacing = image.spacing
@@ -167,7 +187,7 @@ def checkerboard_split(image, disable_3d_sum = False):
     return image1, image2
 
 
-def reverse_checkerboard_split(image, disable_3d_sum = False):
+def reverse_checkerboard_split(image, disable_3d_sum=False):
     """
     Splits an image in two, by using a checkerboard pattern.
 
@@ -178,8 +198,8 @@ def reverse_checkerboard_split(image, disable_3d_sum = False):
 
     # Make an index chess board structure
     shape = image.shape
-    odd_index = list(np.arange(1, shape[i], 2) for i in range(len(shape)))
-    even_index = list(np.arange(0, shape[i], 2) for i in range(len(shape)))
+    odd_index = [np.arange(1, shape[i], 2) for i in range(len(shape))]
+    even_index = [np.arange(0, shape[i], 2) for i in range(len(shape))]
 
     # Create the two pseudo images
     if image.ndim == 2:
@@ -191,17 +211,30 @@ def reverse_checkerboard_split(image, disable_3d_sum = False):
             image2 = image[even_index[0], :, :][:, even_index[1], :][:, :, odd_index[2]]
 
         else:
-            image1 = image.astype(np.uint32)[even_index[0], :, :][:, odd_index[1], :][:, :, even_index[2]] + \
-                     image.astype(np.uint32)[odd_index[0], :, :][:, even_index[1], :][:, :, odd_index[2]]
+            image1 = (
+                image.astype(np.uint32)[even_index[0], :, :][:, odd_index[1], :][
+                    :, :, even_index[2]
+                ]
+                + image.astype(np.uint32)[odd_index[0], :, :][:, even_index[1], :][
+                    :, :, odd_index[2]
+                ]
+            )
 
-            image2 = image.astype(np.uint32)[even_index[0], :, :][:, even_index[1], :][:, :, odd_index[2]] + \
-                     image.astype(np.uint32)[odd_index[0], :, :][:, odd_index[1], :][:, :, even_index[2]]
+            image2 = (
+                image.astype(np.uint32)[even_index[0], :, :][:, even_index[1], :][
+                    :, :, odd_index[2]
+                ]
+                + image.astype(np.uint32)[odd_index[0], :, :][:, odd_index[1], :][
+                    :, :, even_index[2]
+                ]
+            )
 
-    #image1.spacing = tuple(i * np.sqrt(2) for i in image.spacing)
+    # image1.spacing = tuple(i * np.sqrt(2) for i in image.spacing)
     image1.spacing = image.spacing
     image2.spacing = image1.spacing
 
     return image1, image2
+
 
 def summed_checkerboard_split(image):
     """
@@ -216,30 +249,55 @@ def summed_checkerboard_split(image):
 
     # Make an index chess board structure
     shape = image.shape
-    odd_index = list(np.arange(1, shape[i], 2) for i in range(len(shape)))
-    even_index = list(np.arange(0, shape[i], 2) for i in range(len(shape)))
+    odd_index = [np.arange(1, shape[i], 2) for i in range(len(shape))]
+    even_index = [np.arange(0, shape[i], 2) for i in range(len(shape))]
 
     # Create the two pseudo images
     if image.ndim == 2:
-        image1 = image[odd_index[0], :][:, odd_index[1]] + image[even_index[0], :][:, even_index[1]]
-        image2 = image[odd_index[0], :][:, even_index[1]] + image[even_index[0], :][:, odd_index[1]]
+        image1 = (
+            image[odd_index[0], :][:, odd_index[1]]
+            + image[even_index[0], :][:, even_index[1]]
+        )
+        image2 = (
+            image[odd_index[0], :][:, even_index[1]]
+            + image[even_index[0], :][:, odd_index[1]]
+        )
 
         image1.spacing = tuple(i * 2 for i in image.spacing)
         image2.spacing = image1.spacing
     else:
-        image1 = image.astype(np.uint32)[even_index[0], :, :][:, odd_index[1], :][:, :, odd_index[2]] + \
-                 image.astype(np.uint32)[odd_index[0], :, :][:, odd_index[1], :][:, :, odd_index[2]] + \
-                 image.astype(np.uint32)[even_index[0], :, :][:, even_index[1], :][:, :, even_index[2]] + \
-                 image.astype(np.uint32)[odd_index[0], :, :][:, even_index[1], :][:, :, even_index[2]]
+        image1 = (
+            image.astype(np.uint32)[even_index[0], :, :][:, odd_index[1], :][
+                :, :, odd_index[2]
+            ]
+            + image.astype(np.uint32)[odd_index[0], :, :][:, odd_index[1], :][
+                :, :, odd_index[2]
+            ]
+            + image.astype(np.uint32)[even_index[0], :, :][:, even_index[1], :][
+                :, :, even_index[2]
+            ]
+            + image.astype(np.uint32)[odd_index[0], :, :][:, even_index[1], :][
+                :, :, even_index[2]
+            ]
+        )
 
-        image2 = image.astype(np.uint32)[even_index[0], :, :][:, odd_index[1], :][:, :, even_index[2]] + \
-                 image.astype(np.uint32)[odd_index[0], :, :][:, odd_index[1], :][:, :, even_index[2]] + \
-                 image.astype(np.uint32)[even_index[0], :, :][:, even_index[1], :][:, :, odd_index[2]] +\
-                 image.astype(np.uint32)[odd_index[0], :, :][:, even_index[1], :][:, :, odd_index[2]]
+        image2 = (
+            image.astype(np.uint32)[even_index[0], :, :][:, odd_index[1], :][
+                :, :, even_index[2]
+            ]
+            + image.astype(np.uint32)[odd_index[0], :, :][:, odd_index[1], :][
+                :, :, even_index[2]
+            ]
+            + image.astype(np.uint32)[even_index[0], :, :][:, even_index[1], :][
+                :, :, odd_index[2]
+            ]
+            + image.astype(np.uint32)[odd_index[0], :, :][:, even_index[1], :][
+                :, :, odd_index[2]
+            ]
+        )
 
         image1.spacing = tuple(i * 2 for i in image.spacing)
         image2.spacing = image1.spacing
-
 
     return image1, image2
 
@@ -272,9 +330,11 @@ def crop_to_largest_square(image, physical_dims=False):
     assert isinstance(image, Image)
 
     if physical_dims:
-        shape_real = list(x*y for x, y in zip(image.shape, image.spacing))
-        min_shape_real = (min(*shape_real), ) * image.ndim
-        min_shape_px = list(x / y for x, y in zip(min_shape_real, image.spacing))
+        shape_real = [x * y for x, y in zip(image.shape, image.spacing, strict=False)]
+        min_shape_real = (min(*shape_real),) * image.ndim
+        min_shape_px = [
+            x / y for x, y in zip(min_shape_real, image.spacing, strict=False)
+        ]
     else:
         min_shape_px = (min(*image.shape),) * image.ndim
 
@@ -294,9 +354,13 @@ def crop_to_shape(image, shape, offset):
     """
     assert isinstance(image, Image)
     assert image.ndim == len(shape) == len(offset)
-    assert all((v + x <= y for v, x, y in zip(offset, shape, image.shape)))
+    assert all(
+        (v + x <= y for v, x, y in zip(offset, shape, image.shape, strict=False))
+    )
 
-    crop_idx = tuple(slice(start, size + start) for start, size in zip(offset, shape))
+    crop_idx = tuple(
+        slice(start, size + start) for start, size in zip(offset, shape, strict=False)
+    )
 
     return Image(image[crop_idx], image.spacing)
 
@@ -323,7 +387,7 @@ def noisy(image, noise_type):
     if noise_type == "gauss":
         mean = 0
         var = 0.1
-        sigma = var ** 0.5
+        sigma = var**0.5
         gauss = np.random.normal(mean, sigma, image.shape)
         gauss = gauss.reshape(image.shape)
         return Image(image + gauss, spacing)
@@ -333,14 +397,12 @@ def noisy(image, noise_type):
         out = np.copy(image)
         # Salt mode
         num_salt = np.ceil(amount * image.size * s_vs_p)
-        coords = [np.random.randint(0, i - 1, int(num_salt))
-                  for i in image.shape]
+        coords = [np.random.randint(0, i - 1, int(num_salt)) for i in image.shape]
         out[coords] = 1
 
         # Pepper mode
-        num_pepper = np.ceil(amount * image.size * (1. - s_vs_p))
-        coords = [np.random.randint(0, i - 1, int(num_pepper))
-                  for i in image.shape]
+        num_pepper = np.ceil(amount * image.size * (1.0 - s_vs_p))
+        coords = [np.random.randint(0, i - 1, int(num_pepper)) for i in image.shape]
         out[coords] = 0
         return Image(out, spacing)
     elif noise_type == "poisson":
@@ -372,7 +434,7 @@ def enhance_contrast(image, percent_saturated=0.3, out_type=np.uint8):
         out_max = 255
         out_min = 0
     else:
-        raise ValueError("Not supported output type {}".format(out_type))
+        raise ValueError(f"Not supported output type {out_type}")
 
     # Get Input Image Min/Max from histogram
     histogram, bin_edges = np.histogram(image, bins=250, density=True)
@@ -388,7 +450,7 @@ def enhance_contrast(image, percent_saturated=0.3, out_type=np.uint8):
 
     # Trim and rescale
     image = np.clip(image, in_min, in_max)
-    image *= (out_max-out_min)/image.max()
+    image *= (out_max - out_min) / image.max()
     return Image(image.astype(out_type), spacing)
 
 
@@ -399,13 +461,10 @@ def rescale_to_8_bit(image):
     :return: a 8-bit version of the Image
     """
     assert isinstance(image, Image)
-    return Image((image*(255.0/image.max())).astype(np.uint8), image.spacing)
-
-
+    return Image((image * (255.0 / image.max())).astype(np.uint8), image.spacing)
 
 
 def flip_image(image):
-
     assert isinstance(image, Image)
 
     indexer = (np.s_[::-1],) * image.ndim
@@ -442,9 +501,10 @@ def translate_image(image, shift):
 
     return Image(result, image.spacing)
 
+
 def maximum_projection(image, axis=0):
-    """ Generate a maximum projection image along an axis
-    
+    """Generate a maximum projection image along an axis
+
     :param image: an image
     :type image: Image
     :param axis: the axis on which the projeciton is to be calculated, defaults to 0
@@ -453,5 +513,5 @@ def maximum_projection(image, axis=0):
     :rtype: Image
     """
     assert isinstance(image, Image)
-    spacing = (image.spacing[s] for s in filter(lambda x : x != axis, range(image.ndim)))
-    return  Image(np.amax(image, axis=axis), spacing)
+    spacing = (image.spacing[s] for s in filter(lambda x: x != axis, range(image.ndim)))
+    return Image(np.amax(image, axis=axis), spacing)

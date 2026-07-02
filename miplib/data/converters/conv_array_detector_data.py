@@ -1,7 +1,8 @@
 import numpy as np
+
 from ..containers.array_detector_data import ArrayDetectorData
-from ..containers.image_data import ImageData
 from ..containers.image import Image
+from ..containers.image_data import ImageData
 
 
 def convert_to_image(data):
@@ -18,10 +19,13 @@ def convert_to_image(data):
 
     dtype = data[0, 0].dtype
     ndims = data[0, 0].ndim
-    shape = (1, ) * (3 - ndims) + data[0, 0].shape
+    shape = (1,) * (3 - ndims) + data[0, 0].shape
     spacing = (1,) * (3 - ndims) + tuple(data[0, 0].spacing)
 
-    im_shape = (gates, channels,) + shape
+    im_shape = (
+        gates,
+        channels,
+    ) + shape
     im_data = np.zeros(im_shape, dtype=dtype)
 
     for gate_idx in range(gates):
@@ -53,13 +57,18 @@ def convert_to_imagedata(data, path, data_type="original"):
         for det_idx in range(data.ndetectors):
             temp = data[gate_idx, det_idx]
             if data_type == "original":
-                image_data.add_original_image(temp, 100, det_idx, gate_idx, 0, temp.spacing)
+                image_data.add_original_image(
+                    temp, 100, det_idx, gate_idx, 0, temp.spacing
+                )
             elif data_type == "registered":
-                image_data.add_registered_image(temp, 100, det_idx, gate_idx, 0, temp.spacing)
+                image_data.add_registered_image(
+                    temp, 100, det_idx, gate_idx, 0, temp.spacing
+                )
             elif data_type == "psf":
                 image_data.add_psf(temp, 100, det_idx, gate_idx, 0, temp.spacing)
 
     return image_data
+
 
 def convert_to_numpy(data):
     """
@@ -75,17 +84,17 @@ def convert_to_numpy(data):
     assert isinstance(data, ArrayDetectorData)
 
     # Get image shape
-    n_dim = data[0,0].ndim
+    n_dim = data[0, 0].ndim
     if n_dim == 2:
-        image_shape = (1,) + data[0,0].shape
+        image_shape = (1,) + data[0, 0].shape
     elif n_dim == 3:
-        image_shape = data[0,0].shape
+        image_shape = data[0, 0].shape
     else:
-        raise ValueError(f"Unsupported array shape ({data[0,0].shape})")
-    
+        raise ValueError(f"Unsupported array shape ({data[0, 0].shape})")
+
     # Initialize new Numpy array
     array_shape = (data.ngates, data.ndetectors) + image_shape
-    array = np.zeros(array_shape, dtype=data[0,0].dtype)
+    array = np.zeros(array_shape, dtype=data[0, 0].dtype)
 
     # Copy values
     for gate_idx in range(data.ngates):
@@ -95,9 +104,6 @@ def convert_to_numpy(data):
             else:
                 array[gate_idx, det_idx] = data[gate_idx, det_idx]
 
-    image_spacing = data[0,0].spacing
-    
+    image_spacing = data[0, 0].spacing
+
     return array, image_spacing
-            
-
-

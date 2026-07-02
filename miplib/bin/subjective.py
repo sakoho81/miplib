@@ -24,7 +24,6 @@ import miplib.ui.cli.miplib_entry_point_options as script_options
 
 
 def main():
-
     options = script_options.get_subjective_ranking_options(sys.argv[1:])
     path = options.working_directory
     index = 0
@@ -47,7 +46,9 @@ def main():
         # Get valid file names
         for image_name in os.listdir(path):
             real_path = os.path.join(path, image_name)
-            if not os.path.isfile(real_path) or not real_path.endswith((".jpg", ".tif", ".tiff", ".png")):
+            if not os.path.isfile(real_path) or not real_path.endswith(
+                (".jpg", ".tif", ".tiff", ".png")
+            ):
                 continue
             file_names.append(image_name)
         csv_data["Filename"] = file_names
@@ -57,25 +58,27 @@ def main():
 
     # Plot settings
     plt.ion()
-    plt.axis('off')
+    plt.axis("off")
 
     # Shuffle the data frame so that the order of the displayed images is mixed every time.
     csv_data = csv_data.sample(frac=1)
-    print("Images are graded on a scale 1-5, where 1 denotes a very bad image " \
-          "and 5 an excellent image")
+    print(
+        "Images are graded on a scale 1-5, where 1 denotes a very bad image "
+        "and 5 an excellent image"
+    )
 
     for image_name in csv_data["Filename"]:
         real_path = os.path.join(path, image_name)
         image = plt.imread(real_path)
 
-        plt.imshow(image, cmap='hot', vmax=image.max(), vmin=image.min())
+        plt.imshow(image, cmap="hot", vmax=image.max(), vmin=image.min())
 
         success = False
         while not success:
-            input = input("Give grade: ")
+            user_input = input("Give grade: ")
 
-            if input.isdigit():
-                result = int(input)
+            if user_input.isdigit():
+                result = int(user_input)
             else:
                 print("Please give a numeric grade 1-5.")
                 continue
@@ -92,14 +95,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-

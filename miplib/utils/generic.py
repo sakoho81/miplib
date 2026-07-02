@@ -1,6 +1,6 @@
 def isiterable(something):
-    """ Check if a variable is iterable
-    
+    """Check if a variable is iterable
+
     :param something: some variable that you are interested in
     :type something: any
     :return: True/False
