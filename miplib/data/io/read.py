@@ -1,18 +1,16 @@
 import os
 
-import SimpleITK as sitk
 import pims
-import numpy as np
+import SimpleITK as sitk
+import tifffile
 
 import miplib.processing.itk as itkutils
-from . import tiffile
 from miplib.data.containers.image import Image
-from miplib.data.containers.array_detector_data import ArrayDetectorData
 
 scale_c = 1.0e6
 
 
-def get_image(filename, series=0, channel=0, return_type='image', bioformats=True):
+def get_image(filename, series=0, channel=0, return_type="image", bioformats=True):
     """
     A wrapper for the image read functions.
     Parameters
@@ -24,18 +22,18 @@ def get_image(filename, series=0, channel=0, return_type='image', bioformats=Tru
            the return type can be chosen with a string ('image, 'itk').
 
     """
-    assert return_type in ('itk', 'image')
+    assert return_type in ("itk", "image")
 
     if filename.endswith(".mha"):
-        data = __itk_image(filename, return_type == 'itk')
+        data = __itk_image(filename, return_type == "itk")
     else:
         if bioformats:
-            data = __bioformats(filename, series, channel, return_type == 'itk')
+            data = __bioformats(filename, series, channel, return_type == "itk")
         else:
-            data = __tiff(filename, return_type == 'itk')
-
+            data = __tiff(filename, return_type == "itk")
 
     return data
+
 
 def __itk_image(filename, return_itk=True):
     """
@@ -75,7 +73,7 @@ def __tiff(filename, memmap=False, return_itk=False):
     assert filename.endswith((".tif", ".tiff"))
     tags = {}
     # Read images and tags
-    with tiffile.TiffFile(filename) as image:
+    with tifffile.TiffFile(filename) as image:
         # Get images
         images = image.asarray(memmap=memmap)
         # Get tags
@@ -95,10 +93,13 @@ def __tiff(filename, memmap=False, return_itk=False):
 
     # Create a tuple for zxy-spacing. The order of the dimensions follows that of the
     # image data
-    spacing = (z_spacing, scale_c/tags["x_resolution"][0], scale_c/tags[
-        "y_resolution"][0])
+    spacing = (
+        z_spacing,
+        scale_c / tags["x_resolution"][0],
+        scale_c / tags["y_resolution"][0],
+    )
 
-    #print spacing
+    # print spacing
     if return_itk:
         return itkutils.convert_from_numpy(images, spacing)
     else:
@@ -123,7 +124,7 @@ def __itk_transform(path, return_itk=False):
     """
 
     if not os.path.isfile(path):
-        raise ValueError("Not a valid path: %s" % path)
+        raise ValueError(f"Not a valid path: {path}")
 
     transform = sitk.ReadTransform(path)
 
@@ -148,7 +149,7 @@ def __itk_transform(path, return_itk=False):
         return transform_type, params, fixed_params
 
 
-def __bioformats(filename, series=0, channel=0, return_itk = False):
+def __bioformats(filename, series=0, channel=0, return_itk=False):
     """
     Read an image using the Bioformats importer. Good for most microscopy formats.
 
@@ -157,22 +158,27 @@ def __bioformats(filename, series=0, channel=0, return_itk = False):
     :param return_itk:
     :return:
     """
-    assert pims.bioformats.available(), "Please install jpype in order to use " \
-                                        "the bioformats reader."
+    assert pims.bioformats.available(), (
+        "Please install jpype in order to use the bioformats reader."
+    )
     image = pims.bioformats.BioformatsReader(filename, series=series)
 
     # Get Pixel/Voxel size information
-    if 'z' not in image.axes:
-        spacing = (image.metadata.PixelsPhysicalSizeY(0),
-                   image.metadata.PixelsPhysicalSizeX(0))
+    if "z" not in image.axes:
+        spacing = (
+            image.metadata.PixelsPhysicalSizeY(0),
+            image.metadata.PixelsPhysicalSizeX(0),
+        )
     else:
-        spacing = (image.metadata.PixelsPhysicalSizeZ(0),
-                   image.metadata.PixelsPhysicalSizeY(0),
-                   image.metadata.PixelsPhysicalSizeX(0))
+        spacing = (
+            image.metadata.PixelsPhysicalSizeZ(0),
+            image.metadata.PixelsPhysicalSizeY(0),
+            image.metadata.PixelsPhysicalSizeX(0),
+        )
 
     # Get color channel
-    if 'c' in image.sizes:
-        image.iter_axes = 'c'
+    if "c" in image.sizes:
+        image.iter_axes = "c"
         assert len(image) > channel
         image = image[channel]
     else:
@@ -182,5 +188,3 @@ def __bioformats(filename, series=0, channel=0, return_itk = False):
         return itkutils.convert_from_numpy(image, spacing)
     else:
         return Image(image, spacing)
-
-

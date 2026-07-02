@@ -1,8 +1,8 @@
 import SimpleITK as sitk
-import pims
+import tifffile
+
 import miplib.processing.itk as itkutils
 from miplib.data.containers.image import Image
-from miplib.data.io import tiffile
 
 
 def image(path, image):
@@ -18,7 +18,7 @@ def image(path, image):
 
     assert isinstance(image, Image)
 
-    if path.endswith(('.tiff', '.tif')):
+    if path.endswith((".tiff", ".tif")):
         __tiff(path, image, image.spacing)
     else:
         __itk_image(path, image)
@@ -46,10 +46,7 @@ def __imagej_tiff(path, image, spacing):
     :param image:   An image as :type image: numpy.ndarray.
     :param spacing: Pixel size ZXY, as a :type spacing: list.
     """
-    tiffile.imsave(path,
-                   image,
-                   imagej=True,
-                   resolution=list(1.0/x for x in spacing))
+    tifffile.imsave(path, image, imagej=True, resolution=[1.0 / x for x in spacing])
 
 
 def __tiff(path, image, spacing):
@@ -63,16 +60,14 @@ def __tiff(path, image, spacing):
     """
 
     if image.ndim >= 3:
-        image_description = "images={} slices={} unit=micron spacing={}".format(image.shape[0],
-                                                                                image.shape[0],
-                                                                                spacing[0])
-        tiffile.imsave(path,
-                       image,
-                       resolution=(1.0/spacing[1], 1.0/spacing[2]),
-                       metadata={'description': image_description})
+        image_description = f"images={image.shape[0]} slices={image.shape[0]} unit=micron spacing={spacing[0]}"
+        tifffile.imsave(
+            path,
+            image,
+            resolution=(1.0 / spacing[1], 1.0 / spacing[2]),
+            metadata={"description": image_description},
+        )
     else:
-        tiffile.imsave(path,
-                       image,
-                       imagej=True,
-                       resolution=(1.0 / spacing[0], 1.0 / spacing[1]))
-
+        tifffile.imsave(
+            path, image, imagej=True, resolution=(1.0 / spacing[0], 1.0 / spacing[1])
+        )

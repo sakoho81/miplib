@@ -1,8 +1,8 @@
 import numpy as np
+from scipy.ndimage import fourier_shift
 
 from miplib.data.containers.image import Image
 from miplib.processing.registration import registration
-from scipy.ndimage import fourier_shift
 
 
 def register_stack_slices(stack):
@@ -20,11 +20,15 @@ def register_stack_slices(stack):
 
     shifts = np.zeros((stack.shape[0], 2), dtype=np.float)
 
-    for f_idx, m_idx in zip(range(0, stack.shape[0] - 1), range(1, stack.shape[0])):
+    for f_idx, m_idx in zip(
+        range(0, stack.shape[0] - 1), range(1, stack.shape[0]), strict=False
+    ):
         fixed = Image(stack[f_idx], stack.spacing[1:])
         moving = Image(stack[m_idx], stack.spacing[1:])
 
-        offset = registration.phase_correlation_registration(fixed, moving, resample=False)
+        offset = registration.phase_correlation_registration(
+            fixed, moving, resample=False
+        )
         shifts[m_idx] = shifts[f_idx] + np.asarray(offset)
 
     return shifts
@@ -46,7 +50,9 @@ def register_stack_slices_with_reference(stack, fixed):
 
     for i in range(stack.shape[0]):
         moving = Image(stack[i], stack.spacing[1:])
-        shifts[i] = registration.phase_correlation_registration(fixed, moving, resample=False)
+        shifts[i] = registration.phase_correlation_registration(
+            fixed, moving, resample=False
+        )
 
     return shifts
 
@@ -69,7 +75,9 @@ def shift_stack_slices(stack, shifts):
 
     resampled = Image(np.zeros_like(stack), spacing=stack.spacing)
 
-    for idx, (image, shift) in enumerate(zip(stack, shifts)):
-        resampled[idx] = np.abs(np.fft.ifftn(fourier_shift(np.fft.fftn(image), shift)).real)
+    for idx, (image, shift) in enumerate(zip(stack, shifts, strict=False)):
+        resampled[idx] = np.abs(
+            np.fft.ifftn(fourier_shift(np.fft.fftn(image), shift)).real
+        )
 
     return resampled

@@ -1,12 +1,11 @@
 import os
-
 from multiprocessing import Queue
 
 from miplib.data.containers.image import Image
 from miplib.data.io import write as imwrite
 
 
-class ImageWriterBase(object):
+class ImageWriterBase:
     def write(self, image):
         pass
 
@@ -29,7 +28,7 @@ class TiffImageWriter(ImageWriterBase):
         self.dir = directory
 
     def __get_full_path(self):
-        filename = "result_{}.tif".format(self.index)
+        filename = f"result_{self.index}.tif"
         return os.path.join(self.dir, filename)
 
     def write(self, image):
@@ -38,6 +37,3 @@ class TiffImageWriter(ImageWriterBase):
         imwrite.image(self.__get_full_path(), image)
 
         self.index += 1
-
-
-

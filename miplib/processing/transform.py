@@ -1,5 +1,7 @@
-import SimpleITK as sitk
 import math
+
+import SimpleITK as sitk
+
 
 def make_translation_transforms_from_xy(xs, ys):
     """
@@ -11,7 +13,7 @@ def make_translation_transforms_from_xy(xs, ys):
     assert len(xs) == len(ys)
     transforms = []
 
-    for x, y in zip(xs, ys):
+    for x, y in zip(xs, ys, strict=False):
         tfm = sitk.TranslationTransform(2)
         tfm.SetParameters((x, y))
 
@@ -37,12 +39,12 @@ def rotate_xy_points_lists(xs, ys, radians):
         return xx, yy
 
     def get_point_pairs(xs, ys, radians):
-        for x, y in zip(xs, ys):
+        for x, y in zip(xs, ys, strict=False):
             yield rotate_origin_only(x, y, radians)
 
     points = list(get_point_pairs(xs, ys, radians))
 
-    xs_rot = list(i[0] for i in points)
-    ys_rot = list(i[1] for i in points)
+    xs_rot = [i[0] for i in points]
+    ys_rot = [i[1] for i in points]
 
     return xs_rot, ys_rot

@@ -1,6 +1,7 @@
-from miplib.processing.segmentation import masking
-from miplib.data.containers.image import Image
 import numpy as np
+
+from miplib.data.containers.image import Image
+from miplib.processing.segmentation import masking
 
 
 def calculate_nearest_neighbor_distances(x_coords, y_coords):
@@ -44,11 +45,11 @@ def calculate_sbr(image, kernel_size=40, threshold=40):
     assert isinstance(image, Image)
 
     background_mask = masking.make_local_intensity_based_mask(
-        image, threshold, kernel_size=kernel_size, invert=True)
+        image, threshold, kernel_size=kernel_size, invert=True
+    )
     background_image = Image(image * background_mask, image.spacing)
 
     background_level = np.mean(background_image[background_mask > 0])
     signal_level = np.mean(image[background_mask == 0])
 
-    return signal_level/background_level
-
+    return signal_level / background_level

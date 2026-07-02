@@ -5,20 +5,19 @@ import numpy
 import scipy.ndimage as ndimage
 
 import miplib.processing.itk as itkutils
+import miplib.processing.ndarray as arrayutils
 import miplib.ui.utils as uiutils
 from miplib.data.containers.image import Image
-from miplib.data.definitions import *
-import miplib.processing.ndarray as arrayutils
+from miplib.data.definitions import image_types_c
 
 
-class ImageData(object):
+class ImageData:
     """
     The data storage in miplib is based on a HDF5 file format. This
     allows the efficient handing of large datasets
     """
 
     def __init__(self, path):
-
         if not os.path.exists(os.path.dirname(path)):
             os.mkdir(os.path.dirname(path))
         assert path.endswith(".hdf5")
@@ -37,7 +36,9 @@ class ImageData(object):
 
         self.active_image = None
 
-    def add_original_image(self, data, scale, index, channel, angle, spacing, chunk_size=None):
+    def add_original_image(
+        self, data, scale, index, channel, angle, spacing, chunk_size=None
+    ):
         """
         Add a source image to the HDF5 file.
 
@@ -84,11 +85,16 @@ class ImageData(object):
 
         # Zoom axial dimension for isotropic pixel size.
         if data.ndim == 3 and spacing[0] != spacing[1]:
-            print("Image index %s needs to be resampled for isotropic spacing." \
-                  "This will take a minute" % index)
+            print(
+                f"Image index {index} needs to be resampled for isotropic spacing."
+                "This will take a minute"
+            )
             z_zoom = spacing[0] / spacing[1]
             data = ndimage.zoom(data, (z_zoom, 1, 1), order=3)
-            spacing = tuple(spacing[x] if x != 0 else spacing[x]/z_zoom for x in range(len(spacing)))
+            spacing = tuple(
+                spacing[x] if x != 0 else spacing[x] / z_zoom
+                for x in range(len(spacing))
+            )
 
         # Activate chunked storage of requested
         if chunk_size is None:
@@ -107,7 +113,9 @@ class ImageData(object):
         #     reg_group = self.data.create_group(reg_group_name)
         #     reg_group[name] = image_group[name]
 
-    def add_registered_image(self, data, scale, index, channel, angle, spacing, chunk_size=None):
+    def add_registered_image(
+        self, data, scale, index, channel, angle, spacing, chunk_size=None
+    ):
         """
         Add a registered/resampled image to the HDF5 file.
 
@@ -145,9 +153,11 @@ class ImageData(object):
 
         name = "channel_" + str(channel) + "_scale_" + str(scale)
         if name in image_group:
-            if uiutils.get_user_input("The dataset %s already exists in image "
-                                      "group %s. Do you want to overwrite "
-                                      "it? " % (name, group_name)):
+            if uiutils.get_user_input(
+                f"The dataset {name} already exists in image "
+                f"group {group_name}. Do you want to overwrite "
+                "it? "
+            ):
                 del image_group[name]
             else:
                 return
@@ -162,8 +172,17 @@ class ImageData(object):
         image_group[name].attrs["spacing"] = spacing
         image_group[name].attrs["size"] = data.shape
 
-    def add_psf(self, data, scale, index, channel, angle, spacing, chunk_size=None,
-                calculated=False):
+    def add_psf(
+        self,
+        data,
+        scale,
+        index,
+        channel,
+        angle,
+        spacing,
+        chunk_size=None,
+        calculated=False,
+    ):
         """
         Add a PSF image to the HDF5 file.
 
@@ -210,7 +229,9 @@ class ImageData(object):
         image_group[name].attrs["size"] = data.shape
         image_group[name].attrs["calculated"] = calculated
 
-    def add_transform(self, scale, index, channel, params, fixed_params, transform_type):
+    def add_transform(
+        self, scale, index, channel, params, fixed_params, transform_type
+    ):
         """
         Adds a spatial transformation as an attribute to the corresponding registered
         view. This means that the registered/resampled image has to be added first, otherwise
@@ -228,10 +249,17 @@ class ImageData(object):
                                 what comes out of transform.GetFixedParameters()
         :param transform_type
         """
-        name = "registered/" + str(index) + "/channel_" + str(channel) + "_scale_" + str(scale)
+        name = (
+            "registered/"
+            + str(index)
+            + "/channel_"
+            + str(channel)
+            + "_scale_"
+            + str(scale)
+        )
 
         if name not in self.data:
-            raise ValueError("Dataset %s does not exist" % name)
+            raise ValueError(f"Dataset {name} does not exist")
 
         self.data[name].attrs["tfm_type"] = transform_type
         self.data[name].attrs["tfm_params"] = params
@@ -283,8 +311,8 @@ class ImageData(object):
         """
         if scale in self.get_scales(type):
             if uiutils.get_user_input(
-                            "The scale %i already exists for the image type "
-                            "%s. Do you want to recalculate?" % (scale, type)
+                "The scale %i already exists for the image type "
+                "%s. Do you want to recalculate?" % (scale, type)
             ):
                 pass
             else:
@@ -303,9 +331,11 @@ class ImageData(object):
                     continue
 
                 # Zoom
-                spacing = tuple(100*x/scale for x in image_group[name_ref].attrs["spacing"])
-                z_factor = float(scale)/100
-                zoom = (z_factor, ) * self.get_number_of_dimensions()
+                spacing = tuple(
+                    100 * x / scale for x in image_group[name_ref].attrs["spacing"]
+                )
+                z_factor = float(scale) / 100
+                zoom = (z_factor,) * self.get_number_of_dimensions()
                 data = ndimage.zoom(image_group[name_ref], zoom, order=3)
 
                 if chunk_size is None:
@@ -313,7 +343,9 @@ class ImageData(object):
                 else:
                     image_group.create_dataset(name_new, data=data, chunks=chunk_size)
 
-                image_group[name_new].attrs["angle"] = image_group[name_ref].attrs["angle"]
+                image_group[name_new].attrs["angle"] = image_group[name_ref].attrs[
+                    "angle"
+                ]
                 image_group[name_new].attrs["spacing"] = spacing
                 image_group[name_new].attrs["size"] = data.shape
 
@@ -325,11 +357,12 @@ class ImageData(object):
         """
         max_scale = max(self.get_scales("registered"))
         if max_scale < 100:
-            if uiutils.get_user_input("There is no registration result "
-                                      "available for the original images. The "
-                                      "largest available scale is %i. Do you "
-                                      "want to proceed with that? " %
-                                      max_scale):
+            if uiutils.get_user_input(
+                "There is no registration result "
+                "available for the original images. The "
+                "largest available scale is %i. Do you "
+                "want to proceed with that? " % max_scale
+            ):
                 pass
             else:
                 raise ValueError("No suitable registration result available.")
@@ -343,13 +376,18 @@ class ImageData(object):
                 if not self.check_if_exists("psf", index, channel, 100):
                     self.set_active_image(index, channel, max_scale, "registered")
                     transform = self.get_transform()
-                    psf_new = itkutils.rotate_psf(psf_orig,
-                                                  transform,
-                                                  image_spacing,
-                                                  return_numpy=True)
-                    self.add_psf(psf_new, 100, index, channel,
-                                 self.get_rotation_angle(), image_spacing,
-                                 calculated=True)
+                    psf_new = itkutils.rotate_psf(
+                        psf_orig, transform, image_spacing, return_numpy=True
+                    )
+                    self.add_psf(
+                        psf_new,
+                        100,
+                        index,
+                        channel,
+                        self.get_rotation_angle(),
+                        image_spacing,
+                        calculated=True,
+                    )
 
     def copy_registration_result(self, from_scale, to_scale):
         """
@@ -376,16 +414,24 @@ class ImageData(object):
         # Check that the registration result for the specified scale
         # exists.
         assert from_scale in self.get_scales("registered")
-        print("Copying registration results from %i to %i percent scale" % (
-              from_scale, to_scale))
+        print(
+            "Copying registration results from %i to %i percent scale"
+            % (from_scale, to_scale)
+        )
         if to_scale not in self.get_scales("original"):
             self.create_rescaled_images("original", to_scale)
 
         for channel in range(self.channel_count):
             print("Resampling view 0")
             self.set_active_image(0, channel, to_scale, "original")
-            self.add_registered_image(self.data[self.active_image][:], to_scale,
-                                      0, channel, 0, self.get_voxel_size())
+            self.add_registered_image(
+                self.data[self.active_image][:],
+                to_scale,
+                0,
+                channel,
+                0,
+                self.get_voxel_size(),
+            )
             self.set_active_image(0, channel, to_scale, "registered")
             reference = self.get_itk_image()
 
@@ -401,9 +447,17 @@ class ImageData(object):
                 result = itkutils.convert_from_itk_image(
                     itkutils.resample_image(image, transform, reference=reference)
                 )[0]
-                self.add_registered_image(result, to_scale, view, channel, angle,
-                                          spacing)
-                self.add_transform(to_scale, view, channel, transform_params[0], transform_params[1], transform_params[2])
+                self.add_registered_image(
+                    result, to_scale, view, channel, angle, spacing
+                )
+                self.add_transform(
+                    to_scale,
+                    view,
+                    channel,
+                    transform_params[0],
+                    transform_params[1],
+                    transform_params[2],
+                )
 
                 #  def add_transform(self, scale, index, channel, params, fixed_params, transform_type):
 
@@ -508,9 +562,10 @@ class ImageData(object):
                 scales_ref = scales
             else:
                 if set(scales_ref) != set(scales):
-                    raise ValueError("Database error. Resampled images have not been"
-                                     "saved consistently for image type %s" %
-                                     image_type)
+                    raise ValueError(
+                        "Database error. Resampled images have not been"
+                        f"saved consistently for image type {image_type}"
+                    )
 
         return scales
 
@@ -529,10 +584,7 @@ class ImageData(object):
         tfm_fixed_params = self.data[self.active_image].attrs["tfm_fixed_params"]
         ndim = self.get_number_of_dimensions()
 
-        return itkutils.make_itk_transform(tfm_type,
-                                           ndim,
-                                           tfm_params,
-                                           tfm_fixed_params)
+        return itkutils.make_itk_transform(tfm_type, ndim, tfm_params, tfm_fixed_params)
 
     def get_transform_parameters(self):
         assert "registered" in self.active_image
@@ -553,18 +605,31 @@ class ImageData(object):
         :param image_type   Image type as a string, listed in image_types_c
         """
         if int(index) >= self.series_count:
-            print("Invalid index. There are only %i images in the file" % self.series_count)
+            print(
+                "Invalid index. There are only %i images in the file"
+                % self.series_count
+            )
             return
         elif image_type not in image_types_c:
             print("Unkown image type.")
             return
         else:
             if image_type == "fused":
-                self.active_image = image_type + "/channel_" + str(channel) + "_scale_" + str(scale)
+                self.active_image = (
+                    image_type + "/channel_" + str(channel) + "_scale_" + str(scale)
+                )
             else:
-                self.active_image = image_type + "/" + str(index) + "/channel_" + str(channel) + "_scale_" + str(scale)
+                self.active_image = (
+                    image_type
+                    + "/"
+                    + str(index)
+                    + "/channel_"
+                    + str(channel)
+                    + "_scale_"
+                    + str(scale)
+                )
             if self.active_image not in self.data:
-                raise ValueError("No such image: %s" % self.active_image)
+                raise ValueError(f"No such image: {self.active_image}")
 
     # def set_fused_block(self, block, start_index):
     #     assert isinstance(block, numpy.ndarray) and isinstance(start_index, numpy.ndarray)
@@ -647,22 +712,25 @@ class ImageData(object):
         """
         Get the currently active image as a ITK image instead of a Numpy array.
         """
-        return itkutils.convert_from_numpy(self.data[self.active_image][:],
-
-                                           self.data[self.active_image].attrs["spacing"])
+        return itkutils.convert_from_numpy(
+            self.data[self.active_image][:],
+            self.data[self.active_image].attrs["spacing"],
+        )
 
     def get_image(self):
         """
         Get the currently active image as an Image object instead of a Numpy array
         """
-        return Image(self.data[self.active_image][:],
-                     self.data[self.active_image].attrs["spacing"])
+        return Image(
+            self.data[self.active_image][:],
+            self.data[self.active_image].attrs["spacing"],
+        )
 
     def get_active_image_index(self):
         """
         Get the image of the currently active image
         """
-        return self.active_image.split('/')[1]
+        return self.active_image.split("/")[1]
 
     def close(self):
         """
@@ -688,7 +756,15 @@ class ImageData(object):
         -------
         True if Yes, False if No.
         """
-        name = image_type + "/" + str(index) + "/channel_" + str(channel) + "_scale_" + str(scale)
+        name = (
+            image_type
+            + "/"
+            + str(index)
+            + "/channel_"
+            + str(channel)
+            + "_scale_"
+            + str(scale)
+        )
         return name in self.data
 
     def __getitem__(self, item):

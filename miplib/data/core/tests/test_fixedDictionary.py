@@ -25,10 +25,5 @@ class TestFixedDictionary(TestCase):
 
         keys, values = dictionary.contents
 
-        self.assertListEqual(keys, ['key3', 'key2', 'key1'])
-        self.assertListEqual(values, [(1, 2, 3), 23, 'temp'])
-
-
-
-
-
+        self.assertListEqual(keys, ["key3", "key2", "key1"])
+        self.assertListEqual(values, [(1, 2, 3), 23, "temp"])

@@ -1,10 +1,11 @@
 import os
-#import subprocess
 
-import SimpleITK as sitk
-import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
 import numpy as np
+
+# import subprocess
+import SimpleITK as sitk
 
 # import miplib.data.io.tiffile as tiffile
 #
@@ -41,15 +42,16 @@ def display_3d_slices(fixed_image_z, moving_image_z, fixed_npa, moving_npa):
 
     # draw the fixed data in the first subplot
     plt.subplot(1, 2, 1)
-    plt.imshow(fixed_npa[fixed_image_z, :, :], cmap='gray')
-    plt.title('fixed data')
-    plt.axis('off')
+    plt.imshow(fixed_npa[fixed_image_z, :, :], cmap="gray")
+    plt.title("fixed data")
+    plt.axis("off")
 
     # draw the moving data in the second subplot
     plt.subplot(1, 2, 2)
-    plt.imshow(moving_npa[moving_image_z, :, :], cmap='gray')
-    plt.title('moving data')
-    plt.axis('off')
+    plt.imshow(moving_npa[moving_image_z, :, :], cmap="gray")
+    plt.title("moving data")
+    plt.axis("off")
+
 
 # callback invoked by the ipython interact method for scrolling and modifying the alpha blending
 # of an data stack of two images that occupy the same physical space.
@@ -57,12 +59,11 @@ def display_3d_slices(fixed_image_z, moving_image_z, fixed_npa, moving_npa):
 
 def display_3d_slice_with_alpha(image_z, alpha, fixed, moving):
     img = (1.0 - alpha) * fixed[:, :, image_z] + alpha * moving[:, :, image_z]
-    plt.imshow(sitk.GetArrayFromImage(img), cmap='gray')
-    plt.axis('off')
+    plt.imshow(sitk.GetArrayFromImage(img), cmap="gray")
+    plt.axis("off")
 
 
 def create_axial_views_plot(image, x_idx, y_idx, z_idx):
-
     assert issubclass(image.__class__, np.ndarray)
     assert image.ndim == 3
 
@@ -72,38 +73,36 @@ def create_axial_views_plot(image, x_idx, y_idx, z_idx):
 
     yz = np.transpose(yz)
 
-    width_ratio = xy.shape[1]/yz.shape[1]
-    height_ratio = xy.shape[0]/xz.shape[0]
+    width_ratio = xy.shape[1] / yz.shape[1]
+    height_ratio = xy.shape[0] / xz.shape[0]
 
     fig = plt.figure(figsize=(8, 8))
-    gs = gridspec.GridSpec(2, 2,
-                           width_ratios=[width_ratio, 1],
-                           height_ratios=[height_ratio, 1])
+    gs = gridspec.GridSpec(
+        2, 2, width_ratios=[width_ratio, 1], height_ratios=[height_ratio, 1]
+    )
 
     ax0 = plt.subplot(gs[0, 0])
     ax0.imshow(xy, cmap="hot")
     ax0.set_title("XY")
-    ax0.axis('off')
+    ax0.axis("off")
 
     ax1 = plt.subplot(gs[0, 1])
     ax1.imshow(yz, cmap="hot")
     ax1.set_title("YZ")
-    ax1.axis('off')
+    ax1.axis("off")
 
-    ax2 = plt.subplot(gs[1,0])
+    ax2 = plt.subplot(gs[1, 0])
     ax2.imshow(xz, cmap="hot")
     ax2.set_title("XZ")
-    ax2.axis('off')
+    ax2.axis("off")
 
-    #fig.delaxes(axes[1, 1])
+    # fig.delaxes(axes[1, 1])
     return fig
 
 
-def display_2d_images(image1,
-                      image2,
-                      image1_title='image1',
-                      image2_title='image2',
-                      vertical=False):
+def display_2d_images(
+    image1, image2, image1_title="image1", image2_title="image2", vertical=False
+):
     """
     A function that can be used to display two SimpleITK images side by side.
     It is also possible to select paired landmarks from the two images, by
@@ -122,8 +121,10 @@ def display_2d_images(image1,
 
     if vertical:
         fig, (ax1, ax2) = plt.subplots(
-            2, 1, figsize=(13, 10),
-            gridspec_kw = {'height_ratios':[3, 1], 'width_ratios': [1, 1]}
+            2,
+            1,
+            figsize=(13, 10),
+            gridspec_kw={"height_ratios": [3, 1], "width_ratios": [1, 1]},
         )
     else:
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 10))
@@ -131,12 +132,12 @@ def display_2d_images(image1,
     # draw the fixed data in the first subplot
     ax1.imshow(image1, cmap="hot")
     ax1.set_title(image1_title)
-    ax1.axis('off')
+    ax1.axis("off")
 
     # draw the moving data in the second subplot
     ax2.imshow(image2, cmap="hot")
     ax2.set_title(image2_title)
-    ax2.axis('off')
+    ax2.axis("off")
 
     plt.show()
 
@@ -159,18 +160,18 @@ def display_2d_image(image):
     assert image.ndim == 2
 
     plt.imshow(image, cmap="rainbow")
-    plt.axis('off')
+    plt.axis("off")
     plt.show()
 
 
 def display_2d_slices_with_alpha(alpha, fixed, moving):
     img = (1.0 - alpha) * fixed + alpha * moving
-    plt.imshow(sitk.GetArrayFromImage(img), cmap='gray')
-    plt.axis('off')
+    plt.imshow(sitk.GetArrayFromImage(img), cmap="gray")
+    plt.axis("off")
 
 
 def display_2d_image_overlay(image1, image2, image3=None):
-    '''
+    """
     Overlays 2-3 images into a single RGB plot. This was intended for use in
     evaluating registration results.
     Parameters
@@ -182,7 +183,7 @@ def display_2d_image_overlay(image1, image2, image3=None):
     Returns     Nothing
     -------
 
-    '''
+    """
     if isinstance(image1, sitk.Image):
         image1 = sitk.GetArrayFromImage(image1)
     if isinstance(image2, sitk.Image):
@@ -194,10 +195,12 @@ def display_2d_image_overlay(image1, image2, image3=None):
     if image3 is None:
         image3 = np.zeros(image1.shape, dtype=np.uint8)
 
-    rgb_image = np.concatenate([aux[..., np.newaxis] for aux in (image1, image2, image3)], axis=-1)
+    rgb_image = np.concatenate(
+        [aux[..., np.newaxis] for aux in (image1, image2, image3)], axis=-1
+    )
 
     plt.imshow(rgb_image)
-    plt.axis('off')
+    plt.axis("off")
     plt.show()
 
 
@@ -230,7 +233,7 @@ def show_pics_from_disk(filenames, title="Image collage"):
             j = 0
             while j < subplots.shape[1] and k < len(filenames):
                 print(filenames[i + j])
-                subplots[i, j].imshow(plt.imread(filenames[k]), cmap='hot')
+                subplots[i, j].imshow(plt.imread(filenames[k]), cmap="hot")
                 subplots[i, j].set_title(os.path.basename(filenames[k]))
                 subplots[i, j].axis("off")
                 k += 1
@@ -244,4 +247,3 @@ def show_pics_from_disk(filenames, title="Image collage"):
         plt.imshow(plt.imread(filenames))
         plt.axis("off")
         plt.show()
-

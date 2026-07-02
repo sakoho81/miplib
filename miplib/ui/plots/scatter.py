@@ -1,11 +1,16 @@
 import matplotlib.pyplot as plt
+
 plt.style.use("seaborn-colorblind")
 
 
-def xy_scatter_plot_with_labels(x, y, labels, size=(3,3),
-                                x_title=r"X-offset ($\mathrm{\mu m}$)",
-                                y_title=r"Y-offset ($\mathrm{\mu m}$)"):
-
+def xy_scatter_plot_with_labels(
+    x,
+    y,
+    labels,
+    size=(3, 3),
+    x_title=r"X-offset ($\mathrm{\mu m}$)",
+    y_title=r"Y-offset ($\mathrm{\mu m}$)",
+):
     assert len(x) == len(y) == len(labels)
 
     fig, ax = plt.subplots(figsize=size)

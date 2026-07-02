@@ -6,7 +6,7 @@ Image objects in funcitons that were written for ArrayDetectorData.
 from miplib.data.containers.image import Image
 
 
-class ImageDataAdapter(object):
+class ImageDataAdapter:
     def __init__(self, data, kind="original", scale=100):
         self.data = data
 
@@ -32,7 +32,7 @@ class ImageDataAdapter(object):
         return Image(self.data[:], spacing)
 
 
-class ImageAdapter(object):
+class ImageAdapter:
     def __init__(self, data):
         self.data = data
 
@@ -50,7 +50,7 @@ class ImageAdapter(object):
         return self.data[gate, detector]
 
 
-class ArrayAdapter(object):
+class ArrayAdapter:
     def __init__(self, data, spacing):
         self.data = data
         self.spacing = spacing
@@ -67,6 +67,3 @@ class ArrayAdapter(object):
         gate, detector = item
 
         return Image(self.data[gate, detector], self.spacing)
-
-
-

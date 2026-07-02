@@ -8,6 +8,12 @@ __pycache__/
 # C extensions
 *.so
 
+# Cython generated C files
+*.c
+
+# macOS
+.DS_Store
+
 # Distribution / packaging
 .Python
 env/
@@ -74,3 +80,4 @@ notebooks/
 *.tif
 *.nd2
 *.tiff
+.claude/

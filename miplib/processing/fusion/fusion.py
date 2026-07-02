@@ -15,6 +15,7 @@ used in this file, can take advantage of MKL optimizations available
 in the Anaconda Accelerate package.
 
 """
+
 import itertools
 import os
 import shutil
@@ -23,19 +24,20 @@ import time
 
 import numpy as np
 import pandas
-
-import miplib.processing.ops_ext as ops_ext
 from scipy.ndimage.interpolation import zoom
-from scipy.signal import fftconvolve, medfilt
+from scipy.signal import fftconvolve
 
 import miplib.processing.ndarray as ops_array
+import miplib.processing.ops_ext as ops_ext
 import miplib.processing.to_string as ops_output
-from miplib.data.containers import image_data, image
+from miplib.data.containers import image_data
 from miplib.data.containers.image import Image
-from . import utils as fusion_utils
 from miplib.utils.generic import isiterable
 
-class MultiViewFusionRL(object):
+from . import utils as fusion_utils
+
+
+class MultiViewFusionRL:
     """
     The Richardson-Lucy fusion is a result of simultaneous deblurring of
     several 3D volumes.
@@ -54,7 +56,6 @@ class MultiViewFusionRL(object):
         self.options = options
         self.writer = writer
 
-        
         # Select views to fuse
         if self.options.fuse_views == -1:
             self.views = range(self.data.get_number_of_images("registered"))
@@ -67,13 +68,14 @@ class MultiViewFusionRL(object):
         self.weights = np.zeros(self.n_views, dtype=np.float32)
 
         for idx, view in enumerate(self.views):
-            self.data.set_active_image(view, self.options.channel,
-                                       self.options.scale, "registered")
+            self.data.set_active_image(
+                view, self.options.channel, self.options.scale, "registered"
+            )
 
             self.weights[idx] = self.data.get_max()
 
         self.weights /= self.weights.sum()
-        
+
         # Get background correction
         background = self.options.fusion_background
         if not isiterable(background) and background:
@@ -89,12 +91,13 @@ class MultiViewFusionRL(object):
             self.background = np.zeros(self.n_views)
 
         # Get image size
-        self.data.set_active_image(0, self.options.channel, self.options.scale,
-                                   "registered")
+        self.data.set_active_image(
+            0, self.options.channel, self.options.scale, "registered"
+        )
         self.image_size = self.data.get_image_size()
         self.imdims = len(self.image_size)
 
-        print("The original image size is {}".format(tuple(self.image_size)))
+        print(f"The original image size is {tuple(self.image_size)}")
 
         self.voxel_size = self.data.get_voxel_size()
         self.iteration_count = 0
@@ -108,25 +111,42 @@ class MultiViewFusionRL(object):
         # down the fusion process considerably..
         if self.options.memmap_estimates:
             estimate_new_f = os.path.join(self.memmap_directory, "estimate_new.dat")
-            self.estimate_new = Image(np.memmap(estimate_new_f, dtype='float32',
-                                                   mode='w+',
-                                                   shape=tuple(self.image_size)), self.voxel_size)
+            self.estimate_new = Image(
+                np.memmap(
+                    estimate_new_f,
+                    dtype="float32",
+                    mode="w+",
+                    shape=tuple(self.image_size),
+                ),
+                self.voxel_size,
+            )
 
             estimate_f = os.path.join(self.memmap_directory, "estimate.dat")
-            self.estimate = Image(np.memmap(estimate_f, dtype=np.float32,
-                                               mode='w+',
-                                               shape=tuple(self.image_size)), self.voxel_size)
+            self.estimate = Image(
+                np.memmap(
+                    estimate_f,
+                    dtype=np.float32,
+                    mode="w+",
+                    shape=tuple(self.image_size),
+                ),
+                self.voxel_size,
+            )
         else:
-            self.estimate = Image(np.zeros(tuple(self.image_size),
-                                              dtype=np.float32), self.voxel_size)
-            self.estimate_new = Image(np.zeros(tuple(self.image_size),
-                                                  dtype=np.float32), self.voxel_size)
+            self.estimate = Image(
+                np.zeros(tuple(self.image_size), dtype=np.float32), self.voxel_size
+            )
+            self.estimate_new = Image(
+                np.zeros(tuple(self.image_size), dtype=np.float32), self.voxel_size
+            )
 
         if not self.options.disable_tau1:
             prev_estimate_f = os.path.join(self.memmap_directory, "prev_estimate.dat")
-            self.prev_estimate = np.memmap(prev_estimate_f, dtype=np.float32,
-                                              mode='w+',
-                                              shape=tuple(self.image_size))
+            self.prev_estimate = np.memmap(
+                prev_estimate_f,
+                dtype=np.float32,
+                mode="w+",
+                shape=tuple(self.image_size),
+            )
         # Setup PSFs
         self.psfs = []
         self.adj_psfs = []
@@ -138,17 +158,22 @@ class MultiViewFusionRL(object):
             pass
 
         print("The fusion will be run with %i blocks" % self.num_blocks)
-        padded_block_size = tuple(i + 2 * self.options.block_pad for i in self.block_size)
-        print("The internal block size is %s" % (padded_block_size,))
+        padded_block_size = tuple(
+            i + 2 * self.options.block_pad for i in self.block_size
+        )
+        print(f"The internal block size is {padded_block_size}")
 
-        self.column_headers = ('t', 'tau1', 'leak', 'e',
-                               's', 'u', 'n', 'uesu')
-        self._progress_parameters = np.empty((self.options.max_nof_iterations, len(self.column_headers)),
-                                                dtype=np.float32)
+        self.column_headers = ("t", "tau1", "leak", "e", "s", "u", "n", "uesu")
+        self._progress_parameters = np.empty(
+            (self.options.max_nof_iterations, len(self.column_headers)),
+            dtype=np.float32,
+        )
 
     @property
     def progress_parameters(self):
-        return pandas.DataFrame(data=self._progress_parameters, columns=self.column_headers)
+        return pandas.DataFrame(
+            data=self._progress_parameters, columns=self.column_headers
+        )
 
     def compute_estimate(self):
         """
@@ -156,7 +181,7 @@ class MultiViewFusionRL(object):
         function -- it is used internally by the class during fusion process.
         """
 
-        print('Beginning the computation of the %i. estimate' % self.iteration_count)
+        print("Beginning the computation of the %i. estimate" % self.iteration_count)
 
         if "multiplicative" in self.options.fusion_method:
             self.estimate_new[:] = np.float32(1.0)
@@ -165,25 +190,29 @@ class MultiViewFusionRL(object):
 
         # Iterate over views
         for idx, view in enumerate(self.views):
-
             # Get PSFs for view
             psf = self.psfs[idx]
             adj_psf = self.adj_psfs[idx]
 
-            self.data.set_active_image(view, self.options.channel,
-                                       self.options.scale, "registered")
+            self.data.set_active_image(
+                view, self.options.channel, self.options.scale, "registered"
+            )
 
             weighting = self.weights[idx]
             background = self.background[idx]
 
-            iterables = (range(0, m, n) for m, n in zip(self.image_size, self.block_size))
+            iterables = (
+                range(0, m, n)
+                for m, n in zip(self.image_size, self.block_size, strict=False)
+            )
             pad = self.options.block_pad
             block_idx = tuple(slice(pad, pad + block) for block in self.block_size)
 
             # Iterate over blocks
             for pos in itertools.product(*iterables):
-
-                estimate_idx = tuple(slice(j, j + k) for j, k in zip(pos, self.block_size))
+                estimate_idx = tuple(
+                    slice(j, j + k) for j, k in zip(pos, self.block_size, strict=False)
+                )
                 index = np.array(pos, dtype=int)
                 if self.options.block_pad > 0:
                     estimate_block = self.get_padded_block(self.estimate, index.copy())
@@ -191,7 +220,7 @@ class MultiViewFusionRL(object):
                     estimate_block = self.estimate[estimate_idx]
 
                 # Execute: cache = convolve(PSF, estimate), non-normalized
-                estimate_block_new = fftconvolve(estimate_block, psf, mode='same')
+                estimate_block_new = fftconvolve(estimate_block, psf, mode="same")
 
                 # Apply weighting
                 estimate_block_new *= weighting
@@ -200,43 +229,48 @@ class MultiViewFusionRL(object):
                 estimate_block_new += background
 
                 # Execute: cache = data/cache
-                image_block = self.data.get_registered_block(self.block_size,
-                                                             self.options.block_pad,
-                                                             index.copy())
+                image_block = self.data.get_registered_block(
+                    self.block_size, self.options.block_pad, index.copy()
+                )
 
-                estimate_block_new = ops_array.safe_divide(image_block, estimate_block_new)
+                estimate_block_new = ops_array.safe_divide(
+                    image_block, estimate_block_new
+                )
 
                 # Execute: cache = convolve(PSF(-), cache), inverse of non-normalized
                 # Convolution with virtual PSFs is performed here as well, if
                 # necessary
-                estimate_block_new = fftconvolve(estimate_block_new, adj_psf, mode='same')
+                estimate_block_new = fftconvolve(
+                    estimate_block_new, adj_psf, mode="same"
+                )
 
                 self._write_estimate_block(estimate_block_new, estimate_idx, block_idx)
 
         # Divide with the number of projections
         if "summative" in self.options.fusion_method:
-            self.estimate_new *= (1.0 / self.n_views)
+            self.estimate_new *= 1.0 / self.n_views
         else:
-            self.estimate_new[:] = ops_array.nroot(self.estimate_new,
-                                                   self.n_views)
+            self.estimate_new[:] = ops_array.nroot(self.estimate_new, self.n_views)
 
         # TV Regularization (doesn't seem to do anything miraculous).
         if self.options.tv_lambda > 0 and self.iteration_count > 0:
             dv_est = ops_ext.div_unit_grad(self.estimate, self.voxel_size)
-            self.estimate_new = ops_array.safe_divide(self.estimate, (1.0 - self.options.rltv_lambda * dv_est))
+            self.estimate_new = ops_array.safe_divide(
+                self.estimate, (1.0 - self.options.rltv_lambda * dv_est)
+            )
 
-        return ops_ext.update_estimate_poisson(self.estimate,
-                                               self.estimate_new,
-                                               self.options.convergence_epsilon)
+        return ops_ext.update_estimate_poisson(
+            self.estimate, self.estimate_new, self.options.convergence_epsilon
+        )
 
     def _write_estimate_block(self, block, estimate_idx, block_idx):
-        """ Update the contribution from a single view to the new estimate
+        """Update the contribution from a single view to the new estimate
         :param block: the data block to save
         :param estimate_idx: the position of the block inside the image
         :param block_idx: the position of valid data inside the block (excluding padding)
         :return: Nothing
         """
-        
+
         if self.options.block_pad == 0:
             if "multiplicative" in self.options.fusion_method:
                 self.estimate_new[estimate_idx] *= block
@@ -261,34 +295,31 @@ class MultiViewFusionRL(object):
 
         first_estimate = self.options.first_estimate
 
-        self.data.set_active_image(0,
-                                   self.options.channel,
-                                   self.options.scale,
-                                   "registered")
+        self.data.set_active_image(
+            0, self.options.channel, self.options.scale, "registered"
+        )
 
-        if first_estimate == 'first_image':
+        if first_estimate == "first_image":
             self.estimate[:] = self.data[:].astype(np.float32)
-        elif first_estimate == 'first_image_mean':
+        elif first_estimate == "first_image_mean":
             self.estimate[:] = np.float32(np.mean(self.data[:]))
-        elif first_estimate == 'sum_of_originals':
-            self.estimate[:] = fusion_utils.sum_of_all(self.data,
-                                                       self.options.channel,
-                                                       self.options.scale)
-        elif first_estimate == 'sum_of_registered':
-            self.estimate[:] = fusion_utils.sum_of_all(self.data,
-                                                       self.options.channel,
-                                                       self.options.scale,
-                                                       "registered")
-        elif first_estimate == 'simple_fusion':
-            self.estimate[:] = fusion_utils.simple_fusion(self.data,
-                                                          self.options.channel,
-                                                          self.options.scale)
-        elif first_estimate == 'average_af_all':
-            self.estimate[:] = fusion_utils.average_of_all(self.data,
-                                                           self.options.channel,
-                                                           self.options.scale,
-                                                           "registered")
-        elif first_estimate == 'constant':
+        elif first_estimate == "sum_of_originals":
+            self.estimate[:] = fusion_utils.sum_of_all(
+                self.data, self.options.channel, self.options.scale
+            )
+        elif first_estimate == "sum_of_registered":
+            self.estimate[:] = fusion_utils.sum_of_all(
+                self.data, self.options.channel, self.options.scale, "registered"
+            )
+        elif first_estimate == "simple_fusion":
+            self.estimate[:] = fusion_utils.simple_fusion(
+                self.data, self.options.channel, self.options.scale
+            )
+        elif first_estimate == "average_af_all":
+            self.estimate[:] = fusion_utils.average_of_all(
+                self.data, self.options.channel, self.options.scale, "registered"
+            )
+        elif first_estimate == "constant":
             self.estimate[:] = np.float32(self.options.estimate_constant)
         else:
             raise NotImplementedError(repr(first_estimate))
@@ -297,20 +328,17 @@ class MultiViewFusionRL(object):
         max_count = self.options.max_nof_iterations
         initial_photon_count = self.data[:].sum()
 
-        bar = ops_output.ProgressBar(0,
-                                     max_count,
-                                     totalWidth=40,
-                                     show_percentage=False)
+        bar = ops_output.ProgressBar(0, max_count, totalWidth=40, show_percentage=False)
 
-        self._progress_parameters = np.zeros((self.options.max_nof_iterations,
-                                                 len(self.column_headers)),
-                                                dtype=np.float32)
+        self._progress_parameters = np.zeros(
+            (self.options.max_nof_iterations, len(self.column_headers)),
+            dtype=np.float32,
+        )
 
         # The Fusion calculation starts here
         # ====================================================================
         try:
             while True:
-
                 info_map = {}
                 ittime = time.time()
 
@@ -324,24 +352,40 @@ class MultiViewFusionRL(object):
                 u_esu = u / (e + s + u)
 
                 if not self.options.disable_tau1:
-                    tau1 = abs(self.estimate - self.prev_estimate).sum() / abs(
-                        self.prev_estimate).sum()
-                    info_map['TAU1=%s'] = tau1
+                    tau1 = (
+                        abs(self.estimate - self.prev_estimate).sum()
+                        / abs(self.prev_estimate).sum()
+                    )
+                    info_map["TAU1=%s"] = tau1
 
                 t = time.time() - ittime
                 leak = 100 * photon_leak
 
                 # Update UI
-                info_map['E/S/U/N=%s/%s/%s/%s'] = int(e), int(s), int(u), int(n)
-                info_map['LEAK=%s%%'] = leak
-                info_map['U/ESU=%s'] = u_esu
-                info_map['TIME=%ss'] = t
-                bar.updateComment(' ' + ', '.join([k % (ops_output.tostr(info_map[k])) for k in sorted(info_map)]))
+                info_map["E/S/U/N=%s/%s/%s/%s"] = int(e), int(s), int(u), int(n)
+                info_map["LEAK=%s%%"] = leak
+                info_map["U/ESU=%s"] = u_esu
+                info_map["TIME=%ss"] = t
+                bar.updateComment(
+                    " "
+                    + ", ".join(
+                        [k % (ops_output.tostr(info_map[k])) for k in sorted(info_map)]
+                    )
+                )
                 bar(self.iteration_count)
                 print()
 
                 # Save parameters to file
-                self._progress_parameters[self.iteration_count - 1] = (t, tau1, leak, e, s, u, n, u_esu)
+                self._progress_parameters[self.iteration_count - 1] = (
+                    t,
+                    tau1,
+                    leak,
+                    e,
+                    s,
+                    u,
+                    n,
+                    u_esu,
+                )
 
                 # Save intermediate image
                 if save_intermediate_results:
@@ -349,25 +393,29 @@ class MultiViewFusionRL(object):
 
                 # Check if it's time to stop:
                 if int(u) == 0 and int(n) == 0:
-                    stop_message = 'The number of non converging photons reached to zero.'
+                    stop_message = (
+                        "The number of non converging photons reached to zero."
+                    )
                     break
                 elif self.iteration_count >= max_count:
-                    stop_message = 'The number of iterations reached to maximal count: %s' % max_count
+                    stop_message = f"The number of iterations reached to maximal count: {max_count}"
                     break
-                elif not self.options.disable_tau1 and tau1 <= self.options.rltv_stop_tau:
-                    stop_message = 'Desired tau-threshold achieved'
+                elif (
+                    not self.options.disable_tau1 and tau1 <= self.options.rltv_stop_tau
+                ):
+                    stop_message = "Desired tau-threshold achieved"
                     break
                 else:
                     continue
 
         except KeyboardInterrupt:
-            stop_message = 'Iteration was interrupted by user.'
+            stop_message = "Iteration was interrupted by user."
 
         # if self.num_blocks > 1:
         #     self.estimate = self.estimate[0:real_size[0], 0:real_size[1], 0:real_size[2]]
 
         print()
-        bar.updateComment(' ' + stop_message)
+        bar.updateComment(" " + stop_message)
         bar(self.iteration_count)
         print()
 
@@ -377,8 +425,9 @@ class MultiViewFusionRL(object):
         Reads the PSFs from the HDF5 data structure and zooms to the same pixel
         size with the registered images, of selected scale and channel.
         """
-        self.data.set_active_image(0, self.options.channel,
-                                   self.options.scale, "registered")
+        self.data.set_active_image(
+            0, self.options.channel, self.options.scale, "registered"
+        )
         image_spacing = self.data.get_voxel_size()
 
         for i in self.views:
@@ -387,7 +436,9 @@ class MultiViewFusionRL(object):
             psf_spacing = self.data.get_voxel_size()
 
             # Zoom to the same voxel size
-            zoom_factors = tuple(x / y for x, y in zip(psf_spacing, image_spacing))
+            zoom_factors = tuple(
+                x / y for x, y in zip(psf_spacing, image_spacing, strict=False)
+            )
             psf_new = zoom(psf_orig, zoom_factors).astype(np.float32)
 
             psf_new /= psf_new.sum()
@@ -416,14 +467,9 @@ class MultiViewFusionRL(object):
                     pass
                 else:
                     cache = fftconvolve(
-                        fftconvolve(
-                            self.adj_psfs[i],
-                            self.psfs[j],
-                            mode='same'
-                        ),
+                        fftconvolve(self.adj_psfs[i], self.psfs[j], mode="same"),
                         self.adj_psfs[j],
-                        mode='same'
-
+                        mode="same",
                     )
 
                     virtual_psf *= cache.real
@@ -434,7 +480,6 @@ class MultiViewFusionRL(object):
             # self.virtual_psfs.append(virtual_psf)
 
     # endregion
-
 
     def __calculate_block_and_image_size(self):
         """
@@ -478,11 +523,15 @@ class MultiViewFusionRL(object):
             raise NotImplementedError
 
         if self.imdims == 2:
-            block_size = np.ceil(self.image_size.astype(np.float16) / multiplier2).astype(np.int64)
-            image_size += (multiplier2 * block_size - image_size)
+            block_size = np.ceil(
+                self.image_size.astype(np.float16) / multiplier2
+            ).astype(np.int64)
+            image_size += multiplier2 * block_size - image_size
         else:
-            block_size = np.ceil(self.image_size.astype(np.float16) / multiplier3).astype(np.int64)
-            image_size += (multiplier3 * block_size - image_size)
+            block_size = np.ceil(
+                self.image_size.astype(np.float16) / multiplier3
+            ).astype(np.int64)
+            image_size += multiplier3 * block_size - image_size
 
         return block_size, image_size
 
@@ -509,7 +558,10 @@ class MultiViewFusionRL(object):
         end_index = block_start_index + self.block_size + block_pad
         start_index = block_start_index - block_pad
 
-        idx = tuple(slice(start, stop) for start, stop in zip(start_index, end_index))
+        idx = tuple(
+            slice(start, stop)
+            for start, stop in zip(start_index, end_index, strict=False)
+        )
 
         # If the padded block fits within the image boundaries, nothing special
         # is needed to extract it. Normal np slicing notation is used.
@@ -541,8 +593,14 @@ class MultiViewFusionRL(object):
 
             end_index = start_index + block_end
 
-            block_idx = tuple(slice(start, stop) for start, stop in zip(block_start, block_end))
-            image_idx = tuple(slice(start, stop) for start, stop in zip(image_start, end_index))
+            block_idx = tuple(
+                slice(start, stop)
+                for start, stop in zip(block_start, block_end, strict=False)
+            )
+            image_idx = tuple(
+                slice(start, stop)
+                for start, stop in zip(image_start, end_index, strict=False)
+            )
 
             block[block_idx] = image[image_idx]
 
@@ -557,7 +615,7 @@ class MultiViewFusionRL(object):
         """
         if cast_to_8bit:
             result = self.estimate.copy()
-            result *= (255.0 / result.max())
+            result *= 255.0 / result.max()
             result[result < 0] = 0
             return Image(result, self.voxel_size)
 
@@ -568,16 +626,14 @@ class MultiViewFusionRL(object):
         Save result to the miplib data structure.
 
         """
-        self.data.set_active_image(0,
-                                   self.options.channel,
-                                   self.options.scale,
-                                   "registered")
+        self.data.set_active_image(
+            0, self.options.channel, self.options.scale, "registered"
+        )
         spacing = self.data.get_voxel_size()
 
-        self.data.add_fused_image(self.estimate,
-                                  self.options.channel,
-                                  self.options.scale,
-                                  spacing)
+        self.data.add_fused_image(
+            self.estimate, self.options.channel, self.options.scale, spacing
+        )
 
     # endregion
 

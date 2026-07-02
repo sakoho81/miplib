@@ -1,21 +1,21 @@
+import numpy as np
+import pandas as pd
 
 from miplib.data.core.dictionary import FixedDictionary
 
-import pandas as pd
-import numpy as np
 
-
-class FourierCorrelationDataCollection(object):
+class FourierCorrelationDataCollection:
     """
     A container for the directional Fourier correlation data
     """
+
     def __init__(self):
-        self._data = dict()
+        self._data = {}
 
         self.iter_index = 0
 
     def __setitem__(self, key, value):
-        assert isinstance(key, (int, np.integer))
+        assert isinstance(key, int | np.integer)
         assert isinstance(value, FourierCorrelationData)
 
         self._data[str(key)] = value
@@ -57,33 +57,36 @@ class FourierCorrelationDataCollection(object):
         :return: A dataframe with columns: Angle (categorical), Correlation (Y),
                  Frequency (X) and nPoints (number of points in each bin)
         """
-        df = pd.DataFrame(columns=['Correlation', 'Frequency', 'nPoints', 'Angle'])
+        df = pd.DataFrame(columns=["Correlation", "Frequency", "nPoints", "Angle"])
 
         for key, dataset in self._data.items():
             df_temp = dataset.as_dataframe(include_results=include_results)
 
             angle = np.full(len(df_temp), int(key), dtype=np.int64)
-            df_temp['Angle'] = angle
+            df_temp["Angle"] = angle
 
             df = pd.concat([df, df_temp], ignore_index=True)
 
-        df['Angle'] = df['Angle'].astype('category')
+        df["Angle"] = df["Angle"].astype("category")
         return df
 
 
-class FourierCorrelationData(object):
+class FourierCorrelationData:
     """
     A datatype for FRC data
 
     """
-    #todo: the dictionary format here is a bit clumsy. Maybe change to a simpler structure
+
+    # todo: the dictionary format here is a bit clumsy. Maybe change to a simpler structure
 
     def __init__(self, data=None):
-
-        correlation_keys = "correlation frequency points-x-bin curve-fit " \
-                           "curve-fit-coefficients"
-        resolution_keys = "threshold criterion resolution-point " \
-                          "resolution-threshold-coefficients resolution spacing"
+        correlation_keys = (
+            "correlation frequency points-x-bin curve-fit curve-fit-coefficients"
+        )
+        resolution_keys = (
+            "threshold criterion resolution-point "
+            "resolution-threshold-coefficients resolution spacing"
+        )
 
         self.resolution = FixedDictionary(resolution_keys.split())
         self.correlation = FixedDictionary(correlation_keys.split())
@@ -110,31 +113,36 @@ class FourierCorrelationData(object):
         """
         if include_results is False:
             to_df = {
-                'Correlation': self.correlation["correlation"],
-                'Frequency': self.correlation["frequency"],
-                'nPoints': self.correlation["points-x-bin"],
+                "Correlation": self.correlation["correlation"],
+                "Frequency": self.correlation["frequency"],
+                "nPoints": self.correlation["points-x-bin"],
             }
         else:
-            resolution = np.full(self.correlation["correlation"].shape,
-                                 self.resolution["resolution"],
-                                 dtype=np.float32)
-            resolution_point_x = np.full(self.correlation["correlation"].shape,
-                                         self.resolution["resolution-point"][0],
-                                         dtype=np.float32)
-            resolution_point_y = np.full(self.correlation["correlation"].shape,
-                                         self.resolution["resolution-point"][1],
-                                         dtype=np.float32)
-            threshold = self.resolution["threshold"],
+            resolution = np.full(
+                self.correlation["correlation"].shape,
+                self.resolution["resolution"],
+                dtype=np.float32,
+            )
+            resolution_point_x = np.full(
+                self.correlation["correlation"].shape,
+                self.resolution["resolution-point"][0],
+                dtype=np.float32,
+            )
+            resolution_point_y = np.full(
+                self.correlation["correlation"].shape,
+                self.resolution["resolution-point"][1],
+                dtype=np.float32,
+            )
+            threshold = (self.resolution["threshold"],)
 
             to_df = {
-                'Correlation': self.correlation["correlation"],
-                'Frequency': self.correlation["frequency"],
-                'nPoints': self.correlation["points-x-bin"],
-                'Resolution': resolution,
-                'Resolution_X': resolution_point_x,
-                'Resolution_Y': resolution_point_y,
-                'Threshold': threshold
-
+                "Correlation": self.correlation["correlation"],
+                "Frequency": self.correlation["frequency"],
+                "nPoints": self.correlation["points-x-bin"],
+                "Resolution": resolution,
+                "Resolution_X": resolution_point_x,
+                "Resolution_Y": resolution_point_y,
+                "Threshold": threshold,
             }
 
         return pd.DataFrame(to_df)
