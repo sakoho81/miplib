@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import SimpleITK as sitk
 from scipy.ndimage import fourier_shift
-from skimage.feature import register_translation
+from skimage.registration import phase_cross_correlation
 
 import miplib.processing.itk as ops_itk
 import miplib.ui.plots.image as show
@@ -518,7 +518,9 @@ def phase_correlation_registration(
     assert isinstance(fixed_image, Image)
     assert isinstance(moving_image, Image)
 
-    shift, error, diffphase = register_translation(fixed_image, moving_image, subpixel)
+    shift, error, diffphase = phase_cross_correlation(
+        fixed_image, moving_image, upsample_factor=subpixel
+    )
 
     scaled_shifts = [
         -offset * spacing

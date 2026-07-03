@@ -18,9 +18,9 @@ repos:
     hooks:
       - id: ruff
         args: [--fix]
-        exclude: \.pyx$
+        exclude: \.pyx$|\.ipynb$
       - id: ruff-format
-        exclude: \.pyx$
+        exclude: \.pyx$|\.ipynb$
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.17.1
@@ -29,3 +29,4 @@ repos:
         additional_dependencies: [types-requests]
         args: [--ignore-missing-imports, --no-strict-optional]
         exclude: ^(tests/|setup\.py)
+        stages: [pre-push]
