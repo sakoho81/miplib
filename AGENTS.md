@@ -44,6 +44,7 @@ miplib/
 - **Package manager**: `uv` — use `uv sync --group dev` to install all deps
 - **Linting/formatting**: `ruff` (line-length 88, double quotes, isort)
 - **pre-commit**: CI runs `pre-commit run --all-files`
+- **mypy**: Runs on pre-push (via pre-commit hook). Parameters: `--ignore-missing-imports --no-strict-optional`. Excludes `tests/` and `setup.py`.
 - **Cython extension**: `miplib/processing/ops_ext.pyx` compiled via `setup.py`, outputs `.so` files in `miplib/processing/`
 - **CI**: `.github/workflows/ci.yml` — runs pre-commit and `pytest tests/`
 

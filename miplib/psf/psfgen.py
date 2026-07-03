@@ -1,6 +1,6 @@
 import math
 
-from psf import _psf, psf
+from psf import _psf, psf  # type: ignore[attr-defined]
 
 from miplib.analysis.resolution import fourier_ring_correlation as frc
 from miplib.data.containers.image import Image

@@ -29,3 +29,4 @@ repos:
         additional_dependencies: [types-requests]
         args: [--ignore-missing-imports, --no-strict-optional]
         exclude: ^(tests/|setup\.py)
+        stages: [pre-push]

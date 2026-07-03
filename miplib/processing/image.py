@@ -79,7 +79,7 @@ def apply_hanning(image):  # type: (Image) -> Image
 
     result = Image(image.astype("float64"), image.spacing)
     for window in windows:
-        result *= window
+        result *= window  # type: ignore[misc]
 
     return result
 
