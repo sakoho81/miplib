@@ -38,10 +38,6 @@ class TestApplyHammingWindow:
         mid = result.shape[0] // 2
         assert result[0, 0] < result[mid, mid]
 
-    def test_type_error_on_non_ndarray(self):
-        with pytest.raises(TypeError, match="Expected np.ndarray"):
-            apply_hamming_window([1, 2, 3])
-
 
 class TestApplyTukeyWindow:
     @pytest.mark.parametrize("shape", [(16,), (8, 8)])
@@ -74,7 +70,3 @@ class TestApplyTukeyWindow:
         result = apply_tukey_window(data)
         mid = len(result) // 2
         assert result[0] < result[mid]
-
-    def test_type_error_on_non_ndarray(self):
-        with pytest.raises(TypeError, match="Expected np.ndarray"):
-            apply_tukey_window([1, 2, 3])

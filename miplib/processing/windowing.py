@@ -22,9 +22,6 @@ def _nd_window(
 
 def apply_hamming_window(data: np.ndarray) -> np.ndarray:
     """Apply a Hamming window to N-dimensional data."""
-    if not isinstance(data, np.ndarray):
-        raise TypeError(f"Expected np.ndarray, got {type(data).__name__}")
-
     return _nd_window(data, np.hamming)
 
 
@@ -32,7 +29,4 @@ def apply_tukey_window(
     data: np.ndarray, alpha: float = 0.25, sym: bool = True
 ) -> np.ndarray:
     """Apply a Tukey window to N-dimensional data."""
-    if not isinstance(data, np.ndarray):
-        raise TypeError(f"Expected np.ndarray, got {type(data).__name__}")
-
     return _nd_window(data, tukey, alpha=alpha, sym=sym)
