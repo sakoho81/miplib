@@ -93,9 +93,9 @@ The vast majority of modules have zero test coverage. Priority candidates (small
 | ✓ done | `tests/processing/test_ops_ext.py` | Cython extension ops |
 | ✓ done | `tests/utils/test_numeric.py` | `find_next_power_of_2` |
 | ✓ done | `tests/processing/test_converters.py` | deg↔rad conversion |
+| ✓ done | `tests/processing/test_ndarray.py` | ndarray helper functions |
+| ✓ done | `tests/processing/test_to_string.py` | String formatting utilities |
 | medium | `processing/fftutils.py` | FFT wrappers, FFT filters |
-| medium | `processing/ndarray.py` | ndarray helper functions |
-| medium | `processing/to_string.py` | String formatting utilities |
 | medium | `data/coordinates/polar.py` | Polar coordinate grids |
 | lower | `processing/deconvolution/*` | Needs image test data |
 | lower | `processing/fusion/*` | Needs image test data |

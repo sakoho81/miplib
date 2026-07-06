@@ -1,19 +1,18 @@
 import hashlib
 import sys
 import time
+from typing import Any
 
 import numpy
 
 VERBOSE = False
 
 
-def concatenate_to_csv(values):
-    assert isinstance(values, tuple) or isinstance(values, list)
-
+def concatenate_to_csv(values: tuple[float, ...] | list[float]) -> str:
     return ",".join(f"{s:.6f}" for s in values)
 
 
-def argument_string(obj):
+def argument_string(obj: object) -> str:
     if isinstance(obj, str):
         return repr(obj)
     if isinstance(obj, int | float | complex):
@@ -38,10 +37,7 @@ def argument_string(obj):
 def time_it(func):
     """Decorator: print how long calling given function took.
 
-    Notes
-    -----
-    ``iocbio.utils.VERBOSE`` must be True for this decorator to be
-    effective.
+    Only active when ``VERBOSE`` is True.
     """
     if not VERBOSE:
         return func
@@ -63,7 +59,7 @@ def time_it(func):
     return new_func
 
 
-def format_time_string(seconds):
+def format_time_string(seconds: float) -> str:
     m, s = divmod(seconds, 60)
     h, m = divmod(m, 60)
     return "%d:%02d:%02d" % (h, m, s)
@@ -95,8 +91,13 @@ class ProgressBar:
     """
 
     def __init__(
-        self, minValue=0, maxValue=100, totalWidth=80, prefix="", show_percentage=True
-    ):
+        self,
+        minValue: float = 0,
+        maxValue: float = 100,
+        totalWidth: int = 80,
+        prefix: str = "",
+        show_percentage: bool = True,
+    ) -> None:
         self.show_percentage = show_percentage
         self.progBar = self.progBar_last = "[]"  # This holds the progress bar string
         self.min = minValue
@@ -110,13 +111,11 @@ class ProgressBar:
         self.prefix = prefix
         self.comment = self.comment_last = ""
 
-    def updateComment(self, comment):
+    def updateComment(self, comment: str) -> None:
         self.comment = comment
 
-    def updateAmount(self, newAmount=0):
-        """Update the progress bar with the new amount (with min and max
-        values set at initialization; if it is over or under, it takes the
-        min or max value as a default."""
+    def updateAmount(self, newAmount: float = 0) -> None:
+        """Update the progress bar with the new amount."""
         if newAmount and self.starting_amount is None:
             self.starting_amount = newAmount
             self.starting_time = time.time()
@@ -174,12 +173,11 @@ class ProgressBar:
                 eta = elapsed * (self.max - self.amount) / float(amount_diff)
                 self.progBar += " ETA:" + time_to_str(eta)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.progBar)
 
-    def __call__(self, value):
-        """Updates the amount, and writes to stdout. Prints a carriage return
-        first, so it will overwrite the current line in stdout."""
+    def __call__(self, value: float) -> None:
+        """Update the amount and write the progress bar to stdout."""
         self.updateAmount(value)
         if self.progBar_last == self.progBar and self.comment == self.comment_last:
             return
@@ -206,31 +204,32 @@ class Holder:
       value = <Holder instance>.<name>
     """
 
-    def __init__(self, descr):
+    def __init__(self, descr: str) -> None:
         self._descr = descr
         self._counter = 0
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self._descr % (self.__dict__)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}({str(self)!r})"
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         raise AttributeError(f"{self!r} instance has no attribute {name!r}")
 
-    def __setattr__(self, name, obj):
+    def __setattr__(self, name: str, obj: object) -> None:
         if name not in self.__dict__ and "_counter" in self.__dict__:
             self._counter += 1
         self.__dict__[name] = obj
 
-    def iterNameValue(self):
+    def iterNameValue(self) -> Any:
+        """Yield (name, value) pairs for all non-private attributes."""
         for k, v in self.__dict__.items():
             if k.startswith("_"):
                 continue
             yield k, v
 
-    def copy(self, **kws):
+    def copy(self, **kws: Any) -> "Holder":
         r = self.__class__(self._descr + " - a copy")
         for name, value in self.iterNameValue():
             setattr(r, name, value)
@@ -244,13 +243,13 @@ options = Holder("Options")
 alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 
-def getalpha(r):
+def getalpha(r: int) -> str:
     if r >= len(alphabet):
         return "_" + nary(r - len(alphabet), len(alphabet))
     return alphabet[r]
 
 
-def nary(number, base=64):
+def nary(number: int | str, base: int = 64) -> str:
     if isinstance(number, str):
         number = eval(number)
     n = number
@@ -263,12 +262,14 @@ def nary(number, base=64):
     return s
 
 
-def encode(string):
+def encode(string: str | bytes) -> str:
     """Return encoded string."""
+    if isinstance(string, str):
+        string = string.encode()
     return nary("0x" + hashlib.md5(string).hexdigest())
 
 
-def fix_exp_str(s):
+def fix_exp_str(s: str) -> str:
     return (
         s.replace("e+00", "")
         .replace("e+0", "E")
@@ -278,7 +279,7 @@ def fix_exp_str(s):
     )
 
 
-def float_to_str(x):
+def float_to_str(x: float) -> str:
     if abs(x) >= 1000:
         return fix_exp_str(f"{x:.1e}")
     if abs(x) >= 100:
@@ -296,13 +297,8 @@ def float_to_str(x):
     return fix_exp_str(f"{x:.2e}")
 
 
-def tostr(x):
-    """Return pretty string representation of x.
-
-    Parameters
-    ----------
-    x : {tuple, float, :numpy:.float32, :numpy:.float64}
-    """
+def tostr(x: object) -> str | tuple[str, ...]:
+    """Return pretty string representation of x."""
     if isinstance(x, tuple):
         return tuple(map(tostr, x))
     if isinstance(x, float | numpy.float32 | numpy.float64):
@@ -310,29 +306,28 @@ def tostr(x):
     return str(x)
 
 
-def time_to_str(s):
+def time_to_str(s: float) -> str:
     """Return human readable time string from seconds.
 
     Examples
     --------
-    >>> from miplib.processing.to_string import time_to_str
-    >>> print time_to_str(123000000)
+    >>> print(time_to_str(123000000))
     3Y10M24d10h40m
-    >>> print time_to_str(1230000)
+    >>> print(time_to_str(1230000))
     14d5h40m
-    >>> print time_to_str(1230)
+    >>> print(time_to_str(1230))
     20m30.0s
-    >>> print time_to_str(0.123)
+    >>> print(time_to_str(0.123))
     123ms
-    >>> print time_to_str(0.000123)
+    >>> print(time_to_str(0.000123))
     123us
-    >>> print time_to_str(0.000000123)
+    >>> print(time_to_str(0.000000123))
     123ns
 
     """
     seconds_in_year = 31556925.9747  # a standard SI year
     years = int(s / (seconds_in_year))
-    r = []
+    r: list[str] = []
     if years:
         r.append(f"{years}Y")
         s -= years * (seconds_in_year)
@@ -355,22 +350,18 @@ def time_to_str(s):
     seconds = int(s)
     if seconds:
         r.append(f"{s:.1f}s")
-        s -= seconds
     elif not r:
         mseconds = int(s * 1000)
         if mseconds:
             r.append(f"{mseconds}ms")
-            s -= mseconds / 1000
-        elif not r:
+        else:
             useconds = int(s * 1000000)
             if useconds:
                 r.append(f"{useconds}us")
-                s -= useconds / 1000000
-            elif not r:
+            else:
                 nseconds = int(s * 1000000000)
                 if nseconds:
                     r.append(f"{nseconds}ns")
-                    s -= nseconds / 1000000000
     if not r:
         return "0"
     return "".join(r)
