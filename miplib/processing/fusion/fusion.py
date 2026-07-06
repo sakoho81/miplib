@@ -32,6 +32,7 @@ import miplib.processing.ops_ext as ops_ext
 import miplib.processing.to_string as ops_output
 from miplib.data.containers import image_data
 from miplib.data.containers.image import Image
+from miplib.ui.progress import ProgressBar
 from miplib.utils.generic import isiterable
 
 from . import utils as fusion_utils
@@ -328,7 +329,7 @@ class MultiViewFusionRL:
         max_count = self.options.max_nof_iterations
         initial_photon_count = self.data[:].sum()
 
-        bar = ops_output.ProgressBar(0, max_count, totalWidth=40, show_percentage=False)
+        bar = ProgressBar(0, max_count, total_width=40, show_percentage=False)
 
         self._progress_parameters = np.zeros(
             (self.options.max_nof_iterations, len(self.column_headers)),
@@ -366,7 +367,7 @@ class MultiViewFusionRL:
                 info_map["LEAK=%s%%"] = leak
                 info_map["U/ESU=%s"] = u_esu
                 info_map["TIME=%ss"] = t
-                bar.updateComment(
+                bar.update_comment(
                     " "
                     + ", ".join(
                         [k % (ops_output.tostr(info_map[k])) for k in sorted(info_map)]
@@ -415,7 +416,7 @@ class MultiViewFusionRL:
         #     self.estimate = self.estimate[0:real_size[0], 0:real_size[1], 0:real_size[2]]
 
         print()
-        bar.updateComment(" " + stop_message)
+        bar.update_comment(" " + stop_message)
         bar(self.iteration_count)
         print()
 

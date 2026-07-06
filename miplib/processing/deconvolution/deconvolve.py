@@ -35,6 +35,7 @@ import miplib.psf.psfgen as psfgen
 from miplib.data.containers.image import Image
 from miplib.data.messages.image_writer_wrappers import ImageWriterBase
 from miplib.processing.segmentation import masking
+from miplib.ui.progress import ProgressBar
 
 logger = logging.getLogger(__name__)
 
@@ -259,7 +260,7 @@ class DeconvolutionRL:
         max_count = self.options.max_nof_iterations
         initial_photon_count = self.image[:].sum()
 
-        bar = ops_output.ProgressBar(0, max_count, totalWidth=40, show_percentage=False)
+        bar = ProgressBar(0, max_count, total_width=40, show_percentage=False)
 
         self._progress_parameters = numpy.zeros(
             (self.options.max_nof_iterations, len(self.column_headers)),
@@ -309,7 +310,7 @@ class DeconvolutionRL:
                     info_map["U/ESU=%s"] = u_esu
                     info_map["TIME=%ss"] = t
 
-                    bar.updateComment(
+                    bar.update_comment(
                         " "
                         + ", ".join(
                             [
@@ -380,7 +381,7 @@ class DeconvolutionRL:
         #     self.estimate = self.estimate[0:real_size[0], 0:real_size[1], 0:real_size[2]]
         if self.options.verbose:
             logger.info("")
-            bar.updateComment(" " + stop_message)
+            bar.update_comment(" " + stop_message)
             bar(self.iteration_count)
             logger.info("")
 
