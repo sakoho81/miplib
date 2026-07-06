@@ -91,11 +91,8 @@ The vast majority of modules have zero test coverage. Priority candidates (small
 | Priority | Module | Description |
 |----------|--------|-------------|
 | ✓ done | `tests/processing/test_ops_ext.py` | Cython extension ops |
-| high | `utils/numeric.py` | `find_next_power_of_2` |
-| high | `utils/generic.py` | `isiterable` |
-| high | `utils/string.py` | `common_start`, `common_string` |
-| high | `processing/converters.py` | deg↔rad conversion |
-| medium | `processing/windowing.py` | Hamming/Tukey windows |
+| ✓ done | `tests/utils/test_numeric.py` | `find_next_power_of_2` |
+| ✓ done | `tests/processing/test_converters.py` | deg↔rad conversion |
 | medium | `processing/fftutils.py` | FFT wrappers, FFT filters |
 | medium | `processing/ndarray.py` | ndarray helper functions |
 | medium | `processing/to_string.py` | String formatting utilities |
@@ -108,7 +105,21 @@ The vast majority of modules have zero test coverage. Priority candidates (small
 ## Code Style
 
 - Python >=3.11, no legacy compat needed
-- Line length 88 (ruff)
-- Double quotes (ruff format)
-- isort import ordering (ruff): stdlib, third-party, `miplib`
+- Line length 88 (ruff), double quotes, isort import ordering
 - Cython files (`.pyx`) use `language_level=3`
+
+### Type annotations
+- Add type annotations to all function signatures when touching a module
+- Prefer concise docstrings (one-line summary) over `:param`/`:type`/`:rtype` directives — type annotations carry that information
+
+### Logging
+- Use `logging` (`logging.getLogger(__name__)`) instead of `print()` in library code
+- `print()` is acceptable only in CLI entry points (`miplib/bin/`)
+
+### Assertions vs. type checks
+- Prefer static type checking (mypy) over runtime assertions for type validation
+- Prefer static type checking alone — delete runtime `isinstance`/`issubclass` checks unless the function is a public API boundary where static analysis can't protect callers
+- Avoid bare `assert` for input validation in library functions — raise `TypeError`/`ValueError` explicitly (assertions can be disabled with `python -O`)
+
+### When writing tests for a module
+- Fix obvious code quality issues alongside: missing type annotations, outdated docstring style, `print()` → `logging`, assertion anti-patterns
