@@ -78,8 +78,8 @@ def nary(number: int | str, base: int = 64) -> str:
     n = number
     s = ""
     while n:
-        n1 = n // base
-        r = n - n1 * base
+        n1 = n // base  # type: ignore[operator]
+        r = n - n1 * base  # type: ignore[operator]
         n = n1
         s = getalpha(r) + s
     return s
@@ -120,12 +120,12 @@ def float_to_str(x: float) -> str:
     return fix_exp_str(f"{x:.2e}")
 
 
-def tostr(x: object) -> str | tuple[str, ...]:
+def tostr(x: object) -> object:
     """Return pretty string representation of x."""
     if isinstance(x, tuple):
-        return tuple(map(tostr, x))
+        return tuple(map(tostr, x))  # type: ignore[arg-type]
     if isinstance(x, float | numpy.float32 | numpy.float64):
-        return float_to_str(x)
+        return float_to_str(float(x))
     return str(x)
 
 

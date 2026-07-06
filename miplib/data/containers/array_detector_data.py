@@ -42,7 +42,9 @@ class ArrayDetectorData:
     """
 
     def __init__(self, detectors: int, gates: int) -> None:
-        self._data_container = [[None] * detectors for _ in range(gates)]
+        self._data_container: list[list[Image | None]] = [
+            [None] * detectors for _ in range(gates)
+        ]
         self._n_detectors = detectors
         self._n_gates = gates
         self._iteration_axis = "detectors"
