@@ -11,8 +11,8 @@ import numpy as np
 import pandas
 
 import miplib.analysis.resolution.fourier_ring_correlation as frc
-import miplib.processing.to_string as strutils
 import miplib.ui.cli.miplib_entry_point_options as options
+import miplib.utils.string as strutils
 from miplib.data.io import read as imread
 
 

@@ -95,6 +95,7 @@ The vast majority of modules have zero test coverage. Priority candidates (small
 | ✓ done | `tests/processing/test_converters.py` | deg↔rad conversion |
 | ✓ done | `tests/processing/test_ndarray.py` | ndarray helper functions |
 | ✓ done | `tests/processing/test_to_string.py` | String formatting utilities |
+| ✓ done | `tests/ui/test_progress.py` | Terminal progress bar |
 | medium | `processing/fftutils.py` | FFT wrappers, FFT filters |
 | medium | `data/coordinates/polar.py` | Polar coordinate grids |
 | lower | `processing/deconvolution/*` | Needs image test data |
