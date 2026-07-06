@@ -15,8 +15,8 @@ def test_default_construction():
 def test_str_after_construction():
     bar = ProgressBar(total_width=20)
     result = str(bar)
-    assert result.startswith("[")
-    assert result.endswith("]")
+    assert len(result) == 20
+    assert "0%" in result
 
 
 def test_update_amount_zero_percent():
@@ -24,14 +24,13 @@ def test_update_amount_zero_percent():
     bar.update_amount(0)
     result = str(bar)
     assert ">" in result
-    assert "=" not in result
+    assert "0%" in result
 
 
 def test_update_amount_full():
     bar = ProgressBar(total_width=40)
     bar.update_amount(100)
     result = str(bar)
-    assert result.startswith("[")
     assert "100%" in result
 
 
@@ -81,6 +80,7 @@ def test_call_writes_to_stdout():
     sys.stdout = sys.__stdout__
     output = captured.getvalue()
     assert "50%" in output
+    assert "\r" in output
 
 
 def test_update_amount_changes_bar():
@@ -99,7 +99,6 @@ def test_call_writes_after_comment_change():
     sys.stdout = captured
     bar(50)
     sys.stdout = sys.__stdout__
-    assert captured.getvalue() != ""
     assert "x" in captured.getvalue()
 
 
@@ -125,7 +124,7 @@ def test_prefix_in_output():
     sys.stdout = captured
     bar(100)
     sys.stdout = sys.__stdout__
-    assert "Test: " in captured.getvalue()
+    assert captured.getvalue().startswith("\r Test: ")
 
 
 def test_custom_dims():
@@ -133,6 +132,7 @@ def test_custom_dims():
     bar.update_amount(60)
     result = str(bar)
     assert "50%" in result
+    assert len(result) > 50  # includes ETA
 
 
 def test_bar_structure_empty():
@@ -140,6 +140,7 @@ def test_bar_structure_empty():
     bar.update_amount(0)
     result = str(bar)
     assert ">" in result
+    assert "0%" in result
 
 
 def test_bar_structure_full():
@@ -147,3 +148,4 @@ def test_bar_structure_full():
     bar.update_amount(100)
     result = str(bar)
     assert ">" not in result
+    assert "100%" in result

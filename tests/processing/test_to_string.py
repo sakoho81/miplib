@@ -21,8 +21,7 @@ def test_concatenate_to_csv_single():
 
 
 def test_concatenate_to_csv_multiple():
-    result = concatenate_to_csv([1.0, 2.5, 3.14159])
-    assert result == "1.000000,2.500000,3.141590"
+    assert concatenate_to_csv([1.0, 2.5, 3.14159]) == "1.000000,2.500000,3.141590"
 
 
 def test_argument_string_str():
@@ -72,8 +71,7 @@ def test_argument_string_none():
 
 def test_argument_string_unknown_type():
     result = argument_string(object())
-    assert result.startswith("<")
-    assert result.endswith(">")
+    assert result == "<object>"
 
 
 def test_format_time_string_zero():
@@ -136,67 +134,56 @@ def test_float_to_str_zero():
     assert float_to_str(0.0) == "0.0"
 
 
-def test_float_to_str_small_uses_exp():
-    assert "e" in float_to_str(0.005).lower()
+def test_float_to_str_small_magnitude():
+    assert float_to_str(0.005) == "5.00E-3"
 
 
 def test_tostr_float():
-    assert isinstance(tostr(3.14), str)
+    assert tostr(3.14) == "3.14"
 
 
 def test_tostr_tuple():
-    result = tostr((1.0, 2.0))
-    assert isinstance(result, tuple)
-    assert all(isinstance(x, str) for x in result)
+    assert tostr((1.0, 2.0)) == ("1.00", "2.00")
 
 
 def test_tostr_non_float():
-    assert isinstance(tostr("hello"), str)
+    assert tostr("hello") == "hello"
 
 
 def test_time_to_str_years():
-    result = time_to_str(63113851.0)
-    assert "Y" in result
+    assert time_to_str(63113851.0) == "1Y11M30d10h29m2.9s"
 
 
 def test_time_to_str_months():
-    result = time_to_str(26300000.0)
-    assert "M" in result and "Y" not in result
+    assert time_to_str(26300000.0) == "10M42m41.7s"
 
 
 def test_time_to_str_days():
-    result = time_to_str(86400 * 3)
-    assert "d" in result
+    assert time_to_str(86400 * 3) == "3d"
 
 
 def test_time_to_str_hours():
-    result = time_to_str(3600 * 5)
-    assert "h" in result
+    assert time_to_str(3600 * 5) == "5h"
 
 
 def test_time_to_str_minutes():
-    result = time_to_str(120)
-    assert "m" in result
+    assert time_to_str(120) == "2m"
 
 
 def test_time_to_str_seconds():
-    result = time_to_str(30.5)
-    assert "s" in result
+    assert time_to_str(30.5) == "30.5s"
 
 
 def test_time_to_str_milliseconds():
-    result = time_to_str(0.5)
-    assert "ms" in result
+    assert time_to_str(0.5) == "500ms"
 
 
 def test_time_to_str_microseconds():
-    result = time_to_str(0.0005)
-    assert "us" in result
+    assert time_to_str(0.0005) == "500us"
 
 
 def test_time_to_str_nanoseconds():
-    result = time_to_str(0.0000005)
-    assert "ns" in result
+    assert time_to_str(0.0000005) == "500ns"
 
 
 def test_time_to_str_zero():

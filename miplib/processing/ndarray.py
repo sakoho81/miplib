@@ -14,7 +14,7 @@ def nroot(array: np.ndarray | float, n: float) -> np.ndarray | float:
 
 def normalize(array: np.ndarray) -> np.ndarray:
     """Normalize by dividing each element by the array sum."""
-    return array / array.sum()
+    return safe_divide(array, array.sum())
 
 
 def float2dtype(float_type: str | None) -> type[np.float32] | type[np.float64]:

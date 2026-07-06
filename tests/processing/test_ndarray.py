@@ -122,16 +122,14 @@ def test_start_to_stop_idx():
     start = np.array([0, 1])
     stop = np.array([5, 6])
     slices = start_to_stop_idx(start, stop)
-    assert len(slices) == 2
-    assert all(isinstance(s, slice) for s in slices)
+    assert slices == (slice(0, 5), slice(1, 6))
 
 
 def test_start_to_offset_idx():
     start = np.array([0, 2])
     offset = np.array([3, 4])
     slices = start_to_offset_idx(start, offset)
-    assert len(slices) == 2
-    assert all(isinstance(s, slice) for s in slices)
+    assert slices == (slice(0, 3), slice(2, 6))
 
 
 def test_reverse_array_1d():
@@ -165,7 +163,7 @@ def test_first_order_derivative_2d():
     arr = np.ones((5, 5))
     result = first_order_derivative_2d(arr)
     assert result.shape == (5, 5)
-    assert result[0, 0] == 0.0
+    npt.assert_array_equal(result, np.zeros((5, 5)))
 
 
 def test_get_rounded_kernel_shape():
