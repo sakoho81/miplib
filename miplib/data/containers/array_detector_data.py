@@ -1,91 +1,95 @@
 from .image import Image
 
 
+class _ArrayDetectorDataIterator:
+    """Iterator for ArrayDetectorData, supporting multiple independent traversals."""
+
+    def __init__(self, data: "ArrayDetectorData"):
+        self._data = data
+        self._gate_idx = 0
+        self._detector_idx = 0
+
+    def __next__(self):
+        if (
+            self._gate_idx < self._data._n_gates
+            and self._detector_idx < self._data._n_detectors
+        ):
+            value = self._data._data_container[self._gate_idx][self._detector_idx]
+            if self._data._iteration_axis == "detectors":
+                if self._detector_idx < self._data._n_detectors - 1:
+                    self._detector_idx += 1
+                else:
+                    self._detector_idx = 0
+                    self._gate_idx += 1
+            else:
+                if self._gate_idx < self._data._n_gates - 1:
+                    self._gate_idx += 1
+                else:
+                    self._gate_idx = 0
+                    self._detector_idx += 1
+            return value
+        raise StopIteration
+
+
 class ArrayDetectorData:
+    """Container for multi-dimensional data from an array detector.
+
+    Stores Images recorded with each pixel of the detector array. Each pixel
+    can be split by laser gates into multiple images. Data is indexed as
+    ``[gate, detector]`` where *gate* is the first index and *detector* is
+    the second. Note: the constructor takes ``(detectors, gates)`` in the
+    opposite order to the indexing convention.
     """
-    A class to handle multi-dimensional data from an array detector.
-    The data consists of Images recorded with each pixel of the detector
-    array. In addition, each pixel can be split by laser gates into several
-    images.
-    """
 
-    def __init__(self, detectors, gates):
-        self._data_container = [[None] * detectors] * gates
-
-        self._nDetectors = detectors
-        self._nGates = gates
-
-        # Iterator helper variables
+    def __init__(self, detectors: int, gates: int) -> None:
+        self._data_container = [[None] * detectors for _ in range(gates)]
+        self._n_detectors = detectors
+        self._n_gates = gates
         self._iteration_axis = "detectors"
-        self.gate_idx = 0
-        self.detector_idx = 0
-
-    # region Properties
 
     @property
-    def ndetectors(self):
-        return self._nDetectors
+    def ndetectors(self) -> int:
+        return self._n_detectors
 
     @property
-    def ngates(self):
-        return self._nGates
+    def ngates(self) -> int:
+        return self._n_gates
 
     @property
-    def iteration_axis(self):
+    def iteration_axis(self) -> str:
         return self._iteration_axis
 
     @iteration_axis.setter
-    def iteration_axis(self, value):
-        if value != "detectors" and value != "gates":
+    def iteration_axis(self, value: str) -> None:
+        if value not in ("detectors", "gates"):
             raise ValueError(
                 "Not a valid iteration axis. Please choose between detectors or gates."
             )
-        else:
-            self._iteration_axis = value
+        self._iteration_axis = value
 
-    # endregion
-
-    def __setitem__(self, key, value):
-        assert isinstance(key, tuple) and len(key) == 2
-        assert isinstance(value, Image)
-        gate = key[0]
-        detector = key[1]
+    def __setitem__(self, key: tuple[int, int], value: Image) -> None:
+        if not isinstance(key, tuple) or len(key) != 2:
+            raise TypeError("Index must be a 2-tuple (gate, detector)")
+        if not isinstance(value, Image):
+            raise TypeError(f"Value must be an Image, got {type(value).__name__}")
+        gate, detector = key
         self._data_container[gate][detector] = value
 
-    def __getitem__(self, item):
-        assert isinstance(item, tuple) and len(item) == 2
-        gate = item[0]
-        detector = item[1]
-        assert gate < self._nGates and detector < self._nDetectors
+    def __getitem__(self, key: tuple[int, int]) -> Image:
+        if not isinstance(key, tuple) or len(key) != 2:
+            raise TypeError("Index must be a 2-tuple (gate, detector)")
+        gate, detector = key
+        if gate >= self._n_gates or detector >= self._n_detectors:
+            raise IndexError(
+                f"Index ({gate}, {detector}) out of range for "
+                f"({self._n_gates} gates, {self._n_detectors} detectors)"
+            )
         return self._data_container[gate][detector]
 
     def __iter__(self):
-        return self
+        return _ArrayDetectorDataIterator(self)
 
-    def __next__(self):
-        if self.gate_idx < self._nGates and self.detector_idx < self._nDetectors:
-            data = self._data_container[self.gate_idx][self.detector_idx]
-            if self._iteration_axis == "detectors":
-                if self.detector_idx < (self._nDetectors - 1):
-                    self.detector_idx += 1
-                else:
-                    self.detector_idx = 0
-                    self.gate_idx += 1
-            else:
-                if self.gate_idx < (self._nGates < 1):
-                    self.gate_idx += 1
-                else:
-                    self.gate_idx = 0
-                    self.detector_idx += 1
-
-            return data
-
-        else:
-            self.gate_idx = 0
-            self.detector_idx = 0
-            raise StopIteration
-
-    def get_photosensor(self, photosensor):
+    def get_photosensor(self, photosensor: int) -> "ArrayDetectorData":
         data = ArrayDetectorData(self.ndetectors, 1)
         for i in range(self.ndetectors):
             data[0, i] = self._data_container[photosensor][i]
