@@ -90,7 +90,7 @@ def expand_to_shape(
 
 def mul_seq(seq: Sequence[float]) -> float:
     """Return the product of a sequence of numbers."""
-    return reduce(lambda x, y: x * y, seq, 1)
+    return reduce(lambda x, y: x * y, seq, 1.0)
 
 
 def cast_to_dtype(
@@ -111,7 +111,7 @@ def cast_to_dtype(
         data_max = data_info.max
         data_min = data_info.min
     elif "float" in str(dtype):
-        data_info = np.finfo(dtype)
+        data_info = np.finfo(dtype)  # type: ignore[assignment]
         data_max = data_info.max
         data_min = data_info.min
     else:
@@ -128,7 +128,7 @@ def cast_to_dtype(
         data = data.clip(0, np.percentile(data, 99.99))
 
     if rescale is True:
-        return rescale_to_min_max(data, data_min, data_max).astype(dtype)
+        return rescale_to_min_max(data, data_min, data_max).astype(dtype)  # type: ignore[arg-type]
     else:
         return data.clip(data_min, data_max).astype(dtype)
 

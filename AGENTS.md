@@ -71,7 +71,7 @@ miplib/
 uv run pytest tests/
 ```
 
-No conftest.py or shared fixtures currently exist. Construct test data inline.
+Conftest.py with shared Image fixtures and pattern generators lives at `tests/conftest.py`.
 
 ### Markers
 - `@pytest.mark.slow` — deselect with `-m "not slow"`
@@ -79,8 +79,10 @@ No conftest.py or shared fixtures currently exist. Construct test data inline.
 
 ## Test Data Strategy
 
-- **Prefer built-in images**: `skimage.data.camera()`, `skimage.data.shepp_logan_phantom()`, etc. for image processing tests.
-- **Custom test data**: Store in `tests/data/`, tracked via Git LFS (`.gitattributes` pattern: `tests/data/** filter=lfs`).
+- **Prefer built-in images**: `skimage.data.camera()`, `skimage.data.shepp_logan_phantom()`, `skimage.data.binary_blobs(n_dim=3)` for image processing tests.
+- **Shared fixtures** are in `tests/conftest.py`: `image_2d`, `image_3d`, `gaussian_2d`, `camera_image`, `shepp_logan`, `blobs_3d`.
+- **Pattern generators** in `tests/conftest.py`: `gaussian_spot(shape, sigma)`, `sine_grating(shape, frequency)`, `impulse(shape)`.
+- **Custom test data**: Store in `tests/testdata/`, tracked via Git LFS for binary files (`.hdf5`, `.tif`, `.mat`). Python source files in `tests/testdata/` are regular git.
 - When `skimage` doesn't provide suitable test data, generate synthetic reference arrays with known properties (e.g. `np.ones`, `np.linspace`, random with fixed seed).
 - For Cython extension tests (like `ops_ext`), use small hand-computed arrays to verify correctness.
 
@@ -96,10 +98,12 @@ The vast majority of modules have zero test coverage. Priority candidates (small
 | ✓ done | `tests/processing/test_ndarray.py` | ndarray helper functions |
 | ✓ done | `tests/processing/test_to_string.py` | String formatting utilities |
 | ✓ done | `tests/ui/test_progress.py` | Terminal progress bar |
-| medium | `processing/fftutils.py` | FFT wrappers, FFT filters |
+| ✓ done | `tests/data/containers/test_image.py` | Image (ndarray subclass + spacing) |
+| ✓ done | `tests/data/containers/test_array_detector_data.py` | ArrayDetectorData container |
+| medium | `processing/fftutils.py` | FFT wrappers, FFT filters (now has Image fixtures) |
 | medium | `data/coordinates/polar.py` | Polar coordinate grids |
-| lower | `processing/deconvolution/*` | Needs image test data |
-| lower | `processing/fusion/*` | Needs image test data |
+| lower | `processing/deconvolution/*` | Now has Image + blobs_3d fixtures |
+| lower | `processing/fusion/*` | Now has Image + blobs_3d fixtures |
 | lower | `processing/registration/*` | Needs SimpleITK |
 | lower | `analysis/*` | Depends on data containers |
 
