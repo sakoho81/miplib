@@ -118,7 +118,7 @@ The vast majority of modules have zero test coverage. Priority candidates (small
 
 ### Assertions vs. type checks
 - Prefer static type checking (mypy) over runtime assertions for type validation
-- Use `isinstance()` not `issubclass(obj.__class__, …)` for runtime type checks
+- Prefer static type checking alone — delete runtime `isinstance`/`issubclass` checks unless the function is a public API boundary where static analysis can't protect callers
 - Avoid bare `assert` for input validation in library functions — raise `TypeError`/`ValueError` explicitly (assertions can be disabled with `python -O`)
 
 ### When writing tests for a module
