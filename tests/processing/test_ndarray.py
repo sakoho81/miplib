@@ -62,6 +62,7 @@ def test_float2dtype_invalid():
 
 def test_contract_to_shape_center_crop():
     data = np.ones((10, 10))
+    # symmetrically crops from (10,10) to (6,6)
     result = contract_to_shape(data, (6, 6))
     assert result.shape == (6, 6)
 
@@ -191,6 +192,7 @@ def test_center_of_mass():
 
 
 def test_rescale_to_min_max():
+    # rescales [0, 10] → [0, 100], so max=10 maps to 100
     data = np.array([0.0, 5.0, 10.0])
     result = rescale_to_min_max(data, 0, 100)
     assert result.max() == pytest.approx(100.0)

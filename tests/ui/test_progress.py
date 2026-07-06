@@ -13,6 +13,7 @@ def test_default_construction():
 
 
 def test_str_after_construction():
+    # bar width is exactly total_width (no ETA at zero progress)
     bar = ProgressBar(total_width=20)
     result = str(bar)
     assert len(result) == 20
@@ -20,6 +21,7 @@ def test_str_after_construction():
 
 
 def test_update_amount_zero_percent():
+    # zero percent has arrow ">" but no "=" fill
     bar = ProgressBar(total_width=20)
     bar.update_amount(0)
     result = str(bar)

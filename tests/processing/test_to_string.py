@@ -37,6 +37,7 @@ def test_argument_string_float():
 
 
 def test_argument_string_complex():
+    # complex numbers include parentheses
     assert argument_string(1 + 2j) == "(1+2j)"
 
 
@@ -45,10 +46,12 @@ def test_argument_string_tuple_small():
 
 
 def test_argument_string_tuple_single():
+    # single-element tuple adds trailing comma
     assert argument_string((42,)) == "(42,)"
 
 
 def test_argument_string_tuple_large():
+    # tuples with 5+ elements show count summary
     assert argument_string(tuple(range(10))) == "<10-tuple>"
 
 
@@ -91,14 +94,17 @@ def test_format_time_string_full():
 
 
 def test_fix_exp_str_e_plus_00():
+    # "e+00" stripped entirely
     assert fix_exp_str("1.0e+00") == "1.0"
 
 
 def test_fix_exp_str_e_plus_0():
+    # "e+0" → "E"
     assert fix_exp_str("1.0e+03") == "1.0E3"
 
 
 def test_fix_exp_str_e_minus():
+    # "e-0" → "E-" (leading zero after minus stripped)
     assert fix_exp_str("1.0e-02") == "1.0E-2"
 
 
@@ -107,34 +113,42 @@ def test_fix_exp_str_no_exp():
 
 
 def test_float_to_str_large():
+    # abs(x) >= 1000 → scientific notation
     assert float_to_str(1234.0) == "1.2E3"
 
 
 def test_float_to_str_hundreds():
+    # 100 <= abs(x) < 1000 → integer
     assert float_to_str(456.0) == "456"
 
 
 def test_float_to_str_tens():
+    # 10 <= abs(x) < 100 → one decimal
     assert float_to_str(45.6) == "45.6"
 
 
 def test_float_to_str_ones():
+    # 1 <= abs(x) < 10 → two decimals
     assert float_to_str(3.14) == "3.14"
 
 
 def test_float_to_str_tenths():
+    # 0.1 <= abs(x) < 1 → three decimals
     assert float_to_str(0.5) == "0.500"
 
 
 def test_float_to_str_very_small():
+    # abs(x) <= 1e-6 → scientific notation
     assert float_to_str(1e-7) == "1.0E-7"
 
 
 def test_float_to_str_zero():
+    # 0.0 falls into the abs ≤ 1e-6 branch before the explicit zero check
     assert float_to_str(0.0) == "0.0"
 
 
 def test_float_to_str_small_magnitude():
+    # abs(x) between 1e-6 and 0.1 → two-digit scientific
     assert float_to_str(0.005) == "5.00E-3"
 
 
@@ -151,10 +165,12 @@ def test_tostr_non_float():
 
 
 def test_time_to_str_years():
+    # 63113851 s ≈ 2 SI years (31556925.9747 s each)
     assert time_to_str(63113851.0) == "1Y11M30d10h29m2.9s"
 
 
 def test_time_to_str_months():
+    # 26300000 s ≈ 10 months
     assert time_to_str(26300000.0) == "10M42m41.7s"
 
 
