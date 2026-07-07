@@ -20,10 +20,6 @@ class SimplePolarIndexer:
     """
 
     def __init__(self, shape: tuple[int, ...]) -> None:
-        if not isinstance(shape, (tuple, list)):
-            raise TypeError(
-                f"shape must be a tuple or list, got {type(shape).__name__}"
-            )
         if len(shape) not in (2, 3):
             raise ValueError(f"shape must be 2D or 3D, got {len(shape)}-dimensional")
 

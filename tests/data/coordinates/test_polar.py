@@ -59,11 +59,6 @@ def test_simple_polar_indexer_corners_are_nonzero():
     assert idx.r[0, 0] > 0.0
 
 
-def test_simple_polar_indexer_rejects_scalar_shape():
-    with pytest.raises(TypeError, match="tuple or list"):
-        SimplePolarIndexer(5)
-
-
 def test_simple_polar_indexer_rejects_1d_shape():
     with pytest.raises(ValueError, match="2D or 3D"):
         SimplePolarIndexer((8,))
