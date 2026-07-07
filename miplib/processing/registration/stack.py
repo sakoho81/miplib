@@ -76,6 +76,9 @@ def shift_stack_slices(stack, shifts):
     resampled = Image(np.zeros_like(stack), spacing=stack.spacing)
 
     for idx, (image, shift) in enumerate(zip(stack, shifts, strict=False)):
+        # TODO: This uses unshifted FFT convention with fourier_shift;
+        # consider whether to refactor onto fftutils.fft/ifft once the
+        # shift convention interaction is understood.
         resampled[idx] = np.abs(
             np.fft.ifftn(fourier_shift(np.fft.fftn(image), shift)).real
         )

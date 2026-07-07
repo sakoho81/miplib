@@ -1,5 +1,3 @@
-from math import floor
-
 import numpy as np
 
 from miplib.data.containers.image import Image
@@ -7,75 +5,44 @@ from miplib.data.coordinates import polar as indexers
 from miplib.processing import ndarray, windowing
 
 
-def fft(array, interpolation=1.0, window="tukey", *kwargs):
-    """A n-dimensional Forward Discrete Fourier transform with some extra bells and whistles
-    added on top of the standard Numpy method.
-
-    :param array: the image to be transformed
-    :type array: np.ndarray
-    :param interpolation: Add "interpolation" to the FFT by zero-padding prior to transform.
-    This is expressed as a multiple of the image size.
-    :type interpolation: float
-    :param window: a window function to apply. 'tukey' or 'hamming'
-    :type window: str or None
-    :return: the complex Fourier transform of the input array
-    """
-
-    # Apply a Window if requested
-    if window is None:
-        pass
-    elif window == "tukey":
-        array = windowing.apply_tukey_window(array, *kwargs)
+def fft(
+    array: np.ndarray,
+    interpolation: float = 1.0,
+    window: str | None = "tukey",
+    **kwargs: object,
+) -> np.ndarray:
+    """Forward FFT with optional zero-padding interpolation and windowing."""
+    if window == "tukey":
+        array = windowing.apply_tukey_window(array, **kwargs)
     elif window == "hamming":
         array = windowing.apply_hamming_window(array)
+    elif window is not None:
+        raise ValueError(f"Unknown window type: {window!r}")
 
-    # Add extra padding
     if interpolation > 1.0:
-        new_shape = tuple(int(interpolation * i) for i in array.shape)
+        new_shape = tuple(int(interpolation * s) for s in array.shape)
         array = ndarray.expand_to_shape(array, new_shape)
 
-    # Transform forward
-    array = np.fft.fftshift(np.fft.fftn(array))
-
-    return array
+    return np.fft.fftshift(np.fft.fftn(array))
 
 
-def ifft(array_f, interpolation=1.0):
-    """A n-dimensional Inverse Discrete Fourier transform with some extra bells and whistles
-    added on top of the standard Numpy method. Assumes a FFT shifted Fourier domain image.
-
-    :param array_f: the image to be transformed
-    :type array_f: np.ndarray
-    :param interpolation: add interpolation, by defining a value > 1.0. Corresponds to
-    enlargement of the result image.
-    :type interpolation: float
-    :return: returns the iFFTd array
-    """
-
-    # Add  padding
+def ifft(array_f: np.ndarray, interpolation: float = 1.0) -> np.ndarray:
+    """Inverse FFT with optional interpolation for upsampling."""
     if interpolation > 1.0:
-        new_shape = tuple(int(interpolation * i) for i in array_f.shape)
+        new_shape = tuple(int(interpolation * s) for s in array_f.shape)
         array_f = ndarray.expand_to_shape(array_f, new_shape)
 
-    # Transform back
-    iarray_f = np.fft.ifftn(np.fft.fftshift(array_f))
-
-    return iarray_f
+    return np.fft.ifftn(np.fft.ifftshift(array_f))
 
 
-def ideal_fft_filter(image, threshold, kind="low"):
-    """
-    An ideal high/low pass frequency domain noise filter.
-    :param image: an Image object
-    :param threshold: threshold value [0,1], where 1 corresponds
-    to the maximum frequency.
-    :param kind: filter type 'low' for low-pass, 'high' for high pass
-    :return: returns the filtered Image.
-    """
-    assert isinstance(image, Image)
+def ideal_fft_filter(image: Image, threshold: float, kind: str = "low") -> Image:
+    """Ideal low-pass or high-pass frequency domain filter."""
+    if not isinstance(image, Image):
+        raise TypeError(f"Expected Image, got {type(image).__name__}")
+    if not 0 < threshold <= 1.0:
+        raise ValueError("Threshold must be between 0 and 1.0")
 
     spacing = image.spacing
-
     fft_image = np.fft.fftshift(np.fft.fftn(image))
 
     if kind == "low":
@@ -83,45 +50,27 @@ def ideal_fft_filter(image, threshold, kind="low"):
     elif kind == "high":
         indexer = indexers.PolarHighPassIndexer(image.shape)
     else:
-        raise ValueError(f"Unknown filter kind: {kind}")
+        raise ValueError(f"Unknown filter kind: {kind!r}")
 
-    r_max = floor(min(image.shape) / 2)
-
+    r_max = int(np.floor(min(image.shape) / 2))
     fft_image *= indexer[threshold * r_max]
 
     return Image(np.abs(np.fft.ifftn(fft_image).real), spacing)
 
 
-def butterworth_fft_filter(image, threshold, n=3):
-    """Create low-pass 2D Butterworth filter.
-    :Parameters:
-       size : tuple
-           size of the filter
-       cutoff : float
-           relative cutoff frequency of the filter (0 - 1.0)
-       n : int, optional
-           order of the filter, the higher n is the sharper
-           the transition is.
-    :Returns:
-       numpy.ndarray
-         filter kernel in 2D centered
-    """
+def butterworth_fft_filter(image: Image, threshold: float, n: int = 3) -> Image:
+    """Low-pass Butterworth filter of order n."""
+    if not isinstance(image, Image):
+        raise TypeError(f"Expected Image, got {type(image).__name__}")
     if not 0 < threshold <= 1.0:
         raise ValueError("Cutoff frequency must be between 0 and 1.0")
-
-    if not isinstance(n, int):
+    if not isinstance(n, int) or n < 1:
         raise ValueError("n must be an integer >= 1")
 
-    assert isinstance(image, Image)
-
     spacing = image.spacing
-
-    # Create Fourier grid
     r = indexers.SimplePolarIndexer(image.shape).r
-
-    threshold *= image.shape[0]
-
-    butter = 1.0 / (1.0 + (r / threshold) ** (2 * n))  # The filter
+    cutoff = threshold * image.shape[0]
+    butter = 1.0 / (1.0 + (r / cutoff) ** (2 * n))
 
     fft_image = np.fft.fftshift(np.fft.fftn(image))
     fft_image *= butter
@@ -129,33 +78,18 @@ def butterworth_fft_filter(image, threshold, n=3):
     return Image(np.abs(np.fft.ifftn(fft_image).real), spacing)
 
 
-def gaussian_fft_filter(image, threshold):
-    """
-    Create low-pass 2D Gaussian filter.
-    :Parameters:
-       size : tuple
-           size of the filter
-       cutoff : float
-           relative cutoff frequency of the filter (0 - 1.0)
-       n : int, optional
-           order of the filter, the higher n is the sharper
-           the transition is.
-    :Returns:
-       numpy.ndarray:  filter kernel in 2D centered
-    """
+def gaussian_fft_filter(image: Image, threshold: float) -> Image:
+    """Low-pass Gaussian frequency domain filter."""
+    if not isinstance(image, Image):
+        raise TypeError(f"Expected Image, got {type(image).__name__}")
     if not 0 < threshold <= 1.0:
         raise ValueError("Cutoff frequency must be between 0 and 1.0")
 
-    assert isinstance(image, Image)
-
     spacing = image.spacing
-
-    # Create Fourier grid
     r = indexers.SimplePolarIndexer(image.shape).r
-
-    r /= image.shape[0]
-
+    r = r / image.shape[0]
     gauss = np.exp(-(r**2 / (2 * (threshold**2))))
+
     fft_image = np.fft.fftshift(np.fft.fftn(image))
     fft_image *= gauss
 

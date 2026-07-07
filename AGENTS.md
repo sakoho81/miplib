@@ -100,8 +100,8 @@ The vast majority of modules have zero test coverage. Priority candidates (small
 | ✓ done | `tests/ui/test_progress.py` | Terminal progress bar |
 | ✓ done | `tests/data/containers/test_image.py` | Image (ndarray subclass + spacing) |
 | ✓ done | `tests/data/containers/test_array_detector_data.py` | ArrayDetectorData container |
-| medium | `processing/fftutils.py` | FFT wrappers, FFT filters (now has Image fixtures) |
-| medium | `data/coordinates/polar.py` | Polar coordinate grids |
+| ✓ done | `tests/data/coordinates/test_polar.py` | Polar coordinate grids |
+| ✓ done | `tests/processing/test_fftutils.py` | FFT wrappers, FFT filters (now has Image fixtures) |
 | lower | `processing/deconvolution/*` | Now has Image + blobs_3d fixtures |
 | lower | `processing/fusion/*` | Now has Image + blobs_3d fixtures |
 | lower | `processing/registration/*` | Needs SimpleITK |

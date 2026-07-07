@@ -497,6 +497,9 @@ def translate_image(image, shift):
 
     multiplier = xx * yy
 
+    # TODO: Investigate shift convention. The forward FFT uses fftshift,
+    # but the inverse applies ifftn directly without ifftshift — verify
+    # whether this asymmetry is correct or a latent bug.
     result = np.abs(np.fft.ifftn(fft_image * multiplier).real)
 
     return Image(result, image.spacing)

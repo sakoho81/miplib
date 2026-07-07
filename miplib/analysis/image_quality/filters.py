@@ -73,6 +73,9 @@ class Filter:
         self.physical = physical
         self.verbal = verbal
 
+    # TODO: This physical/pixel coordinate duality (Filter.set_physical_coordinates,
+    # set_pixel_coordinates) could benefit from generate_polar_coordinate_grid
+    # for physical-unit radial coordinate computation.
     def set_physical_coordinates(self):
         self.physical = True
 
@@ -226,6 +229,8 @@ class FrequencyQuality(Filter):
             subset = self.power[ring]
             average[idx] = float(subset.sum()) / subset.size
 
+        # TODO: This hand-rolls physical-frequency-axis scaling; candidate
+        # to refactor onto generate_polar_coordinate_grid
         dx = self.data.spacing[0]
         f_k = np.linspace(0, 1, iterator.nbins) * (1.0 / (2 * dx))
 
@@ -251,6 +256,8 @@ class FrequencyQuality(Filter):
         zero = floor(float(power_sum.size) / 2)
         power_sum[zero + 1 :] = power_sum[zero + 1 :] + power_sum[: zero - 1][::-1]
         power_sum = power_sum[zero:]
+        # TODO: This hand-rolls physical-frequency-axis scaling; candidate
+        # to refactor onto generate_polar_coordinate_grid
         dx = self.data.spacing[0]
         f_k = np.linspace(0, 1, power_sum.size) * (1.0 / (2 * dx))
 
