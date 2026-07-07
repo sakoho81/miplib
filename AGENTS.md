@@ -64,6 +64,7 @@ miplib/
 - **Exception testing** via `pytest.raises(...)` with `match=` for message validation.
 - **No tautologies** — every assertion must verify actual behavioral properties of the code under test.
 - **No repetition** — don't test the same logic through multiple redundant cases.
+- **Test meaningful behaviour, not just "it runs."** The best tests verify deterministic signal-processing properties using test patterns with known characteristics (Gaussian self-duality, spectral leakage reduction from windowing, step-edge ringing/overshoot from hard frequency cutoffs, constant-image DC identity). Avoid tests whose only assertion is that the output has the correct shape or dtype — those can be folded into a more substantive test that also checks a genuine property, or dropped if the property is already covered elsewhere.
 - Canonical reference: `tests/processing/test_ops_ext.py` (~312 lines, 17 tests).
 
 ### Running tests
@@ -81,7 +82,7 @@ Conftest.py with shared Image fixtures and pattern generators lives at `tests/co
 
 - **Prefer built-in images**: `skimage.data.camera()`, `skimage.data.shepp_logan_phantom()`, `skimage.data.binary_blobs(n_dim=3)` for image processing tests.
 - **Shared fixtures** are in `tests/conftest.py`: `image_2d`, `image_3d`, `gaussian_2d`, `camera_image`, `shepp_logan`, `blobs_3d`.
-- **Pattern generators** in `tests/conftest.py`: `gaussian_spot(shape, sigma)`, `sine_grating(shape, frequency)`, `impulse(shape)`.
+- **Pattern generators** in `tests/conftest.py`: `gaussian_spot(shape, sigma)`, `sine_grating(shape, frequency)`, `impulse(shape)`, `step_edge(shape, axis)`, `bin_aligned_sine(shape, n_cycles, axis)`, `two_frequency_signal(shape, low, high, axis)`.
 - **Custom test data**: Store in `tests/testdata/`, tracked via Git LFS for binary files (`.hdf5`, `.tif`, `.mat`). Python source files in `tests/testdata/` are regular git.
 - When `skimage` doesn't provide suitable test data, generate synthetic reference arrays with known properties (e.g. `np.ones`, `np.linspace`, random with fixed seed).
 - For Cython extension tests (like `ops_ext`), use small hand-computed arrays to verify correctness.
