@@ -3,6 +3,7 @@ import pytest
 from skimage import data as skdata
 
 from miplib.data.containers.image import Image
+from miplib.psf.psfgen import PsfFromFwhm
 
 
 def gaussian_spot(shape, sigma=2.0):
@@ -93,3 +94,13 @@ def blobs_3d():
         length=64, n_dim=3, volume_fraction=0.5, rng=rng
     ).astype(np.float64)
     return Image(blobs, spacing=(0.2, 0.1, 0.1))
+
+
+@pytest.fixture
+def psf_gaussian_2d():
+    """2D Gaussian PSF from FWHM (2 µm, 128×128, 4 µm FOV).
+
+    Spacing = 4/128 µm/px. Sigma = FWHM / (2*sqrt(2*ln(2))) ≈ 0.425 * FWHM.
+    Useful for deconvolution and resolution testing with known PSF parameters.
+    """
+    return PsfFromFwhm(fwhm=[2.0, 2.0], shape=(128, 128), dims=(4.0, 4.0)).xy()

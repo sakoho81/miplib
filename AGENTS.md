@@ -81,7 +81,7 @@ Conftest.py with shared Image fixtures and pattern generators lives at `tests/co
 ## Test Data Strategy
 
 - **Prefer built-in images**: `skimage.data.camera()`, `skimage.data.shepp_logan_phantom()`, `skimage.data.binary_blobs(n_dim=3)` for image processing tests.
-- **Shared fixtures** are in `tests/conftest.py`: `image_2d`, `image_3d`, `gaussian_2d`, `camera_image`, `shepp_logan`, `blobs_3d`.
+- **Shared fixtures** are in `tests/conftest.py`: `image_2d`, `image_3d`, `gaussian_2d`, `camera_image`, `shepp_logan`, `blobs_3d`, `psf_gaussian_2d`.
 - **Pattern generators** in `tests/conftest.py`: `gaussian_spot(shape, sigma)`, `sine_grating(shape, frequency)`, `impulse(shape)`, `step_edge(shape, axis)`, `bin_aligned_sine(shape, n_cycles, axis)`, `two_frequency_signal(shape, low, high, axis)`.
 - **Custom test data**: Store in `tests/testdata/`, tracked via Git LFS for binary files (`.hdf5`, `.tif`, `.mat`). Python source files in `tests/testdata/` are regular git.
 - When `skimage` doesn't provide suitable test data, generate synthetic reference arrays with known properties (e.g. `np.ones`, `np.linspace`, random with fixed seed).
