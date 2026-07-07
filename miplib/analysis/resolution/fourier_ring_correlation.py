@@ -17,7 +17,7 @@ from miplib.data.containers.fourier_correlation_data import (
     FourierCorrelationDataCollection,
 )
 from miplib.data.containers.image import Image
-from miplib.processing import windowing
+from miplib.processing import fftutils, windowing
 
 from . import analysis as fsc_analysis
 
@@ -253,8 +253,8 @@ class FRC:
 
         self.iterator = iterator
         # Calculate power spectra for the input images.
-        self.fft_image1 = np.fft.fftshift(np.fft.fft2(image1))
-        self.fft_image2 = np.fft.fftshift(np.fft.fft2(image2))
+        self.fft_image1 = fftutils.fft(image1, window=None)
+        self.fft_image2 = fftutils.fft(image2, window=None)
 
         # Get the Nyquist frequency
         self.freq_nyq = int(np.floor(image1.shape[0] / 2.0))

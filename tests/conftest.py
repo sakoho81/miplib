@@ -3,6 +3,7 @@ import pytest
 from skimage import data as skdata
 
 from miplib.data.containers.image import Image
+from miplib.psf.psfgen import PsfFromFwhm
 
 
 def gaussian_spot(shape, sigma=2.0):
@@ -27,6 +28,32 @@ def impulse(shape):
     arr = np.zeros(shape, dtype=np.float64)
     arr[tuple(s // 2 for s in shape)] = 1.0
     return arr
+
+
+def step_edge(shape, axis=0):
+    """0 on first half, 1 on second half along `axis` — broadband content."""
+    arr = np.zeros(shape, dtype=np.float64)
+    idx = tuple(
+        slice(s // 2, None) if i == axis else slice(None) for i, s in enumerate(shape)
+    )
+    arr[idx] = 1.0
+    return arr
+
+
+def bin_aligned_sine(shape, n_cycles, axis=0):
+    """Sine with integer number of cycles along `axis` — zero spectral leakage."""
+    n = shape[axis]
+    sine_1d = np.sin(2 * np.pi * n_cycles * np.arange(n) / n).astype(np.float64)
+    shape_1d = [1] * len(shape)
+    shape_1d[axis] = n
+    return np.broadcast_to(sine_1d.reshape(shape_1d), shape)
+
+
+def two_frequency_signal(shape, low_cycles, high_cycles, axis=0):
+    """Sum of two bin-aligned sine waves — for passband/stopband verification."""
+    return bin_aligned_sine(shape, low_cycles, axis) + bin_aligned_sine(
+        shape, high_cycles, axis
+    )
 
 
 @pytest.fixture
@@ -67,3 +94,13 @@ def blobs_3d():
         length=64, n_dim=3, volume_fraction=0.5, rng=rng
     ).astype(np.float64)
     return Image(blobs, spacing=(0.2, 0.1, 0.1))
+
+
+@pytest.fixture
+def psf_gaussian_2d():
+    """2D Gaussian PSF from FWHM (2 µm, 128×128, 4 µm FOV).
+
+    Spacing = 4/128 µm/px. Sigma = FWHM / (2*sqrt(2*ln(2))) ≈ 0.425 * FWHM.
+    Useful for deconvolution and resolution testing with known PSF parameters.
+    """
+    return PsfFromFwhm(fwhm=[2.0, 2.0], shape=(128, 128), dims=(4.0, 4.0)).xy()

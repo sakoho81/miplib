@@ -530,6 +530,9 @@ def phase_correlation_registration(
         print(f"Detected offset (y, x): {scaled_shifts}")
 
     if resample:
+        # TODO: This uses unshifted FFT convention with fourier_shift;
+        # consider whether to refactor onto fftutils.fft/ifft once the
+        # shift convention interaction is understood.
         resampled = np.abs(
             np.fft.ifftn(fourier_shift(np.fft.fftn(moving_image), shift)).real
         )

@@ -13,7 +13,7 @@ import miplib.data.iterators.fourier_shell_iterators as iterators
 import miplib.processing.image as imops
 import miplib.processing.ndarray as ndarray
 from miplib.data.containers.image import Image
-from miplib.processing import windowing
+from miplib.processing import fftutils, windowing
 
 from . import analysis as fsc_analysis
 
@@ -23,8 +23,8 @@ def calculate_fourier_plane_correlation(image1, image2, args, z_correction=1):
     data = containers.FourierCorrelationDataCollection()
 
     for _idx, step in enumerate(steps):
-        im1_rot = np.fft.fftshift(np.fft.fftn(rotate(image1, step, reshape=False)))
-        im2_rot = np.fft.fftshift(np.fft.fftn(rotate(image2, step, reshape=False)))
+        im1_rot = fftutils.fft(rotate(image1, step, reshape=False), window=None)
+        im2_rot = fftutils.fft(rotate(image2, step, reshape=False), window=None)
 
         numerator = np.sum(im1_rot * np.conjugate(im2_rot), axis=(0, 2))
         denominator = np.sum(
@@ -128,8 +128,8 @@ class DirectionalFSC:
         self.iterator = iterator
 
         # FFT transforms of the input images
-        self.fft_image1 = np.fft.fftshift(np.fft.fftn(image1))
-        self.fft_image2 = np.fft.fftshift(np.fft.fftn(image2))
+        self.fft_image1 = fftutils.fft(image1, window=None)
+        self.fft_image2 = fftutils.fft(image2, window=None)
 
         if normalize_power:
             pixels = image1.shape[0] ** 3

@@ -85,6 +85,9 @@ def calculate_theoretical_shifts_xy(pitch, magnification, alpha=0.5, width=5):
     pitch_pt = pitch * alpha / magnification
 
     radius = width // 2
+    # TODO: This manually reimplements a centered, physically-scaled
+    # coordinate grid; candidate to refactor onto
+    # miplib.data.coordinates.polar.generate_polar_coordinate_grid
     axis = np.linspace(-pitch_pt * radius, pitch_pt * radius, width)
     y_pt, x_pt = np.meshgrid(axis, axis)
 

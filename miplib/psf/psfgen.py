@@ -1,3 +1,4 @@
+import logging
 import math
 
 from psf import _psf, psf  # type: ignore[attr-defined]
@@ -5,19 +6,31 @@ from psf import _psf, psf  # type: ignore[attr-defined]
 from miplib.analysis.resolution import fourier_ring_correlation as frc
 from miplib.data.containers.image import Image
 
+logger = logging.getLogger(__name__)
+
 
 class PsfFromFwhm:
-    def __init__(self, fwhm, shape=(128, 128), dims=(4.0, 4.0)):
-        assert isinstance(fwhm, list)
+    """Generate a Gaussian PSF from FWHM values.
+
+    FWHM in µm is converted to sigma in pixels using the pixel spacing
+    computed from the field-of-view dimensions and image shape.
+    """
+
+    def __init__(
+        self,
+        fwhm: list[float],
+        shape: tuple[int, int] = (128, 128),
+        dims: tuple[float, float] = (4.0, 4.0),
+    ) -> None:
+        if not isinstance(fwhm, list):
+            raise TypeError(f"fwhm must be a list, got {type(fwhm).__name__}")
 
         if len(fwhm) == 1:
-            print(
-                "Only one resolution value given. Assuming the same"
-                " resolution for the axial direction."
+            logger.info(
+                "Only one resolution value given. Assuming the same "
+                "resolution for the axial direction."
             )
-            fwhm = [
-                fwhm,
-            ] * 2
+            fwhm = [fwhm[0], fwhm[0]]
 
         self.shape = int(shape[0]), int(shape[1])
         self.dims = psf.Dimensions(px=shape, um=(float(dims[0]), float(dims[1])))
