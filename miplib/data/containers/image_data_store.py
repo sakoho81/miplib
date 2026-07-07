@@ -37,13 +37,21 @@ class ImageKey:
 
 
 class ImageDataStore(Protocol):
-    """Protocol defining the storage interface for multi-view image data."""
+    """Storage interface for multi-view image data.
+
+    Implementations must handle create/read/update/delete of image datasets,
+    attributes (spacing, angle, transforms), and scaled/blocks access.
+    """
 
     @property
-    def series_count(self) -> int: ...
+    def series_count(self) -> int:
+        """Number of distinct original image views (indices)."""
+        ...
 
     @property
-    def channel_count(self) -> int: ...
+    def channel_count(self) -> int:
+        """Number of color channels in the dataset."""
+        ...
 
     def add_image(
         self,
@@ -53,7 +61,12 @@ class ImageDataStore(Protocol):
         spacing: Sequence[float],
         chunk_size: tuple[int, ...] | None = None,
         calculated: bool | None = None,
-    ) -> None: ...
+    ) -> None:
+        """Store an image array with metadata.
+
+        No-op if the dataset already exists at the given key.
+        """
+        ...
 
     def add_fused_image(
         self,
@@ -61,7 +74,12 @@ class ImageDataStore(Protocol):
         scale: int,
         data: np.ndarray,
         spacing: Sequence[float],
-    ) -> None: ...
+    ) -> None:
+        """Store a fused (reconstructed) image.
+
+        Fused images are stored outside the per-view hierarchy.
+        """
+        ...
 
     def add_transform(
         self,
@@ -71,11 +89,17 @@ class ImageDataStore(Protocol):
         params: Sequence[float],
         fixed_params: Sequence[float],
         transform_type: int,
-    ) -> None: ...
+    ) -> None:
+        """Attach spatial transform parameters to a registered view."""
+        ...
 
-    def get_image_data(self, key: ImageKey) -> np.ndarray: ...
+    def get_image_data(self, key: ImageKey) -> np.ndarray:
+        """Read the raw image array at *key*."""
+        ...
 
-    def get_image_attributes(self, key: ImageKey) -> dict[str, Any]: ...
+    def get_image_attributes(self, key: ImageKey) -> dict[str, Any]:
+        """Read all metadata attributes (spacing, angle, size, transforms)."""
+        ...
 
     def get_registered_block(
         self,
@@ -83,17 +107,36 @@ class ImageDataStore(Protocol):
         block_size: np.ndarray,
         block_pad: int,
         block_start_index: np.ndarray,
-    ) -> np.ndarray: ...
+    ) -> np.ndarray:
+        """Read a padded sub-block of a registered image.
 
-    def get_number_of_images(self, image_type: ImageType) -> int: ...
+        Handles boundary conditions by zero-padding regions outside the
+        image extent.
+        """
+        ...
 
-    def get_scales(self, image_type: ImageType) -> list[int]: ...
+    def get_number_of_images(self, image_type: ImageType) -> int:
+        """Number of view indices present for *image_type*."""
+        ...
 
-    def check_if_exists(self, key: ImageKey) -> bool: ...
+    def get_scales(self, image_type: ImageType) -> list[int]:
+        """Available scale levels for *image_type*.
 
-    def delete_dataset(self, key: ImageKey) -> None: ...
+        Raises ``ValueError`` when scales are inconsistent across views.
+        """
+        ...
 
-    def close(self) -> None: ...
+    def check_if_exists(self, key: ImageKey) -> bool:
+        """Return ``True`` if the dataset at *key* exists."""
+        ...
+
+    def delete_dataset(self, key: ImageKey) -> None:
+        """Remove the dataset at *key*.  No-op if it does not exist."""
+        ...
+
+    def close(self) -> None:
+        """Persist file-level metadata and close the backing store."""
+        ...
 
 
 class HDF5ImageStore:

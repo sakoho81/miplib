@@ -10,8 +10,15 @@ def _to_imagetype(image_type: ImageType | str) -> ImageType:
     return ImageType(image_type)
 
 
-def sum_of_all(data_structure, channel=0, scale=100, image_type=ImageType.ORIGINAL):
-    assert isinstance(data_structure, ImageData)
+def sum_of_all(
+    data_structure: ImageData,
+    channel: int = 0,
+    scale: int = 100,
+    image_type: ImageType | str = ImageType.ORIGINAL,
+) -> Image:
+    """Sum all views of *image_type* into a single image."""
+    if not isinstance(data_structure, ImageData):
+        raise TypeError(f"Expected ImageData, got {type(data_structure).__name__}")
 
     img_type = _to_imagetype(image_type)
     n_views = data_structure.get_number_of_images(img_type)
@@ -26,8 +33,16 @@ def sum_of_all(data_structure, channel=0, scale=100, image_type=ImageType.ORIGIN
     return Image(result, pixel_size)
 
 
-def average_of_all(data_structure, channel=0, scale=100, image_type=ImageType.ORIGINAL):
-    assert isinstance(data_structure, ImageData)
+def average_of_all(
+    data_structure: ImageData,
+    channel: int = 0,
+    scale: int = 100,
+    image_type: ImageType | str = ImageType.ORIGINAL,
+) -> Image:
+    """Average all views of *image_type* into a single image."""
+    if not isinstance(data_structure, ImageData):
+        raise TypeError(f"Expected ImageData, got {type(data_structure).__name__}")
+
     img_type = _to_imagetype(image_type)
     n_views = data_structure.get_number_of_images(img_type)
     key0 = ImageKey(img_type, 0, channel, scale)
@@ -38,10 +53,16 @@ def average_of_all(data_structure, channel=0, scale=100, image_type=ImageType.OR
     return Image(result / n_views, pixel_size)
 
 
-def simple_fusion(data_structure, channel=0, scale=100):
-    assert isinstance(data_structure, ImageData)
-    image_type = ImageType.REGISTERED
+def simple_fusion(
+    data_structure: ImageData,
+    channel: int = 0,
+    scale: int = 100,
+) -> Image:
+    """Fuse registered views using a simple min-clip accumulation."""
+    if not isinstance(data_structure, ImageData):
+        raise TypeError(f"Expected ImageData, got {type(data_structure).__name__}")
 
+    image_type = ImageType.REGISTERED
     n_views = data_structure.get_number_of_images(image_type)
     key0 = ImageKey(image_type, 0, channel, scale)
     pixel_size = data_structure.get_voxel_size(key0)

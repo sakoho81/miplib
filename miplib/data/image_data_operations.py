@@ -19,6 +19,12 @@ def create_rescaled_images(
     scale: int,
     chunk_size: tuple[int, ...] | None = None,
 ) -> None:
+    """Downsample every image of *image_type* to *scale* percent of full size.
+
+    Reads the 100%-scale reference, zooms with cubic interpolation,
+    adjusts spacing, and writes the result.  Existing datasets at the
+    target scale are overwritten.
+    """
     existing_scales = store.get_scales(image_type)
     if scale in existing_scales and scale != 100:
         logger.info(
@@ -56,6 +62,11 @@ def create_rescaled_images(
 
 
 def calculate_missing_psfs(store: ImageDataStore) -> None:
+    """Synthesize missing PSFs by rotating the first PSF with per-view transforms.
+
+    For each registered view that lacks a PSF, the view 0 PSF is rotated
+    using the view's spatial transform and saved with ``calculated=True``.
+    """
     max_scale = max(store.get_scales(ImageType.REGISTERED))
     if max_scale < 100:
         logger.warning(
@@ -103,6 +114,11 @@ def copy_registration_result(
     from_scale: int,
     to_scale: int,
 ) -> None:
+    """Migrate registration transforms from one scale level to another.
+
+    Resamples original images at *to_scale* using the transforms stored
+    at *from_scale*, saving the results as registered images.
+    """
     if from_scale not in store.get_scales(ImageType.REGISTERED):
         raise ValueError(f"No registration result at scale {from_scale}")
 

@@ -94,7 +94,7 @@ def main():
         if not all(x in image_name for x in params_c) or not any(
             x in image_name for x in ImageType
         ):
-            print(f"Unrecognized image name {image_name}. Skipping it.")
+            print(f"Unrecognized file name pattern: {image_name}. Skipping.")
             continue
 
         image_type = image_name.split("_scale")[0]
