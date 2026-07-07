@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 
 import numpy as np
 
@@ -10,7 +10,7 @@ from miplib.data.coordinates.polar import (
 )
 from miplib.processing import ndarray, windowing
 
-_WINDOW_FUNCS = {
+_WINDOW_FUNCS: dict[str, Callable[..., np.ndarray]] = {
     "tukey": windowing.apply_tukey_window,
     "hamming": windowing.apply_hamming_window,
 }
