@@ -1,7 +1,13 @@
+from typing import Any
+
 import numpy as np
 
 from miplib.data.containers.image import Image
-from miplib.data.coordinates import polar as indexers
+from miplib.data.coordinates.polar import (
+    PolarHighPassIndexer,
+    PolarLowPassIndexer,
+    SimplePolarIndexer,
+)
 from miplib.processing import ndarray, windowing
 
 
@@ -9,7 +15,7 @@ def fft(
     array: np.ndarray,
     interpolation: float = 1.0,
     window: str | None = "tukey",
-    **kwargs: object,
+    **kwargs: Any,
 ) -> np.ndarray:
     """Forward FFT with optional zero-padding interpolation and windowing."""
     if window == "tukey":
@@ -46,9 +52,11 @@ def ideal_fft_filter(image: Image, threshold: float, kind: str = "low") -> Image
     fft_image = np.fft.fftshift(np.fft.fftn(image))
 
     if kind == "low":
-        indexer = indexers.PolarLowPassIndexer(image.shape)
+        indexer: PolarLowPassIndexer | PolarHighPassIndexer = PolarLowPassIndexer(
+            image.shape
+        )
     elif kind == "high":
-        indexer = indexers.PolarHighPassIndexer(image.shape)
+        indexer = PolarHighPassIndexer(image.shape)
     else:
         raise ValueError(f"Unknown filter kind: {kind!r}")
 
@@ -68,7 +76,7 @@ def butterworth_fft_filter(image: Image, threshold: float, n: int = 3) -> Image:
         raise ValueError("n must be an integer >= 1")
 
     spacing = image.spacing
-    r = indexers.SimplePolarIndexer(image.shape).r
+    r = SimplePolarIndexer(image.shape).r
     cutoff = threshold * image.shape[0]
     butter = 1.0 / (1.0 + (r / cutoff) ** (2 * n))
 
@@ -86,7 +94,7 @@ def gaussian_fft_filter(image: Image, threshold: float) -> Image:
         raise ValueError("Cutoff frequency must be between 0 and 1.0")
 
     spacing = image.spacing
-    r = indexers.SimplePolarIndexer(image.shape).r
+    r = SimplePolarIndexer(image.shape).r
     r = r / image.shape[0]
     gauss = np.exp(-(r**2 / (2 * (threshold**2))))
 
