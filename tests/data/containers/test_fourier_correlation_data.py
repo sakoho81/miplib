@@ -62,6 +62,9 @@ def test_fcd_as_dataframe_basic():
     assert isinstance(df, pd.DataFrame)
     assert len(df) == 2
     assert list(df.columns) == ["Correlation", "Frequency", "nPoints"]
+    assert df["Correlation"].iloc[0] == pytest.approx(0.9)
+    assert df["Frequency"].iloc[1] == pytest.approx(0.5)
+    assert df["nPoints"].iloc[0] == 100
 
 
 def test_fcd_as_dataframe_with_results():
@@ -78,6 +81,10 @@ def test_fcd_as_dataframe_with_results():
     df = fcd.as_dataframe(include_results=True)
     assert "Resolution" in df.columns
     assert "Threshold" in df.columns
+    assert df["Correlation"].iloc[0] == pytest.approx(0.9)
+    assert df["Resolution"].iloc[0] == pytest.approx(1.5)
+    assert df["Resolution_X"].iloc[0] == pytest.approx(10.0)
+    assert df["Threshold"].iloc[0] == (0.143,)
 
 
 def test_fcd_collection_setitem_getitem():
@@ -166,3 +173,6 @@ def test_fcd_collection_as_dataframe():
     df = coll.as_dataframe()
     assert len(df) == 2
     assert set(df["Angle"].unique()) == {0, 90}
+    assert df["Correlation"].iloc[0] == pytest.approx(0.9)
+    assert df["Frequency"].iloc[0] == pytest.approx(0.1)
+    assert df["nPoints"].iloc[0] == 100
