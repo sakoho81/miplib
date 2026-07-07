@@ -29,6 +29,32 @@ def impulse(shape):
     return arr
 
 
+def step_edge(shape, axis=0):
+    """0 on first half, 1 on second half along `axis` — broadband content."""
+    arr = np.zeros(shape, dtype=np.float64)
+    idx = tuple(
+        slice(s // 2, None) if i == axis else slice(None) for i, s in enumerate(shape)
+    )
+    arr[idx] = 1.0
+    return arr
+
+
+def bin_aligned_sine(shape, n_cycles, axis=0):
+    """Sine with integer number of cycles along `axis` — zero spectral leakage."""
+    n = shape[axis]
+    sine_1d = np.sin(2 * np.pi * n_cycles * np.arange(n) / n).astype(np.float64)
+    shape_1d = [1] * len(shape)
+    shape_1d[axis] = n
+    return np.broadcast_to(sine_1d.reshape(shape_1d), shape)
+
+
+def two_frequency_signal(shape, low_cycles, high_cycles, axis=0):
+    """Sum of two bin-aligned sine waves — for passband/stopband verification."""
+    return bin_aligned_sine(shape, low_cycles, axis) + bin_aligned_sine(
+        shape, high_cycles, axis
+    )
+
+
 @pytest.fixture
 def image_2d():
     """16x16 float64 Image with isotropic spacing."""
