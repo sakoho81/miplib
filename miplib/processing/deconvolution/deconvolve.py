@@ -336,10 +336,6 @@ class DeconvolutionRL:
 
                 # Save intermediate image
                 if save_intermediate_results:
-                    # self.temp_data.save_image(
-                    #     self.estimate,
-                    #     'result_%s.tif' % self.iteration_count
-                    # )
                     self.writer.write(Image(self.estimate, self.image_spacing))
 
                 # Check if it's time to stop:
@@ -566,5 +562,3 @@ class DeconvolutionRL:
             del self.prev_estimate
 
         shutil.rmtree(self.memmap_directory)
-
-        # self.temp_data.close_data_file()

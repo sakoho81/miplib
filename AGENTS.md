@@ -104,7 +104,9 @@ The vast majority of modules have zero test coverage. Priority candidates (small
 | ✓ done | `tests/data/coordinates/test_polar.py` | Polar coordinate grids |
 | ✓ done | `tests/processing/test_fftutils.py` | FFT wrappers, FFT filters (now has Image fixtures) |
 | ✓ done | `tests/psf/test_psfgen.py` | PSF generation from FWHM |
-| lower | `processing/deconvolution/*` | Now has Image + blobs_3d fixtures + psf_gaussian_2d |
+| ✓ done | `tests/data/core/test_dictionary.py` | FixedDictionary (immutable-key dict) |
+| ✓ done | `tests/data/containers/test_fourier_correlation_data.py` | FRC/FSC data containers |
+| lower | `processing/deconvolution/*` | Now has Image + blobs_3d + psf_gaussian_2d |
 | lower | `processing/fusion/*` | Now has Image + blobs_3d fixtures |
 | lower | `processing/registration/*` | Needs SimpleITK |
 | lower | `analysis/*` | Depends on data containers |
