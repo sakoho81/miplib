@@ -4,8 +4,19 @@ import miplib.processing.deconvolution.wiener_cuda as wiener
 from miplib.data.containers.image_data import ImageData, ImageKey, ImageType
 
 
-def wiener_fusion(data, options, gate=0, scale=100, views=None):
-    assert isinstance(data, ImageData)
+def wiener_fusion(
+    data: ImageData,
+    options,
+    gate: int = 0,
+    scale: int = 100,
+    views: list[int] | None = None,
+) -> np.ndarray:
+    """Fuse registered views by Wiener-deconvolving each with its PSF.
+
+    Returns the sum of individually deconvolved views.
+    """
+    if not isinstance(data, ImageData):
+        raise TypeError(f"Expected ImageData, got {type(data).__name__}")
 
     if views is None:
         views = list(range(data.get_number_of_images(ImageType.REGISTERED)))

@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 class ImageType(StrEnum):
+    """Kind of image stored in the dataset."""
+
     ORIGINAL = "original"
     REGISTERED = "registered"
     FUSED = "fused"
@@ -22,12 +24,23 @@ class ImageType(StrEnum):
 
 @dataclass(frozen=True)
 class ImageKey:
+    """Unique identifier for an image dataset.
+
+    Parameters
+    ----------
+    image_type : The kind of image (original, registered, fused, psf).
+    index : View number (0-based).
+    channel : Color channel (0-based), default 0.
+    scale : Size as percentage of full resolution, default 100.
+    """
+
     image_type: ImageType
     index: int
     channel: int = 0
     scale: int = 100
 
     def to_path(self) -> str:
+        """Return the HDF5 path for this key."""
         if self.image_type == ImageType.FUSED:
             return f"fused/channel_{self.channel}_scale_{self.scale}"
         return (
@@ -143,6 +156,10 @@ class HDF5ImageStore:
     """HDF5-backed implementation of ImageDataStore."""
 
     def __init__(self, path: str) -> None:
+        """Open an HDF5 file at *path*, creating it if necessary.
+
+        The parent directory is created automatically.
+        """
         directory = os.path.dirname(path) or "."
         os.makedirs(directory, exist_ok=True)
 
