@@ -15,5 +15,4 @@ itk_transforms_c = {
     "sitkBSplineTransform": 13,
 }
 
-image_types_c = ("original", "registered", "fused", "psf")
 params_c = ("angle", "scale", "index", "channel")

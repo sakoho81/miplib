@@ -18,6 +18,7 @@ import sys
 import SimpleITK as sitk
 
 from miplib.data.containers import image_data
+from miplib.data.containers.image_data import ImageKey, ImageType
 from miplib.processing import itk as itkutils
 from miplib.processing.registration import registration_mv
 from miplib.ui import utils
@@ -38,21 +39,23 @@ def main():
     data = image_data.ImageData(full_path)
 
     # Check that requested image size exists. If not, create it.
-    if options.scale not in data.get_scales("original"):
+    if options.scale not in data.get_scales(ImageType.ORIGINAL):
         print(
             "Images at the defined scale do not exist in the data "
             "structure. The original images will be now resampled. "
             "This may take a long time depending on the image size "
             "and the number of views."
         )
-        data.create_rescaled_images("original", options.scale)
+        data.create_rescaled_images(ImageType.ORIGINAL, options.scale)
 
-    data.set_active_image(0, options.channel, options.scale, "original")
-    spacing = data.get_voxel_size()
-    data.add_registered_image(data[:], options.scale, 0, options.channel, 0, spacing)
+    key0 = ImageKey(ImageType.ORIGINAL, 0, options.channel, options.scale)
+    spacing = data.get_voxel_size(key0)
+    data.add_registered_image(
+        data.get_image_data(key0), options.scale, 0, options.channel, 0, spacing
+    )
 
     if options.evaluate_results:
-        fixed_image = data.get_itk_image()
+        fixed_image = data.get_itk_image(key0)
 
     # Setup registration. View number 0 is always the reference for now.
     # The behavior can be easily changed if necessary.
@@ -60,9 +63,11 @@ def main():
     task.set_fixed_image(0)
 
     # Iterate over the rotated views
-    for view in range(1, data.get_number_of_images("original")):
+    for view in range(1, data.get_number_of_images(ImageType.ORIGINAL)):
         task.set_moving_image(view)
-        if data.check_if_exists("registered", view, options.channel, options.scale):
+        if data.check_if_exists(
+            ImageType.REGISTERED, view, options.channel, options.scale
+        ):
             if utils.get_user_input(
                 "There is a saved registration result for "
                 "the view %i. Do you want to skip it?" % view

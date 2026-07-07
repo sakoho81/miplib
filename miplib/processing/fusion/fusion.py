@@ -32,6 +32,7 @@ import miplib.processing.ops_ext as ops_ext
 import miplib.processing.to_string as ops_output
 from miplib.data.containers import image_data
 from miplib.data.containers.image import Image
+from miplib.data.containers.image_data import ImageKey, ImageType
 from miplib.ui.progress import ProgressBar
 from miplib.utils.generic import isiterable
 
@@ -43,6 +44,11 @@ class MultiViewFusionRL:
     The Richardson-Lucy fusion is a result of simultaneous deblurring of
     several 3D volumes.
     """
+
+    def _reg_key(self, view):
+        return ImageKey(
+            ImageType.REGISTERED, view, self.options.channel, self.options.scale
+        )
 
     def __init__(self, data, writer, options):
         """
@@ -59,7 +65,7 @@ class MultiViewFusionRL:
 
         # Select views to fuse
         if self.options.fuse_views == -1:
-            self.views = range(self.data.get_number_of_images("registered"))
+            self.views = range(self.data.get_number_of_images(ImageType.REGISTERED))
         else:
             self.views = self.options.fuse_views
 
@@ -69,11 +75,7 @@ class MultiViewFusionRL:
         self.weights = np.zeros(self.n_views, dtype=np.float32)
 
         for idx, view in enumerate(self.views):
-            self.data.set_active_image(
-                view, self.options.channel, self.options.scale, "registered"
-            )
-
-            self.weights[idx] = self.data.get_max()
+            self.weights[idx] = self.data.get_max(self._reg_key(view))
 
         self.weights /= self.weights.sum()
 
@@ -84,7 +86,9 @@ class MultiViewFusionRL:
         elif isiterable(background):
             if len(background) == self.n_views:
                 self.background = np.asarray(background)
-            elif len(background) == self.data.get_number_of_images("registered"):
+            elif len(background) == self.data.get_number_of_images(
+                ImageType.REGISTERED
+            ):
                 self.background = np.asarray(background)[self.views]
             else:
                 raise ValueError("Invalid background definition length.")
@@ -92,15 +96,13 @@ class MultiViewFusionRL:
             self.background = np.zeros(self.n_views)
 
         # Get image size
-        self.data.set_active_image(
-            0, self.options.channel, self.options.scale, "registered"
-        )
-        self.image_size = self.data.get_image_size()
+        key0 = self._reg_key(0)
+        self.image_size = self.data.get_image_size(key0)
         self.imdims = len(self.image_size)
 
         print(f"The original image size is {tuple(self.image_size)}")
 
-        self.voxel_size = self.data.get_voxel_size()
+        self.voxel_size = self.data.get_voxel_size(key0)
         self.iteration_count = 0
 
         # Setup blocks
@@ -195,9 +197,7 @@ class MultiViewFusionRL:
             psf = self.psfs[idx]
             adj_psf = self.adj_psfs[idx]
 
-            self.data.set_active_image(
-                view, self.options.channel, self.options.scale, "registered"
-            )
+            reg_key = self._reg_key(view)
 
             weighting = self.weights[idx]
             background = self.background[idx]
@@ -231,7 +231,7 @@ class MultiViewFusionRL:
 
                 # Execute: cache = data/cache
                 image_block = self.data.get_registered_block(
-                    self.block_size, self.options.block_pad, index.copy()
+                    reg_key, self.block_size, self.options.block_pad, index.copy()
                 )
 
                 estimate_block_new = ops_array.safe_divide(
@@ -296,14 +296,12 @@ class MultiViewFusionRL:
 
         first_estimate = self.options.first_estimate
 
-        self.data.set_active_image(
-            0, self.options.channel, self.options.scale, "registered"
-        )
+        key0 = self._reg_key(0)
 
         if first_estimate == "first_image":
-            self.estimate[:] = self.data[:].astype(np.float32)
+            self.estimate[:] = self.data.get_image_data(key0).astype(np.float32)
         elif first_estimate == "first_image_mean":
-            self.estimate[:] = np.float32(np.mean(self.data[:]))
+            self.estimate[:] = np.float32(np.mean(self.data.get_image_data(key0)))
         elif first_estimate == "sum_of_originals":
             self.estimate[:] = fusion_utils.sum_of_all(
                 self.data, self.options.channel, self.options.scale
@@ -327,7 +325,7 @@ class MultiViewFusionRL:
 
         self.iteration_count = 0
         max_count = self.options.max_nof_iterations
-        initial_photon_count = self.data[:].sum()
+        initial_photon_count = self.data.get_image_data(key0).sum()
 
         bar = ProgressBar(0, max_count, total_width=40, show_percentage=False)
 
@@ -426,15 +424,13 @@ class MultiViewFusionRL:
         Reads the PSFs from the HDF5 data structure and zooms to the same pixel
         size with the registered images, of selected scale and channel.
         """
-        self.data.set_active_image(
-            0, self.options.channel, self.options.scale, "registered"
-        )
-        image_spacing = self.data.get_voxel_size()
+        reg_key0 = self._reg_key(0)
+        image_spacing = self.data.get_voxel_size(reg_key0)
 
         for i in self.views:
-            self.data.set_active_image(i, 0, 100, "psf")
-            psf_orig = self.data[:]
-            psf_spacing = self.data.get_voxel_size()
+            psf_key = ImageKey(ImageType.PSF, i, 0, 100)
+            psf_orig = self.data.get_image_data(psf_key)
+            psf_spacing = self.data.get_voxel_size(psf_key)
 
             # Zoom to the same voxel size
             zoom_factors = tuple(
@@ -623,14 +619,8 @@ class MultiViewFusionRL:
         return Image(self.estimate, self.voxel_size)
 
     def save_to_hdf(self):
-        """
-        Save result to the miplib data structure.
-
-        """
-        self.data.set_active_image(
-            0, self.options.channel, self.options.scale, "registered"
-        )
-        spacing = self.data.get_voxel_size()
+        """Save result to the miplib data structure."""
+        spacing = self.data.get_voxel_size(self._reg_key(0))
 
         self.data.add_fused_image(
             self.estimate, self.options.channel, self.options.scale, spacing

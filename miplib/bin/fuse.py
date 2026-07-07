@@ -19,6 +19,7 @@ import miplib.processing.fusion.fusion_cuda as gpufusion
 import miplib.processing.to_string as genutils
 import miplib.ui.cli.miplib_entry_point_options as arguments
 import miplib.ui.utils as uiutils
+from miplib.data.containers.image_data import ImageType
 
 
 def main():
@@ -32,15 +33,17 @@ def main():
 
     data = image_data.ImageData(full_path)
 
-    if options.scale not in data.get_scales("registered"):
+    if options.scale not in data.get_scales(ImageType.REGISTERED):
         print(
             "Images at the defined scale do not exist in the data structure."
             "The original images will be now resampled. This may take a long"
             "time depending on the image size and the number of views."
         )
-        data.create_rescaled_images("registered", options.scale)
+        data.create_rescaled_images(ImageType.REGISTERED, options.scale)
 
-    if data.get_number_of_images("psf") != data.get_number_of_images("registered"):
+    if data.get_number_of_images(ImageType.PSF) != data.get_number_of_images(
+        ImageType.REGISTERED
+    ):
         print(
             "Some PSFs are missing. They are going to be calculated from the "
             "original STED PSF (that is assumed to be at index 0)."
