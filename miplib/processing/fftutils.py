@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 
@@ -10,20 +10,24 @@ from miplib.data.coordinates.polar import (
 )
 from miplib.processing import ndarray, windowing
 
+_WINDOW_FUNCS = {
+    "tukey": windowing.apply_tukey_window,
+    "hamming": windowing.apply_hamming_window,
+}
+
 
 def fft(
     array: np.ndarray,
     interpolation: float = 1.0,
-    window: str | None = "tukey",
+    window: Literal["tukey", "hamming"] | None = "tukey",
     **kwargs: Any,
 ) -> np.ndarray:
     """Forward FFT with optional zero-padding interpolation and windowing."""
-    if window == "tukey":
-        array = windowing.apply_tukey_window(array, **kwargs)
-    elif window == "hamming":
-        array = windowing.apply_hamming_window(array)
-    elif window is not None:
-        raise ValueError(f"Unknown window type: {window!r}")
+    if window is not None:
+        func = _WINDOW_FUNCS.get(window)
+        if func is None:
+            raise ValueError(f"Unknown window type: {window!r}")
+        array = func(array, **kwargs)
 
     if interpolation > 1.0:
         new_shape = tuple(int(interpolation * s) for s in array.shape)
