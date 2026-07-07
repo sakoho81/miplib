@@ -72,9 +72,7 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
             psf_fft = self.psfs_fft[idx]
             adj_psf_fft = self.adj_psfs_fft[idx]
 
-            self.data.set_active_image(
-                view, self.options.channel, self.options.scale, "registered"
-            )
+            reg_key = self._reg_key(view)
 
             weighting = self.weights[idx]
             background = self.background[idx]
@@ -112,7 +110,7 @@ class MultiViewFusionRLCuda(fusion.MultiViewFusionRL):
 
                 # Divide image block with the convolution result
                 h_image_block = self.data.get_registered_block(
-                    self.block_size, self.options.block_pad, index.copy()
+                    reg_key, self.block_size, self.options.block_pad, index.copy()
                 ).astype(numpy.float32)
 
                 # h_estimate_block_new = ops_array.safe_divide(h_image_block, h_estimate_block_new)

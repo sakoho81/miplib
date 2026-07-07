@@ -3,17 +3,13 @@ import SimpleITK as sitk
 
 import miplib.processing.itk as ops_itk
 from miplib.data.containers import image_data
+from miplib.data.containers.image_data import ImageKey, ImageType
 
 from . import registration
 
 
-# todo: This class has way too many responsibilities. Need to refactor at some point.
 class RotatedMultiViewRegistration:
-    """
-    A class for multiview image registration. The method is based on
-    functions inside the Insight Toolkit (www.itk.org), as in the original
-    *miplib*. In *miplib* SimpleITK was used instead of Python
-    wrapped ITK.
+    """Multi-view image registration using SimpleITK.
 
     The registration was updated to support multiple views
     and the new HDF5 data storage implementation. It was also implemented
@@ -54,9 +50,6 @@ class RotatedMultiViewRegistration:
             relaxationFactor=options.relaxation_factor,
             estimateLearningRate=self.registration.EachIteration,
         )
-        # translation_scale = 1.0 / options.translation_scale
-        # self.registration.SetOptimizerScales([10, 10, 10,
-        #                                       .1, .1,.1])
 
         self.registration.SetOptimizerScalesFromJacobian()
 
@@ -80,24 +73,19 @@ class RotatedMultiViewRegistration:
         self.registration.SetMetricSamplingStrategy(self.registration.RANDOM)
         self.registration.SetMetricSamplingPercentage(options.sampling_percentage)
 
+    def _orig_key(self, index):
+        return ImageKey(
+            ImageType.ORIGINAL, index, self.options.channel, self.options.scale
+        )
+
     def execute(self):
-        """
-        Run image registration. All the views are registered one by one. The
-        image
-        at index 0 is used as a reference.
-        """
+        """Run image registration. All views registered against index 0."""
 
         # Get reference image.
-        self.data.set_active_image(
-            self.fixed_index, self.options.channel, self.options.scale, "original"
-        )
-        fixed_image = self.data.get_itk_image()
+        fixed_image = self.data.get_itk_image(self._orig_key(self.fixed_index))
 
         # Get moving image
-        self.data.set_active_image(
-            self.moving_index, self.options.channel, self.options.scale, "original"
-        )
-        moving_image = self.data.get_itk_image()
+        moving_image = self.data.get_itk_image(self._orig_key(self.moving_index))
 
         # INITIALIZATION
         # --------------
@@ -112,7 +100,9 @@ class RotatedMultiViewRegistration:
         manual_transform.SetCenter(rotation_center)
 
         # Rotation
-        initial_rotation = self.data.get_rotation_angle(radians=True)
+        initial_rotation = self.data.get_rotation_angle(
+            self._orig_key(self.moving_index), radians=True
+        )
         if self.options.rot_axis == 0:
             manual_transform.SetRotation(initial_rotation, 0, 0)
         elif self.options.rot_axis == 1:
@@ -136,17 +126,10 @@ class RotatedMultiViewRegistration:
             sitk.CenteredTransformInitializerFilter.MOMENTS,
         )
 
-        # print "The initial transform is:"
-        # print transform
-
         # Set initial transform
         self.registration.SetInitialTransform(transform)
 
         # SPATIAL MASK
-        # =====================================================================
-        # The registration metric works more reliably when it knows where
-        # non-zero
-        # voxels are located.
         thd = self.options.mask_threshold
         fixed_mask = sitk.BinaryDilate(sitk.BinaryThreshold(fixed_image, 0, thd, 0, 1))
         moving_mask = sitk.BinaryDilate(
@@ -180,12 +163,6 @@ class RotatedMultiViewRegistration:
         result = sitk.AffineTransform(result)
         # RESULTS
         # =====================================================================
-        # Combine two partial transforms into one.
-        # self.final_transform = sitk.Transform(manual_transform)
-        # self.final_transform.AddTransform(result)
-
-        # The two resulting transforms are combined into one here, because
-        # it is easier to save a single transform into a HDF5 file.
 
         A0 = numpy.asarray(manual_transform.GetMatrix()).reshape(3, 3)
         c0 = numpy.asarray(manual_transform.GetCenter())
@@ -249,17 +226,9 @@ class RotatedMultiViewRegistration:
         Get the registration result as a resampled image.
         """
 
-        self.data.set_active_image(
-            self.fixed_index, self.options.channel, self.options.scale, "original"
-        )
+        fixed_image = self.data.get_itk_image(self._orig_key(self.fixed_index))
 
-        fixed_image = self.data.get_itk_image()
-
-        self.data.set_active_image(
-            self.moving_index, self.options.channel, self.options.scale, "original"
-        )
-
-        moving_image = self.data.get_itk_image()
+        moving_image = self.data.get_itk_image(self._orig_key(self.moving_index))
 
         return ops_itk.resample_image(moving_image, self.final_transform, fixed_image)
 
@@ -268,10 +237,9 @@ class RotatedMultiViewRegistration:
         channel = self.options.channel
         view = self.moving_index
 
-        # Add registered image
-        self.data.set_active_image(view, channel, scale, "original")
-        angle = self.data.get_rotation_angle(radians=False)
-        spacing = self.data.get_voxel_size()
+        key = self._orig_key(view)
+        angle = self.data.get_rotation_angle(key, radians=False)
+        spacing = self.data.get_voxel_size(key)
         registered_image = ops_itk.convert_from_itk_image(self.get_resampled_result())
         self.data.add_registered_image(
             registered_image, scale, view, channel, angle, spacing
@@ -304,20 +272,13 @@ class RotatedMultiViewRegistration:
 class MultiViewRegistrationISM(RotatedMultiViewRegistration):
     def execute(self):
         # Get reference image.
-        self.data.set_active_image(
-            self.fixed_index, self.options.channel, self.options.scale, "original"
-        )
-        fixed_image = self.data.get_itk_image()
+        fixed_image = self.data.get_itk_image(self._orig_key(self.fixed_index))
 
-        for idx in range(self.data.get_number_of_images("original")):
+        for idx in range(self.data.get_number_of_images(ImageType.ORIGINAL)):
             print(f"Registering view {idx}")
             self.moving_index = idx
 
-            # Get moving image
-            self.data.set_active_image(
-                self.moving_index, self.options.channel, self.options.scale, "original"
-            )
-            moving_image = self.data.get_itk_image()
+            moving_image = self.data.get_itk_image(self._orig_key(self.moving_index))
 
             # Register
             if moving_image.GetDimension() == 2:

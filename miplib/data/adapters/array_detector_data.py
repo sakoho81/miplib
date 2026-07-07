@@ -4,16 +4,14 @@ Image objects in funcitons that were written for ArrayDetectorData.
 """
 
 from miplib.data.containers.image import Image
+from miplib.data.containers.image_data import ImageKey, ImageType
 
 
 class ImageDataAdapter:
-    def __init__(self, data, kind="original", scale=100):
+    def __init__(self, data, kind=ImageType.ORIGINAL, scale=100):
         self.data = data
-
-        self.kind = kind
+        self.kind = ImageType(kind) if isinstance(kind, str) else kind
         self.scale = scale
-
-        self.data.set_active_image(0, 0, self.scale, self.kind)
 
     @property
     def ndetectors(self):
@@ -25,11 +23,9 @@ class ImageDataAdapter:
 
     def __getitem__(self, item):
         gate, detector = item
-
-        self.data.set_active_image(detector, gate, self.scale, self.kind)
-        spacing = self.data.get_voxel_size()
-
-        return Image(self.data[:], spacing)
+        key = ImageKey(self.kind, detector, gate, self.scale)
+        spacing = self.data.get_voxel_size(key)
+        return Image(self.data.get_image_data(key), spacing)
 
 
 class ImageAdapter:

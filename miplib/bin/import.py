@@ -60,7 +60,8 @@ import sys
 import numpy
 
 from miplib.data.containers import image_data
-from miplib.data.definitions import image_types_c, params_c
+from miplib.data.containers.image_data import ImageKey, ImageType
+from miplib.data.definitions import params_c
 from miplib.data.io import read
 from miplib.processing import itk as itkutils
 
@@ -91,9 +92,9 @@ def main():
             images = (images * (255.0 / images.max())).astype(numpy.uint8)
 
         if not all(x in image_name for x in params_c) or not any(
-            x in image_name for x in image_types_c
+            x in image_name for x in ImageType
         ):
-            print(f"Unrecognized image name {image_name}. Skipping it.")
+            print(f"Unrecognized file name pattern: {image_name}. Skipping.")
             continue
 
         image_type = image_name.split("_scale")[0]
@@ -103,7 +104,6 @@ def main():
         angle = image_name.split("angle_")[-1].split(".")[0]
 
         assert all(x.isdigit() for x in (scale, index, channel, angle))
-        # data, angle, spacing, index, scale, channel, chunk_size=None
 
         if image_type == "original":
             data.add_original_image(images, scale, index, channel, angle, spacing)
@@ -118,7 +118,7 @@ def main():
             print(
                 f"Creating {scale} percent downsampled versions of the original images"
             )
-            data.create_rescaled_images("original", scale)
+            data.create_rescaled_images(ImageType.ORIGINAL, scale)
 
     # Add transforms for registered images.
     for transform_name in os.listdir(directory):
@@ -140,12 +140,12 @@ def main():
         full_path = os.path.join(directory, transform_name)
 
         # First calculate registered image if not in the data structure
-        if not data.check_if_exists("registered", index, channel, scale):
+        if not data.check_if_exists(ImageType.REGISTERED, index, channel, scale):
             print("Resampling registered image for image nr. ", index)
-            data.set_active_image(0, channel, scale, "original")
-            reference = data.get_itk_image()
-            data.set_active_image(index, channel, scale, "original")
-            moving = data.get_itk_image()
+            key_ref = ImageKey(ImageType.ORIGINAL, 0, channel, scale)
+            key_moving = ImageKey(ImageType.ORIGINAL, index, channel, scale)
+            reference = data.get_itk_image(key_ref)
+            moving = data.get_itk_image(key_moving)
 
             transform = read.__itk_transform(full_path, return_itk=True)
 
