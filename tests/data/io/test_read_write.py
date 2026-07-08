@@ -16,6 +16,15 @@ def _has_simpleitk():
     return True
 
 
+def _has_bioformats():
+    try:
+        import pims  # noqa: F401
+
+        return pims.bioformats.available()
+    except Exception:
+        return False
+
+
 # -- TIFF write + read round-trip ----------------------------------------------
 
 
@@ -161,4 +170,31 @@ def test_tiff_roundtrip_with_non_unit_spacing(tmp_path):
     else:
         arr = np.asarray(result)
 
+    npt.assert_array_equal(arr, data)
+
+
+# -- Bioformats ----------------------------------------------------------------
+
+
+@pytest.mark.skipif(not _has_bioformats(), reason="Bioformats not available")
+def test_bioformats_reads_tiff_2d(tmp_path):
+    data = np.arange(25, dtype=np.float32).reshape(5, 5)
+    img = Image(data, spacing=(0.1, 0.2))
+    path = str(tmp_path / "test.tif")
+    write.image(path, img)
+
+    result = read.get_image(path, bioformats=True)
+    arr = np.asarray(result)
+    npt.assert_array_equal(arr, data)
+
+
+@pytest.mark.skipif(not _has_bioformats(), reason="Bioformats not available")
+def test_bioformats_reads_tiff_3d(tmp_path):
+    data = np.ones((3, 6, 6), dtype=np.float32)
+    img = Image(data, spacing=(0.5, 0.1, 0.1))
+    path = str(tmp_path / "test.tif")
+    write.image(path, img)
+
+    result = read.get_image(path, bioformats=True)
+    arr = np.asarray(result)
     npt.assert_array_equal(arr, data)
