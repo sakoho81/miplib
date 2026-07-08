@@ -63,11 +63,18 @@ def __tiff(
 
     # XResolution/YResolution map to numpy Y/X axes (Z, Y, X order).
     # The writer in write.py performs the inverse mapping.
-    spacing = (
-        z_spacing,
-        scale_c / float(tags["x_resolution"][0]),  # type: ignore[index]
-        scale_c / float(tags["y_resolution"][0]),  # type: ignore[index]
-    )
+    x_res = tags.get("x_resolution")
+    y_res = tags.get("y_resolution")
+    if x_res is None or y_res is None:
+        logger.warning("No XResolution/YResolution tags; using default spacing (1, 1).")
+        xy_spacing = (1.0, 1.0)
+    else:
+        xy_spacing = (
+            scale_c / float(x_res[0]),  # type: ignore[index]
+            scale_c / float(y_res[0]),  # type: ignore[index]
+        )
+
+    spacing = (z_spacing,) + xy_spacing
 
     if return_itk:
         return itkutils.convert_from_numpy(images, spacing)
