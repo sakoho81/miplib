@@ -25,16 +25,16 @@ def __itk_image(path: str, image: Image) -> None:
 def __tiff(path: str, image: Image, spacing: list[float]) -> None:
     """Write a TIFF (auto-converted to BigTIFF if needed)."""
     if image.ndim >= 3:
-        image_description = (
-            f"images={image.shape[0]} slices={image.shape[0]} "
-            f"unit=micron spacing={spacing[0]}"
-        )
-        tifffile.imwrite(
-            path,
-            image,
-            resolution=(1.0 / spacing[1], 1.0 / spacing[2]),
-            metadata={"description": image_description},
-        )
+        with tifffile.TiffWriter(path, ome=True) as tw:
+            metadata: dict[str, object] = {"axes": "ZYX"}
+            if len(spacing) >= 3:
+                metadata["PhysicalSizeZ"] = spacing[0]
+                metadata["PhysicalSizeZUnit"] = "µm"
+            tw.write(
+                image,
+                resolution=(1.0 / spacing[1], 1.0 / spacing[2]),
+                metadata=metadata,
+            )
     else:
         tifffile.imwrite(
             path,

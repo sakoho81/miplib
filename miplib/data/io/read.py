@@ -137,11 +137,20 @@ def __bioformats(
             reader.metadata.PixelsPhysicalSizeX(0),
         )
     else:
-        spacing = (
-            reader.metadata.PixelsPhysicalSizeZ(0),
-            reader.metadata.PixelsPhysicalSizeY(0),
-            reader.metadata.PixelsPhysicalSizeX(0),
-        )
+        try:
+            spacing = (
+                reader.metadata.PixelsPhysicalSizeZ(0),
+                reader.metadata.PixelsPhysicalSizeY(0),
+                reader.metadata.PixelsPhysicalSizeX(0),
+            )
+        except AttributeError:
+            # OME-TIFF files expose PixelsPhysicalSizeZ but not Y/X.
+            # Fall back to 2D spacing with Y/X defaults.
+            spacing = (
+                reader.metadata.PixelsPhysicalSizeZ(0),
+                1.0,
+                1.0,
+            )
 
     if "c" in reader.sizes:
         reader.iter_axes = "c"
