@@ -606,3 +606,252 @@ def test_facade_can_accept_string_image_type(imagedata):
     )
     assert imagedata.get_number_of_images("original") == 1
     assert imagedata.get_scales("original") == [100]
+
+
+# -- Additional store tests ----------------------------------------------------
+
+
+def test_add_image_with_chunk_size(store):
+    data = np.ones((8, 8), dtype=np.float32)
+    key = ImageKey(ImageType.ORIGINAL, 0, 0, 100)
+    store.add_image(key, data, angle=0.0, spacing=[1.0, 1.0], chunk_size=(4, 4))
+    assert store.check_if_exists(key)
+
+
+def test_add_fused_image_rejects_non_ndarray(store):
+    with pytest.raises(TypeError, match="Expected numpy.ndarray"):
+        store.add_fused_image(channel=0, scale=100, data=[1, 2], spacing=[1.0])  # type: ignore[arg-type]
+
+
+def test_get_scales_empty_store(store):
+    assert store.get_scales(ImageType.ORIGINAL) == []
+
+
+def test_multi_channel_independent_retrieval(store):
+    key_ch0 = ImageKey(ImageType.ORIGINAL, 0, 0, 100)
+    key_ch1 = ImageKey(ImageType.ORIGINAL, 0, 1, 100)
+    data0 = np.ones((2, 2), dtype=np.float32)
+    data1 = 2 * np.ones((2, 2), dtype=np.float32)
+    store.add_image(key_ch0, data0, angle=0.0, spacing=[1.0, 1.0])
+    store.add_image(key_ch1, data1, angle=0.0, spacing=[1.0, 1.0])
+    npt.assert_array_equal(store.get_image_data(key_ch0), data0)
+    npt.assert_array_equal(store.get_image_data(key_ch1), data1)
+
+
+def test_registered_block_fully_outside_image(store):
+    data = np.ones((4, 4), dtype=np.float32)
+    key = ImageKey(ImageType.REGISTERED, 0, 0, 100)
+    store.add_image(key, data, angle=0.0, spacing=[1.0, 1.0])
+    block = store.get_registered_block(
+        key,
+        block_size=np.array([2, 2]),
+        block_pad=0,
+        block_start_index=np.array([10, 10]),
+    )
+    assert block.shape == (2, 2)
+    assert np.all(block == 0)
+
+
+def test_registered_block_negative_start_only(store):
+    data = np.ones((4, 4), dtype=np.float32)
+    key = ImageKey(ImageType.REGISTERED, 0, 0, 100)
+    store.add_image(key, data, angle=0.0, spacing=[1.0, 1.0])
+    block = store.get_registered_block(
+        key,
+        block_size=np.array([4, 4]),
+        block_pad=2,
+        block_start_index=np.array([0, 0]),
+    )
+    assert block.shape == (8, 8)
+
+
+def test_get_image_attributes_numpy_scalars(tmp_path):
+    """Numpy scalar types are converted to native Python types."""
+    path = str(tmp_path / "scalars.hdf5")
+    store = HDF5ImageStore(path)
+    store.add_image(
+        ImageKey(ImageType.ORIGINAL, 0, 0, 100),
+        np.ones((2, 2)),
+        angle=45.0,
+        spacing=[1.0, 1.0],
+    )
+    store.close()
+
+    # Manually write numpy-scalar attributes to test conversion
+    import h5py
+
+    f = h5py.File(path, mode="r+")
+    ds = f["original/0/channel_0_scale_100"]
+    ds.attrs["test_int"] = np.int32(5)
+    ds.attrs["test_float"] = np.float32(3.14)
+    ds.attrs["test_bool"] = np.bool_(True)
+    f.close()
+
+    store2 = HDF5ImageStore(path)
+    attrs = store2.get_image_attributes(ImageKey(ImageType.ORIGINAL, 0, 0, 100))
+    assert attrs["test_int"] == 5
+    assert isinstance(attrs["test_int"], int)
+    assert attrs["test_float"] == pytest.approx(3.14)
+    assert isinstance(attrs["test_float"], float)
+    assert attrs["test_bool"] is True
+    assert isinstance(attrs["test_bool"], bool)
+    store2.close()
+
+
+# -- Additional facade tests ---------------------------------------------------
+
+
+def test_already_isotropic_3d_no_resample(imagedata):
+    data = np.ones((8, 16, 16), dtype=np.float32)
+    imagedata.add_original_image(
+        data,
+        scale=100,
+        index=0,
+        channel=0,
+        angle=0.0,
+        spacing=[1.0, 1.0, 1.0],
+    )
+    key = ImageKey(ImageType.ORIGINAL, 0, 0, 100)
+    assert imagedata.get_image_size(key) == (8, 16, 16)
+
+
+def test_get_image_data_direct(imagedata):
+    data = np.ones((3, 3), dtype=np.float32)
+    imagedata.add_original_image(
+        data,
+        scale=100,
+        index=0,
+        channel=0,
+        angle=0.0,
+        spacing=[1.0, 1.0],
+    )
+    key = ImageKey(ImageType.ORIGINAL, 0, 0, 100)
+    result = imagedata.get_image_data(key)
+    npt.assert_array_equal(result, data)
+
+
+def test_add_psf_via_facade(imagedata):
+    data = np.ones((3, 3), dtype=np.float32)
+    imagedata.add_psf(
+        data,
+        scale=100,
+        index=0,
+        channel=0,
+        angle=0.0,
+        spacing=[1.0, 1.0],
+        calculated=True,
+    )
+    key = ImageKey(ImageType.PSF, 0, 0, 100)
+    assert imagedata.check_if_exists(ImageType.PSF, 0, 0, 100)
+    attrs = imagedata._store.get_image_attributes(key)
+    assert attrs["calculated"] is True
+    assert imagedata.get_max(key) == 1.0
+
+
+def test_add_transform_via_facade(imagedata):
+    imagedata.add_registered_image(
+        np.ones((2, 2)),
+        scale=100,
+        index=1,
+        channel=0,
+        angle=45.0,
+        spacing=[1.0, 1.0],
+    )
+    imagedata.add_transform(
+        scale=100,
+        index=1,
+        channel=0,
+        params=[1.0, 2.0],
+        fixed_params=[0.0],
+        transform_type=10,
+    )
+    key = ImageKey(ImageType.REGISTERED, 1, 0, 100)
+    params_tup = imagedata.get_transform_parameters(key)
+    assert params_tup[0] == [1.0, 2.0]
+    assert params_tup[1] == [0.0]
+    assert params_tup[2] == 10
+
+
+def test_check_if_exists_various_types(imagedata):
+    imagedata.add_original_image(
+        np.ones((2, 2)),
+        scale=100,
+        index=0,
+        channel=0,
+        angle=0.0,
+        spacing=[1.0, 1.0],
+    )
+    imagedata.add_psf(
+        np.ones((2, 2)), scale=100, index=0, channel=0, angle=0.0, spacing=[1.0, 1.0]
+    )
+    assert imagedata.check_if_exists(ImageType.ORIGINAL, 0, 0, 100)
+    assert imagedata.check_if_exists(ImageType.PSF, 0, 0, 100)
+    assert not imagedata.check_if_exists(ImageType.REGISTERED, 0, 0, 100)
+
+
+def test_check_if_exists_string_arg(imagedata):
+    imagedata.add_original_image(
+        np.ones((2, 2)),
+        scale=100,
+        index=0,
+        channel=0,
+        angle=0.0,
+        spacing=[1.0, 1.0],
+    )
+    assert imagedata.check_if_exists("original", 0, 0, 100)
+
+
+def test_image_data_context_manager(tmp_path):
+    path = str(tmp_path / "ctx_imdata.hdf5")
+    with ImageData(path) as idata:
+        idata.add_original_image(
+            np.ones((2, 2)),
+            scale=100,
+            index=0,
+            channel=0,
+            angle=0.0,
+            spacing=[1.0, 1.0],
+        )
+    # File should be closed; reopening should work
+    idata2 = ImageData(path)
+    assert idata2.series_count == 1
+    idata2.close()
+
+
+# -- Operations tests (with store) ---------------------------------------------
+
+
+def test_create_rescaled_images_downscale(store):
+    data = np.ones((16, 16), dtype=np.float32)
+    key_full = ImageKey(ImageType.ORIGINAL, 0, 0, 100)
+    store.add_image(key_full, data, angle=0.0, spacing=[1.0, 1.0])
+
+    from miplib.data.image_data_operations import create_rescaled_images
+
+    create_rescaled_images(store, ImageType.ORIGINAL, scale=50)
+    key_half = ImageKey(ImageType.ORIGINAL, 0, 0, 50)
+    assert store.check_if_exists(key_half)
+    half_data = store.get_image_data(key_half)
+    assert half_data.shape == (8, 8)
+    attrs = store.get_image_attributes(key_half)
+    npt.assert_almost_equal(attrs["spacing"], [2.0, 2.0])
+
+
+def test_create_rescaled_images_overwrites_existing(store):
+    data = np.ones((8, 8), dtype=np.float32)
+    key_full = ImageKey(ImageType.ORIGINAL, 0, 0, 100)
+    store.add_image(key_full, data, angle=0.0, spacing=[1.0, 1.0])
+
+    from miplib.data.image_data_operations import create_rescaled_images
+
+    # First create 50% scale
+    create_rescaled_images(store, ImageType.ORIGINAL, scale=50)
+    key_half = ImageKey(ImageType.ORIGINAL, 0, 0, 50)
+
+    # Write something unexpected at the scale-50 key, verify it gets replaced
+    # (the operation deletes-then-recreates)
+    store.delete_dataset(key_half)
+    store.add_image(key_half, np.ones((4, 4)), angle=0.0, spacing=[2.0, 2.0])
+
+    create_rescaled_images(store, ImageType.ORIGINAL, scale=50)
+    assert store.get_image_data(key_half).shape == (4, 4)

@@ -24,8 +24,8 @@ class SimplePolarIndexer:
             raise ValueError(f"shape must be 2D or 3D, got {len(shape)}-dimensional")
 
         axes = tuple(np.arange(-np.floor(s / 2.0), np.ceil(s / 2.0)) for s in shape)
-        meshgrid = np.meshgrid(*axes)
-        self.r = np.sqrt(sum(axis**2 for axis in meshgrid))
+        self.meshgrid = np.meshgrid(*axes)
+        self.r = np.sqrt(sum(axis**2 for axis in self.meshgrid))
 
     def __getitem__(self, item: float) -> np.ndarray:
         return self.r == item

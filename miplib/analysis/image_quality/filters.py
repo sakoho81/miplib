@@ -225,9 +225,9 @@ class FrequencyQuality(Filter):
 
         average = np.zeros(iterator.nbins)
 
-        for idx, ring in enumerate(iterator):
-            subset = self.power[ring]
-            average[idx] = float(subset.sum()) / subset.size
+        for ring_indices, ring_idx in iterator:
+            subset = self.power[ring_indices]
+            average[ring_idx] = float(subset.sum()) / subset.size
 
         # TODO: This hand-rolls physical-frequency-axis scaling; candidate
         # to refactor onto generate_polar_coordinate_grid

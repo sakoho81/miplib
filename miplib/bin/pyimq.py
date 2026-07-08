@@ -161,7 +161,7 @@ def main():
                     continue
                 # ImageJ files have particular TIFF tags that can be processed correctly
                 # with the options.imagej switch
-                image = read.get_image(path, channel=options.rgb_channel)
+                image = read.get_image(real_path, channel=options.rgb_channel)
 
                 # Only grayscale images are processed. If the input is an RGB image,
                 # a channel can be chosen for processing.
