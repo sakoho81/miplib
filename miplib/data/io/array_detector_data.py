@@ -110,7 +110,7 @@ def read_tiff_sequence(path, detectors=25, channels=1):
     data = ArrayDetectorData(detectors, channels)
     steps = itertools.product(range(channels), range(detectors))
     for idx, (channel, detector) in enumerate(steps):
-        image = imread.get_image(os.path.join(path, files[idx]), bioformats=False)
+        image = imread.get_image(os.path.join(path, files[idx]))
         data[detector, channel] = image
 
     return data

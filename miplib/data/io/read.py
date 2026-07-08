@@ -3,13 +3,11 @@ import os
 
 import pims
 import SimpleITK as sitk
-import tifffile
 
 import miplib.processing.itk as itkutils
 from miplib.data.containers.image import Image
 
 logger = logging.getLogger(__name__)
-scale_c = 1.0e6
 
 
 def get_image(
@@ -17,9 +15,9 @@ def get_image(
     series: int = 0,
     channel: int = 0,
     return_type: str = "image",
-    bioformats: bool = True,
-) -> Image | sitk.Image | tuple:
-    """Read an image from disk, dispatching on file extension."""
+    bioformats: bool = True,  # noqa: ARG001 kept for API compat
+) -> Image | sitk.Image:
+    """Read an image from disk via bioformats (or ITK for .mha files)."""
     if return_type not in ("itk", "image"):
         raise ValueError(
             f"Unsupported return_type {return_type!r}; use 'itk' or 'image'"
@@ -28,9 +26,7 @@ def get_image(
     if filename.endswith(".mha"):
         return __itk_image(filename, return_type == "itk")
 
-    if bioformats:
-        return __bioformats(filename, series, channel, return_type == "itk")
-    return __tiff(filename, return_type == "itk")
+    return __bioformats(filename, series, channel, return_type == "itk")
 
 
 def __itk_image(filename: str, return_itk: bool = True) -> sitk.Image | Image:
@@ -41,59 +37,6 @@ def __itk_image(filename: str, return_itk: bool = True) -> sitk.Image | Image:
     if return_itk:
         return image
     return itkutils.convert_from_itk_image(image)
-
-
-def __tiff(
-    filename: str,
-    return_itk: bool = False,
-) -> tuple | sitk.Image:
-    """Read an ImageJ-style 3D TIFF, extracting voxel spacing from tags."""
-    if not filename.endswith((".tif", ".tiff")):
-        raise ValueError(f"Expected .tif or .tiff extension, got {filename}")
-
-    tags: dict[str, object] = {}
-    with tifffile.TiffFile(filename) as tiff:
-        images = tiff.asarray()
-        page = tiff.pages[0]
-        if hasattr(page, "tags"):
-            for tag in list(page.tags.values()):  # type: ignore[union-attr]
-                tags[tag.name] = tag.value
-
-    z_spacing = _extract_z_spacing(tags)
-
-    # XResolution/YResolution map to numpy Y/X axes (Z, Y, X order).
-    # The writer in write.py performs the inverse mapping.
-    x_res = tags.get("x_resolution")
-    y_res = tags.get("y_resolution")
-    if x_res is None or y_res is None:
-        logger.warning("No XResolution/YResolution tags; using default spacing (1, 1).")
-        xy_spacing = (1.0, 1.0)
-    else:
-        xy_spacing = (
-            scale_c / float(x_res[0]),  # type: ignore[index]
-            scale_c / float(y_res[0]),  # type: ignore[index]
-        )
-
-    spacing = (z_spacing,) + xy_spacing
-
-    if return_itk:
-        return itkutils.convert_from_numpy(images, spacing)
-    return images, spacing
-
-
-def _extract_z_spacing(tags: dict[str, object]) -> float:
-    """Extract z-spacing from ImageJ-style image_description tag."""
-    if "image_description" not in tags:
-        logger.warning("No ImageJ image_description tag; using z-spacing = 1.0")
-        return 1.0
-
-    image_descriptor = str(tags["image_description"]).split("\n")
-    for line in image_descriptor:
-        if "spacing" in line:
-            return float(line.split("=")[-1])
-
-    logger.warning("No spacing entry in image_description; using z-spacing = 1.0")
-    return 1.0
 
 
 def __itk_transform(path: str, return_itk: bool = False) -> tuple | sitk.Transform:
