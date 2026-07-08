@@ -15,7 +15,6 @@ def get_image(
     series: int = 0,
     channel: int = 0,
     return_type: str = "image",
-    bioformats: bool = True,  # noqa: ARG001 kept for API compat
 ) -> Image | sitk.Image:
     """Read an image from disk via bioformats (or ITK for .mha files)."""
     if return_type not in ("itk", "image"):
