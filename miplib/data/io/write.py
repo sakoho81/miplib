@@ -6,34 +6,28 @@ from miplib.data.containers.image import Image
 
 
 def image(path, image):
-    """
-    A wrapper for the various image writing functions. The consumers
-    should only call this function
+    """Write an Image to disk, dispatching on file extension.
 
     :param path:    A full path to the image.
-    :param image:   An image as :type image: numpy.ndarray or sitk.image.
-
-    :return:
+    :param image:   An Image (ndarray subclass with spacing).
     """
-
-    assert isinstance(image, Image)
+    if not isinstance(image, Image):
+        raise TypeError(f"Expected Image, got {type(image).__name__}")
 
     if path.endswith((".tiff", ".tif")):
         __tiff(path, image, image.spacing)
-    else:
+    elif path.endswith((".mha", ".mhd")):
         __itk_image(path, image)
+    else:
+        raise ValueError(
+            f"Unsupported file extension: {path}. Expected .tif, .tiff, .mha, or .mhd."
+        )
 
 
 def __itk_image(path, image):
-    """
-    A writer for ITK supported image formats.
-
-    :param path:    A full path to the image.
-    :param image:   An image as :type image: numpy.ndarray.
-    :param spacing: Pixel size ZXY, as a :type spacing: list.
-    """
-    assert isinstance(image, Image)
-
+    """Write an Image in ITK format (.mha/.mhd)."""
+    if not isinstance(image, Image):
+        raise TypeError(f"Expected Image, got {type(image).__name__}")
     image = itkutils.convert_to_itk_image(image)
     sitk.WriteImage(image, path)
 

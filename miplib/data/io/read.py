@@ -27,6 +27,10 @@ def get_image(filename, series=0, channel=0, return_type="image", bioformats=Tru
     if filename.endswith(".mha"):
         data = __itk_image(filename, return_type == "itk")
     else:
+        if not filename.endswith((".tif", ".tiff")):
+            raise ValueError(
+                f"Unsupported image format: {filename}. Expected .tif, .tiff, or .mha."
+            )
         if bioformats:
             data = __bioformats(filename, series, channel, return_type == "itk")
         else:
@@ -83,16 +87,25 @@ def __tiff(filename, memmap=False, return_itk=False):
 
     # Figure out z-spacing, which in ImageJ is hidden in the "image_description"
     # header (why, one might ask).
+    if "image_description" not in tags:
+        raise ValueError(
+            "This TIFF does not have an ImageJ-style image_description tag. "
+            "Use --bioformats or convert to .mha format."
+        )
     image_descriptor = tags["image_description"].split("\n")
     z_spacing = None
     for line in image_descriptor:
         if "spacing" in line:
             z_spacing = float(line.split("=")[-1])
             break
-    assert z_spacing is not None
+    if z_spacing is None:
+        raise ValueError(
+            "Could not determine z-spacing from the TIFF image description."
+        )
 
-    # Create a tuple for zxy-spacing. The order of the dimensions follows that of the
-    # image data
+    # Note: the TIFF tags use XResolution/YResolution naming, but here they
+    # are mapped to Z, Y, X (numpy axis order). The writer in write.py
+    # performs the inverse mapping, so round-trips are consistent.
     spacing = (
         z_spacing,
         scale_c / tags["x_resolution"][0],
@@ -158,9 +171,8 @@ def __bioformats(filename, series=0, channel=0, return_itk=False):
     :param return_itk:
     :return:
     """
-    assert pims.bioformats.available(), (
-        "Please install jpype in order to use the bioformats reader."
-    )
+    if not pims.bioformats.available():
+        raise ImportError("Please install jpype in order to use the bioformats reader.")
     image = pims.bioformats.BioformatsReader(filename, series=series)
 
     # Get Pixel/Voxel size information
@@ -179,7 +191,10 @@ def __bioformats(filename, series=0, channel=0, return_itk=False):
     # Get color channel
     if "c" in image.sizes:
         image.iter_axes = "c"
-        assert len(image) > channel
+        if not len(image) > channel:
+            raise IndexError(
+                f"Requested channel {channel} but image has only {len(image)} channels."
+            )
         image = image[channel]
     else:
         image = image[0]

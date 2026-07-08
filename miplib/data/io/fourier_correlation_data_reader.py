@@ -10,9 +10,7 @@ from miplib.data.containers.image import Image
 
 
 class FourierCorrelationDataReader:
-    """
-    A class for writing Fourier Correlation Data into a file.
-    """
+    """A class for reading Fourier Correlation Data from an HDF5 file."""
 
     # region Constructor and Destructor
     def __init__(self, file_path):
@@ -43,15 +41,20 @@ class FourierCorrelationDataReader:
             raise ValueError("No images to read")
 
         if index is not None:
-            image_name = "image_%i" % index
-            data_set = self.data["images"][image_name]
-            spacing = data_set.attrs["pixel_size"].split()[0 : len(data_set.shape)]
-            return Image(data_set[:], spacing)
+            image_name = f"image_{index}"
+            ds = self.data["images"][image_name]
+            spacing = [
+                float(s) for s in ds.attrs["pixel_size"].split()[0 : len(ds.shape)]
+            ]
+            return Image(ds[:], spacing)
 
         images = []
-        for data_set in self.data["images"]:
-            spacing = data_set.attrs["pixel_size"].split()[0 : len(data_set.shape)]
-            images.append(Image(data_set[:], spacing))
+        for name in self.data["images"]:
+            ds = self.data["images"][name]
+            spacing = [
+                float(s) for s in ds.attrs["pixel_size"].split()[0 : len(ds.shape)]
+            ]
+            images.append(Image(ds[:], spacing))
 
         return images
 
@@ -71,6 +74,7 @@ class FourierCorrelationDataReader:
                 correlation_group = self.data[group_name]["correlation"]
 
                 data_set.resolution["threshold"] = resolution_group["threshold"][:]
+                data_set.resolution["resolution"] = resolution_group.attrs["resolution"]
                 data_set.resolution["resolution-point"] = resolution_group.attrs[
                     "resolution-point"
                 ].split()[:-1]
