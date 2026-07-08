@@ -28,6 +28,7 @@ def _has_bioformats():
 # -- TIFF write + read round-trip ----------------------------------------------
 
 
+@pytest.mark.skipif(not _has_bioformats(), reason="Bioformats not available")
 def test_tiff_roundtrip_2d(tmp_path):
     data = np.arange(16, dtype=np.float32).reshape(4, 4)
     img = Image(data, spacing=(0.1, 0.2))
@@ -36,42 +37,56 @@ def test_tiff_roundtrip_2d(tmp_path):
     write.image(path, img)
     assert os.path.isfile(path)
 
-    result = read.get_image(path, bioformats=False)
-    if isinstance(result, tuple):
-        arr, _ = result
-    else:
-        arr = np.asarray(result)
-
+    # bioformats reads OME-XML metadata (including spacing) correctly
+    result = read.get_image(path, bioformats=True)
+    arr = np.asarray(result)
     npt.assert_array_equal(arr, data)
+    npt.assert_almost_equal(result.spacing[0], 0.1)
+    npt.assert_almost_equal(result.spacing[1], 0.2)
 
 
+@pytest.mark.skipif(not _has_bioformats(), reason="Bioformats not available")
 def test_tiff_roundtrip_3d(tmp_path):
     data = np.ones((4, 8, 8), dtype=np.float32)
     img = Image(data, spacing=(0.5, 0.1, 0.1))
     path = str(tmp_path / "test.tif")
 
     write.image(path, img)
+    result = read.get_image(path, bioformats=True)
+    arr = np.asarray(result)
+    npt.assert_array_equal(arr, data)
+    npt.assert_almost_equal(result.spacing[0], 0.5)
+    npt.assert_almost_equal(result.spacing[1], 0.1)
+    npt.assert_almost_equal(result.spacing[2], 0.1)
+
+
+def test_tiff_data_preserved_no_bioformats(tmp_path):
+    """Legacy TIFF reader preserves data but not spacing."""
+    data = np.arange(16, dtype=np.float32).reshape(4, 4)
+    img = Image(data, spacing=(0.1, 0.2))
+    path = str(tmp_path / "test.tif")
+    write.image(path, img)
+
     result = read.get_image(path, bioformats=False)
     if isinstance(result, tuple):
         arr, _ = result
     else:
         arr = np.asarray(result)
-
     npt.assert_array_equal(arr, data)
 
 
+@pytest.mark.skipif(not _has_bioformats(), reason="Bioformats not available")
 def test_tiff_roundtrip_preserves_shape(tmp_path):
     data = np.arange(100, dtype=np.float32).reshape(10, 10)
     img = Image(data, spacing=(1.0, 1.0))
     path = str(tmp_path / "test.tif")
 
     write.image(path, img)
-    result = read.get_image(path, bioformats=False)
-    if isinstance(result, tuple):
-        arr, _ = result
-    else:
-        arr = np.asarray(result)
+    result = read.get_image(path, bioformats=True)
+    arr = np.asarray(result)
     assert arr.shape == (10, 10)
+    npt.assert_almost_equal(result.spacing[0], 1.0)
+    npt.assert_almost_equal(result.spacing[1], 1.0)
 
 
 # -- ITK write + read round-trip------------------------------------------------
@@ -157,20 +172,19 @@ def test_read_invalid_return_type():
         read.get_image("test.tif", return_type="invalid", bioformats=False)
 
 
+@pytest.mark.skipif(not _has_bioformats(), reason="Bioformats not available")
 def test_tiff_roundtrip_with_non_unit_spacing(tmp_path):
-    """Non-unit spacing: data is preserved; spacing may degrade in TIFF format."""
+    """Non-unit spacing preserved through OME-TIFF metadata."""
     data = np.ones((6, 6), dtype=np.float32)
     img = Image(data, spacing=(3.0, 5.0))
     path = str(tmp_path / "test.tif")
 
     write.image(path, img)
-    result = read.get_image(path, bioformats=False)
-    if isinstance(result, tuple):
-        arr, _ = result
-    else:
-        arr = np.asarray(result)
-
+    result = read.get_image(path, bioformats=True)
+    arr = np.asarray(result)
     npt.assert_array_equal(arr, data)
+    npt.assert_almost_equal(result.spacing[0], 3.0)
+    npt.assert_almost_equal(result.spacing[1], 5.0)
 
 
 # -- Bioformats ----------------------------------------------------------------
