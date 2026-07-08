@@ -29,9 +29,17 @@ def _has_bioformats():
 
 
 @pytest.mark.skipif(not _has_bioformats(), reason="Bioformats not available")
-def test_tiff_roundtrip_2d(tmp_path):
-    data = np.arange(16, dtype=np.float32).reshape(4, 4)
-    img = Image(data, spacing=(0.1, 0.2))
+@pytest.mark.parametrize(
+    "shape,spacing",
+    [
+        ((4, 4), (0.1, 0.2)),
+        ((10, 10), (1.0, 1.0)),
+        ((6, 6), (3.0, 5.0)),
+    ],
+)
+def test_tiff_roundtrip_2d(tmp_path, shape, spacing):
+    data = np.arange(np.prod(shape), dtype=np.float32).reshape(shape)
+    img = Image(data, spacing=spacing)
     path = str(tmp_path / "test.tif")
 
     write.image(path, img)
@@ -40,8 +48,8 @@ def test_tiff_roundtrip_2d(tmp_path):
     result = read.get_image(path)
     arr = np.asarray(result)
     npt.assert_array_equal(arr, data)
-    npt.assert_almost_equal(result.spacing[0], 0.1)
-    npt.assert_almost_equal(result.spacing[1], 0.2)
+    npt.assert_almost_equal(result.spacing[0], spacing[0])
+    npt.assert_almost_equal(result.spacing[1], spacing[1])
 
 
 @pytest.mark.skipif(not _has_bioformats(), reason="Bioformats not available")
@@ -57,34 +65,6 @@ def test_tiff_roundtrip_3d(tmp_path):
     npt.assert_almost_equal(result.spacing[0], 0.5)
     npt.assert_almost_equal(result.spacing[1], 0.1)
     npt.assert_almost_equal(result.spacing[2], 0.1)
-
-
-@pytest.mark.skipif(not _has_bioformats(), reason="Bioformats not available")
-def test_tiff_roundtrip_preserves_shape(tmp_path):
-    data = np.arange(100, dtype=np.float32).reshape(10, 10)
-    img = Image(data, spacing=(1.0, 1.0))
-    path = str(tmp_path / "test.tif")
-
-    write.image(path, img)
-    result = read.get_image(path)
-    arr = np.asarray(result)
-    assert arr.shape == (10, 10)
-    npt.assert_almost_equal(result.spacing[0], 1.0)
-    npt.assert_almost_equal(result.spacing[1], 1.0)
-
-
-@pytest.mark.skipif(not _has_bioformats(), reason="Bioformats not available")
-def test_tiff_roundtrip_with_non_unit_spacing(tmp_path):
-    data = np.ones((6, 6), dtype=np.float32)
-    img = Image(data, spacing=(3.0, 5.0))
-    path = str(tmp_path / "test.tif")
-
-    write.image(path, img)
-    result = read.get_image(path)
-    arr = np.asarray(result)
-    npt.assert_array_equal(arr, data)
-    npt.assert_almost_equal(result.spacing[0], 3.0)
-    npt.assert_almost_equal(result.spacing[1], 5.0)
 
 
 # -- ITK write + read round-trip -----------------------------------------------
@@ -154,30 +134,3 @@ def test_read_return_type_image(tmp_path):
     result = read.get_image(path, return_type="image")
     assert isinstance(result, Image)
     npt.assert_array_equal(np.asarray(result), np.ones((4, 4), dtype=np.float32))
-
-
-# -- Bioformats ----------------------------------------------------------------
-
-
-@pytest.mark.skipif(not _has_bioformats(), reason="Bioformats not available")
-def test_bioformats_reads_tiff_2d(tmp_path):
-    data = np.arange(25, dtype=np.float32).reshape(5, 5)
-    img = Image(data, spacing=(0.1, 0.2))
-    path = str(tmp_path / "test.tif")
-    write.image(path, img)
-
-    result = read.get_image(path)
-    arr = np.asarray(result)
-    npt.assert_array_equal(arr, data)
-
-
-@pytest.mark.skipif(not _has_bioformats(), reason="Bioformats not available")
-def test_bioformats_reads_tiff_3d(tmp_path):
-    data = np.ones((3, 6, 6), dtype=np.float32)
-    img = Image(data, spacing=(0.5, 0.1, 0.1))
-    path = str(tmp_path / "test.tif")
-    write.image(path, img)
-
-    result = read.get_image(path)
-    arr = np.asarray(result)
-    npt.assert_array_equal(arr, data)
