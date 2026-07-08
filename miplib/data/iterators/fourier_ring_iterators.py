@@ -11,7 +11,7 @@ class FourierRingIterator:
     and iterates over concentric rings of thickness *d_bin*.
     """
 
-    def __init__(self, shape, d_bin):
+    def __init__(self, shape: tuple[int, int], d_bin: int | float) -> None:
         if len(shape) != 2:
             raise ValueError(f"shape must be 2D, got shape {shape}")
 
@@ -28,22 +28,22 @@ class FourierRingIterator:
         self._radii = np.arange(0, self.freq_nyq, self.d_bin)
 
     @property
-    def radii(self):
+    def radii(self) -> np.ndarray:
         return self._radii
 
     @property
-    def nbins(self):
+    def nbins(self) -> int:
         return self._nbins
 
-    def get_points_on_ring(self, ring_start, ring_stop):
+    def get_points_on_ring(self, ring_start: float, ring_stop: float) -> np.ndarray:
         arr_inf = self.r >= ring_start
         arr_sup = self.r < ring_stop
         return arr_inf * arr_sup
 
-    def __iter__(self):
+    def __iter__(self) -> "FourierRingIterator":
         return self
 
-    def __next__(self):
+    def __next__(self) -> tuple[tuple[np.ndarray, ...], int]:
         if self.current_ring < self._nbins:
             ring = self.get_points_on_ring(
                 self.current_ring * self.d_bin, (self.current_ring + 1) * self.d_bin
@@ -62,7 +62,9 @@ class SectionedFourierRingIterator(FourierRingIterator):
     centered at a settable rotation angle.
     """
 
-    def __init__(self, shape, d_bin, d_angle):
+    def __init__(
+        self, shape: tuple[int, int], d_bin: int | float, d_angle: float
+    ) -> None:
         FourierRingIterator.__init__(self, shape, d_bin)
 
         self.d_angle = converters.degrees_to_radians(d_angle)
@@ -72,20 +74,20 @@ class SectionedFourierRingIterator(FourierRingIterator):
         self.phi += self.d_angle / 2
         self.phi[self.phi >= 2 * np.pi] -= 2 * np.pi
 
-        self._angle = 0
-        self.angle_sector = self.get_angle_sector(0, self.d_angle)
+        self._angle = 0.0
+        self.angle_sector = self.get_angle_sector(0.0, self.d_angle)
 
     @property
-    def angle(self):
+    def angle(self) -> float:
         return self._angle
 
     @angle.setter
-    def angle(self, value):
+    def angle(self, value: float) -> None:
         angle = converters.degrees_to_radians(value)
         self._angle = angle
         self.angle_sector = self.get_angle_sector(angle, angle + self.d_angle)
 
-    def get_angle_sector(self, phi_min, phi_max):
+    def get_angle_sector(self, phi_min: float, phi_max: float) -> np.ndarray:
         """Return a boolean mask for the angular sector [phi_min, phi_max).
 
         Includes the 180-degree counterpart for Fourier-space symmetry.
@@ -98,13 +100,15 @@ class SectionedFourierRingIterator(FourierRingIterator):
 
         return arr_inf * arr_sup + arr_inf_neg * arr_sup_neg
 
-    def __getitem__(self, limits):
+    def __getitem__(
+        self, limits: tuple[float, float, float, float]
+    ) -> tuple[np.ndarray, ...]:
         (ring_start, ring_stop, angle_min, angle_max) = limits
         ring = self.get_points_on_ring(ring_start, ring_stop)
         cone = self.get_angle_sector(angle_min, angle_max)
         return np.where(ring * cone)
 
-    def __next__(self):
+    def __next__(self) -> tuple[tuple[np.ndarray, ...], int]:
         if self.current_ring < self._nbins:
             ring = self.get_points_on_ring(
                 self.current_ring * self.d_bin, (self.current_ring + 1) * self.d_bin

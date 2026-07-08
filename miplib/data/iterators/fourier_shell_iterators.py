@@ -1,6 +1,8 @@
 import numpy as np
 
 import miplib.processing.converters as converters
+import miplib.processing.itk as itkutils
+import miplib.processing.ndarray as nputils
 from miplib.data.coordinates.polar import SimplePolarIndexer
 
 
@@ -11,7 +13,7 @@ class FourierShellIterator:
     and iterates over concentric shells of thickness *d_bin*.
     """
 
-    def __init__(self, shape, d_bin):
+    def __init__(self, shape: tuple[int, int, int], d_bin: int | float) -> None:
         if len(shape) != 3:
             raise ValueError(f"shape must be 3D, got shape {shape}")
 
@@ -29,28 +31,28 @@ class FourierShellIterator:
         self.radii = np.arange(0, self.freq_nyq, self.d_bin)
 
     @property
-    def steps(self):
+    def steps(self) -> np.ndarray:
         return self.radii
 
     @property
-    def nyquist(self):
+    def nyquist(self) -> int:
         return self.freq_nyq
 
-    def get_points_on_shell(self, shell_start, shell_stop):
+    def get_points_on_shell(self, shell_start: float, shell_stop: float) -> np.ndarray:
         arr_inf = self.r >= shell_start
         arr_sup = self.r < shell_stop
         return arr_inf * arr_sup
 
-    def __getitem__(self, limits):
+    def __getitem__(self, limits: tuple[float, float]) -> tuple[np.ndarray, ...]:
         """Return point indices for a shell defined by *(shell_start, shell_stop)*."""
         (shell_start, shell_stop) = limits
         shell = self.get_points_on_shell(shell_start, shell_stop)
         return np.where(shell)
 
-    def __iter__(self):
+    def __iter__(self) -> "FourierShellIterator":
         return self
 
-    def __next__(self):
+    def __next__(self) -> tuple[tuple[np.ndarray, ...], int]:
         shell_idx = self.current_shell
 
         if shell_idx <= self.shell_stop:
@@ -72,7 +74,9 @@ class SectionedFourierShellIterator(FourierShellIterator):
     for each shell, iterate all rotations, then advance shell.
     """
 
-    def __init__(self, shape, d_bin, d_angle):
+    def __init__(
+        self, shape: tuple[int, int, int], d_bin: int | float, d_angle: float
+    ) -> None:
         FourierShellIterator.__init__(self, shape, d_bin)
 
         self.d_angle = converters.degrees_to_radians(d_angle)
@@ -89,10 +93,10 @@ class SectionedFourierShellIterator(FourierShellIterator):
         self.angles = np.arange(0, 360, d_angle, dtype=int)
 
     @property
-    def steps(self):
+    def steps(self) -> tuple[np.ndarray, np.ndarray]:  # type: ignore[override]
         return self.radii, self.angles
 
-    def get_angle_sector(self, phi_min, phi_max):
+    def get_angle_sector(self, phi_min: float, phi_max: float) -> np.ndarray:
         """Return a boolean mask for the azimuthal sector [phi_min, phi_max).
 
         The azimuth is the angle in the YZ plane (rotation around X-axis).
@@ -106,7 +110,10 @@ class SectionedFourierShellIterator(FourierShellIterator):
 
         return arr_inf * arr_sup + arr_inf_neg * arr_sup_neg
 
-    def __getitem__(self, limits):
+    def __getitem__(
+        self,
+        limits: tuple[float, float, float, float],  # type: ignore[override]
+    ) -> tuple[np.ndarray, ...]:
         (shell_start, shell_stop, angle_min, angle_max) = limits
         angle_min = converters.degrees_to_radians(angle_min)
         angle_max = converters.degrees_to_radians(angle_max)
@@ -116,7 +123,7 @@ class SectionedFourierShellIterator(FourierShellIterator):
 
         return np.where(shell * cone)
 
-    def __next__(self):
+    def __next__(self) -> tuple[tuple[np.ndarray, ...], int, int]:  # type: ignore[override]
         rotation_idx = self.current_rotation
         shell_idx = self.current_shell
 
@@ -147,12 +154,18 @@ class HollowSectionedFourierShellIterator(SectionedFourierShellIterator):
     interpolation artifacts from the lowest-resolution axis.
     """
 
-    def __init__(self, shape, d_bin, d_angle, d_extract_angle=5):
+    def __init__(
+        self,
+        shape: tuple[int, int, int],
+        d_bin: int | float,
+        d_angle: float,
+        d_extract_angle: float = 5,
+    ) -> None:
         SectionedFourierShellIterator.__init__(self, shape, d_bin, d_angle)
 
         self.d_extract_angle = converters.degrees_to_radians(d_extract_angle)
 
-    def get_angle_sector(self, phi_min, phi_max):
+    def get_angle_sector(self, phi_min: float, phi_max: float) -> np.ndarray:
         full_section = SectionedFourierShellIterator.get_angle_sector(
             self, phi_min, phi_max
         )
@@ -180,12 +193,18 @@ class AxialExcludeSectionedFourierShellIterator(HollowSectionedFourierShellItera
     Non-axial sectors are left intact.
     """
 
-    def __init__(self, shape, d_bin, d_angle, d_extract_angle=5):
+    def __init__(
+        self,
+        shape: tuple[int, int, int],
+        d_bin: int | float,
+        d_angle: float,
+        d_extract_angle: float = 5,
+    ) -> None:
         HollowSectionedFourierShellIterator.__init__(
             self, shape, d_bin, d_angle, d_extract_angle
         )
 
-    def get_angle_sector(self, phi_min, phi_max):
+    def get_angle_sector(self, phi_min: float, phi_max: float) -> np.ndarray:
         full_section = SectionedFourierShellIterator.get_angle_sector(
             self, phi_min, phi_max
         )
@@ -221,12 +240,11 @@ class RotatingFourierShellIterator(FourierShellIterator):
     Fourier shell. Based on Nieuwenhuizen et al. (2013).
     """
 
-    def __init__(self, shape, d_bin, d_angle):
+    def __init__(
+        self, shape: tuple[int, int, int], d_bin: int | float, d_angle: float
+    ) -> None:
         if len(shape) != 3:
             raise ValueError(f"shape must be 3D, got shape {shape}")
-
-        import miplib.processing.itk as itkutils
-        import miplib.processing.ndarray as nputils
 
         FourierShellIterator.__init__(self, shape, d_bin)
 
@@ -240,13 +258,14 @@ class RotatingFourierShellIterator(FourierShellIterator):
         self.angles = np.arange(0, 360, d_angle, dtype=int)
 
     @property
-    def steps(self):
+    def steps(self) -> tuple[np.ndarray, np.ndarray]:  # type: ignore[override]
         return self.radii, self.angles
 
-    def __getitem__(self, limits):
+    def __getitem__(
+        self,
+        limits: tuple[float, float, float],  # type: ignore[override]
+    ) -> tuple[np.ndarray, ...]:
         (shell_start, shell_stop, angle) = limits
-
-        import miplib.processing.itk as itkutils
 
         rotated_plane = itkutils.convert_from_itk_image(
             itkutils.rotate_image(self.plane, angle)
@@ -255,9 +274,7 @@ class RotatingFourierShellIterator(FourierShellIterator):
         points_on_shell = self.get_points_on_shell(shell_start, shell_stop)
         return np.where(points_on_plane * points_on_shell)
 
-    def __next__(self):
-        import miplib.processing.itk as itkutils
-
+    def __next__(self) -> tuple[tuple[np.ndarray, ...], int, int]:  # type: ignore[override]
         rotation_idx = self.current_rotation + 1
         shell_idx = self.current_shell
 

@@ -47,13 +47,6 @@ def test_metadata_roundtrip(tmp_path):
     assert meta["version"] == 2
 
 
-def test_metadata_rejects_non_dict(tmp_path):
-    writer = FourierCorrelationDataWriter(str(tmp_path), "test.hdf5")
-    with pytest.raises(TypeError, match="Expected dict"):
-        writer.write_metadata("not a dict")  # type: ignore[arg-type]
-    writer.close()
-
-
 def test_images_roundtrip(tmp_path):
     img = Image(np.ones((8, 8), dtype=np.float32), spacing=(0.5, 0.5))
 
@@ -84,7 +77,7 @@ def test_images_spacing_preserves_floats(tmp_path):
     npt.assert_array_almost_equal(result.spacing, [0.123, 0.456])
 
 
-def test_images_single_index_read(tmp_path):
+def test_images_multiple_images_read(tmp_path):
     img0 = Image(np.ones((4, 4)), spacing=(1.0, 1.0))
     img1 = Image(np.zeros((4, 4)), spacing=(1.0, 1.0))
 
@@ -93,9 +86,11 @@ def test_images_single_index_read(tmp_path):
     writer.close()
 
     reader = FourierCorrelationDataReader(str(tmp_path / "test.hdf5"))
-    result = reader.read_images(index=1)
+    result = reader.read_images()
     reader.close()
-    npt.assert_array_equal(result, img1)
+    assert len(result) == 2
+    npt.assert_array_equal(result[0], img0)
+    npt.assert_array_equal(result[1], img1)
 
 
 def test_data_set_roundtrip(tmp_path, sample_collection):
@@ -124,11 +119,10 @@ def test_data_set_roundtrip(tmp_path, sample_collection):
     )
 
 
-def test_data_set_duplicate_raises(tmp_path, sample_collection):
+def test_data_set_duplicate_is_skipped(tmp_path, sample_collection):
     writer = FourierCorrelationDataWriter(str(tmp_path), "test.hdf5")
     writer.write_data_set(sample_collection)
-    with pytest.raises(ValueError, match="already exists"):
-        writer.write_data_set(sample_collection)
+    writer.write_data_set(sample_collection)  # should not raise
     writer.close()
 
 

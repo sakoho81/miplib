@@ -10,45 +10,27 @@ from miplib.data.containers.image import Image
 
 
 class FourierCorrelationDataReader:
-    """A class for reading Fourier Correlation Data from an HDF5 file."""
+    """Read Fourier Correlation Data from an HDF5 file."""
 
-    # region Constructor and Destructor
-    def __init__(self, file_path):
-        # Create output dir, if it doesn't exist output dir if
+    def __init__(self, file_path: str) -> None:
         if not os.path.isfile(file_path) or not file_path.endswith(".hdf5"):
             raise ValueError(f"Not a valid filename: {file_path}")
 
         self.data = h5py.File(file_path, mode="r")
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.close()
 
-    # endregion
-
-    def read_metadata(self):
-        """
-        Read a metadata dictionary from the HDF5 files header
-        """
+    def read_metadata(self) -> dict[str, object]:
+        """Read a metadata dictionary from the HDF5 file header."""
         return dict(self.data.attrs)
 
-    def read_images(self, index=None):
-        """
-        Read images from the data structure.
-        :returns images: a tuple of Image objects, or a single image
-        """
-
+    def read_images(self) -> list[Image]:
+        """Read images from the data structure."""
         if "images" not in self.data:
             raise ValueError("No images to read")
 
-        if index is not None:
-            image_name = f"image_{index}"
-            ds = self.data["images"][image_name]
-            spacing = [
-                float(s) for s in ds.attrs["pixel_size"].split()[0 : len(ds.shape)]
-            ]
-            return Image(ds[:], spacing)
-
-        images = []
+        images: list[Image] = []
         for name in self.data["images"]:
             ds = self.data["images"][name]
             spacing = [
@@ -58,12 +40,8 @@ class FourierCorrelationDataReader:
 
         return images
 
-    def read_data_set(self):
-        """
-        Read Fourier Correlation Data file (FRC, FSC etc) to the FourierCorrelationDataCollection
-        data structure.
-        :returns FourierCorrelationDataCollection
-        """
+    def read_data_set(self) -> FourierCorrelationDataCollection:
+        """Read FRC/FSC data into a FourierCorrelationDataCollection."""
         group_prefix = "data_set_"
         data_sets = FourierCorrelationDataCollection()
         for group_name in list(self.data.keys()):
@@ -99,9 +77,6 @@ class FourierCorrelationDataReader:
 
         return data_sets
 
-    def close(self):
-        """
-        A function to explicitly close the data file (will be called by the destructor, if not.
-        :return:
-        """
+    def close(self) -> None:
+        """Close the HDF5 file."""
         self.data.close()
