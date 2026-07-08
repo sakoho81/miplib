@@ -126,6 +126,11 @@ def __bioformats(
         )
     reader = pims.bioformats.BioformatsReader(filename, series=series)
 
+    # Bioformats may interpret z-slices as channels if the file lacks OME-XML
+    # metadata (common with plain tifffile-written z-stacks). Bundle 'c' as 'z'.
+    if "c" in reader.sizes and "z" not in reader.axes:
+        reader.bundle_axes = "cyx"
+
     if "z" not in reader.axes:
         spacing: tuple[float, ...] = (
             reader.metadata.PixelsPhysicalSizeY(0),
