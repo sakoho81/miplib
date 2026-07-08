@@ -26,10 +26,15 @@ def __tiff(path: str, image: Image, spacing: list[float]) -> None:
     """Write a TIFF (auto-converted to BigTIFF if needed)."""
     if image.ndim >= 3:
         with tifffile.TiffWriter(path, ome=True) as tw:
-            metadata: dict[str, object] = {"axes": "ZYX"}
-            if len(spacing) >= 3:
-                metadata["PhysicalSizeZ"] = spacing[0]
-                metadata["PhysicalSizeZUnit"] = "µm"
+            metadata: dict[str, object] = {
+                "axes": "ZYX",
+                "PhysicalSizeZ": spacing[0],
+                "PhysicalSizeZUnit": "\u00b5m",
+            }
+            metadata["PhysicalSizeY"] = spacing[1]
+            metadata["PhysicalSizeYUnit"] = "\u00b5m"
+            metadata["PhysicalSizeX"] = spacing[2]
+            metadata["PhysicalSizeXUnit"] = "\u00b5m"
             tw.write(
                 image,
                 resolution=(1.0 / spacing[1], 1.0 / spacing[2]),
