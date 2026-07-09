@@ -21,7 +21,6 @@ import miplib.data.containers.image_data as image_data
 import miplib.data.io.write as imwrite
 import miplib.processing.to_string as genutils
 import miplib.ui.cli.miplib_entry_point_options as arguments
-import miplib.ui.utils as uiutils
 from miplib.data.adapters.image_data import ImageDataSource
 from miplib.data.containers.image_data import ImageKey, ImageType
 from miplib.processing.deconvolution.backends import _CUDA_AVAILABLE
@@ -95,6 +94,19 @@ def _progress_print(task, t0):
     )
 
 
+def _save_results(data, result, options):
+    """Save result based on CLI flags (--save-tiff, --save-hdf)."""
+    save_tiff = getattr(options, "save_tiff", None)
+    if save_tiff:
+        imwrite.image(save_tiff, result)
+    if getattr(options, "save_hdf", False):
+        channel = getattr(options, "channel", 0)
+        scale = getattr(options, "scale", 100)
+        data.add_fused_image(
+            channel, scale, result.view(np.ndarray), list(result.spacing)
+        )
+
+
 def main():
     options = arguments.get_fusion_script_options(sys.argv[1:])
     full_path = os.path.join(options.working_directory, options.data_file)
@@ -126,8 +138,6 @@ def main():
     source, psfs = _create_source_and_psfs(data, options)
     estimate, tmpdir = _create_estimate(source, options)
     backend = _resolve_backend(options)
-    channel = getattr(options, "channel", 0)
-    scale = getattr(options, "scale", 100)
 
     algo_options = RLOptions(
         fusion_mode=getattr(options, "fusion_method", "summative"),
@@ -163,17 +173,7 @@ def main():
         % (options.max_nof_iterations, genutils.format_time_string(end - begin))
     )
 
-    result = task.result
-    if uiutils.get_user_input("Do you want to save the result to TIFF? "):
-        file_path = os.path.join(options.working_directory, "fusion_result.tif")
-        imwrite.image(file_path, result)
-
-    if uiutils.get_user_input(
-        "Do you want to save the result to the HDF data structure? "
-    ):
-        data.add_fused_image(
-            channel, scale, result.view(np.ndarray), list(result.spacing)
-        )
+    _save_results(data, task.result, options)
 
     if tmpdir is not None:
         tmpdir.cleanup()
