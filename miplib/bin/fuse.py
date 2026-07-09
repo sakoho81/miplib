@@ -35,6 +35,24 @@ def _resolve_views(views, n_registered):
     return [views]
 
 
+def _create_estimate(source, options):
+    """Create an estimate array, optionally memory-mapped to disk.
+
+    Returns ``(estimate, tmpdir)`` where *tmpdir* is ``None`` for
+    in-memory arrays.  The caller owns *tmpdir* lifecycle.
+    """
+    if not getattr(options, "memmap_estimates", False):
+        return None, None
+    tmpdir = tempfile.TemporaryDirectory()
+    estimate = np.memmap(
+        Path(tmpdir.name) / "estimate.dat",
+        dtype=np.float32,
+        mode="w+",
+        shape=source.shape,
+    )
+    return estimate, tmpdir
+
+
 def _create_source_and_psfs(data, options):
     """Build an ImageDataSource and load PSFs from CLI options."""
     views = _resolve_views(
@@ -91,6 +109,7 @@ def main():
         data.calculate_missing_psfs()
 
     source, psfs = _create_source_and_psfs(data, options)
+    estimate, tmpdir = _create_estimate(source, options)
 
     backend = "cuda" if getattr(options, "enable_cuda", False) else "cpu"
     if backend == "cuda":
@@ -99,17 +118,6 @@ def main():
             backend = "cpu"
         else:
             print("Running image fusion with GPU acceleration.")
-
-    tmpdir = None
-    estimate = None
-    if getattr(options, "memmap_estimates", False):
-        tmpdir = tempfile.TemporaryDirectory()
-        estimate = np.memmap(
-            Path(tmpdir.name) / "estimate.dat",
-            dtype=np.float32,
-            mode="w+",
-            shape=source.shape,
-        )
 
     algo_options = RLOptions(
         fusion_mode=getattr(options, "fusion_method", "summative"),
