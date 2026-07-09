@@ -35,6 +35,17 @@ def _resolve_views(views, n_registered):
     return [views]
 
 
+def _resolve_backend(options):
+    """Determine backend from CLI options, falling back to CPU if CUDA unavailable."""
+    if getattr(options, "enable_cuda", False):
+        if not _CUDA_AVAILABLE:
+            print("CUDA not available, falling back to CPU.")
+            return "cpu"
+        print("Running image fusion with GPU acceleration.")
+        return "cuda"
+    return "cpu"
+
+
 def _create_estimate(source, options):
     """Create an estimate array, optionally memory-mapped to disk.
 
@@ -68,10 +79,13 @@ def _create_source_and_psfs(data, options):
 
 
 def _progress_print(task, t0):
+    df = task.tracker.to_dataframe()
+    if len(df) == 0:
+        return
     elapsed = time.time() - t0
-    row = task.tracker.to_dataframe().iloc[-1]
+    row = df.iloc[-1]
     print(
-        f"\riter {int(row['t']) + 1:3d}  "
+        f"\riter {len(df):3d}  "
         f"tau1={row['tau1']:.4f}  "
         f"leak={row['leak']:.3e}  "
         f"elapsed={genutils.format_time_string(elapsed)}",
@@ -110,14 +124,7 @@ def main():
 
     source, psfs = _create_source_and_psfs(data, options)
     estimate, tmpdir = _create_estimate(source, options)
-
-    backend = "cuda" if getattr(options, "enable_cuda", False) else "cpu"
-    if backend == "cuda":
-        if not _CUDA_AVAILABLE:
-            print("CUDA not available, falling back to CPU.")
-            backend = "cpu"
-        else:
-            print("Running image fusion with GPU acceleration.")
+    backend = _resolve_backend(options)
 
     algo_options = RLOptions(
         fusion_mode=getattr(options, "fusion_method", "summative"),
@@ -133,17 +140,14 @@ def main():
         virtual_psf="opt" in getattr(options, "fusion_method", "summative"),
     )
 
+    begin = time.time()
     task = RLDeconvolver(
         source,
         psfs,
         estimate=estimate,
         options=algo_options,
-        progress_callback=lambda t: _progress_print(t, begin)
-        if t._iteration > 0
-        else None,
+        progress_callback=lambda t: _progress_print(t, begin),
     )
-
-    begin = time.time()
     for _ in task:
         pass
     end = time.time()
