@@ -25,18 +25,7 @@ from miplib.processing.image import (
     zero_pad_to_shape,
     zoom_to_spacing,
 )
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _impulse(shape, spacing):
-    """Single 1.0 at the centre of the array, zeros elsewhere."""
-    arr = np.zeros(shape, dtype=np.float64)
-    arr[tuple(s // 2 for s in shape)] = 1.0
-    return Image(arr, spacing=spacing)
-
+from tests.conftest import checkerboard_pattern, impulse
 
 # ---------------------------------------------------------------------------
 # zoom_to_spacing
@@ -189,9 +178,7 @@ def test_checkerboard_split_2d_from_checkerboard():
     marks 1 and the rest 0, both halves are all-1s.
     """
     n = 8
-    y, x = np.mgrid[:n, :n]
-    checkerboard = np.where((x + y) % 2 == 0, 1.0, 0.0)
-    img = Image(checkerboard, spacing=(1.0, 1.0))
+    img = Image(checkerboard_pattern((n, n)), spacing=(1.0, 1.0))
     h1, h2 = checkerboard_split(img)
     assert h1.shape == (4, 4)
     assert h2.shape == (4, 4)
@@ -227,9 +214,7 @@ def test_reverse_checkerboard_split_2d_from_checkerboard():
     sums are odd — positions where the checkerboard value is 0.
     """
     n = 8
-    y, x = np.mgrid[:n, :n]
-    checkerboard = np.where((x + y) % 2 == 0, 1.0, 0.0)
-    img = Image(checkerboard, spacing=(1.0, 1.0))
+    img = Image(checkerboard_pattern((n, n)), spacing=(1.0, 1.0))
     h1, h2 = reverse_checkerboard_split(img)
     assert h1.shape == (4, 4)
     assert h2.shape == (4, 4)
@@ -328,7 +313,7 @@ def test_translate_image_integer_shift_moves_impulse():
     """An impulse shifted by (dy, dx) must have its peak at the new location."""
     shape = (32, 32)
     cy, cx = shape[0] // 2, shape[1] // 2
-    img = _impulse(shape, spacing=(1.0, 1.0))
+    img = Image(impulse(shape), spacing=(1.0, 1.0))
 
     dy, dx = 5, -3
     out = translate_image(img, (dy, dx))
