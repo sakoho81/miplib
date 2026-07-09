@@ -120,6 +120,8 @@ class RLDeconvolver:
         self._setup_backend()
 
         self.tracker = RLConvergenceTracker()
+        self._iteration: int = 0
+        self._converged: bool = False
 
     # ------------------------------------------------------------------
     # initialisation helpers
@@ -154,11 +156,16 @@ class RLDeconvolver:
             self._adj_convolves = None
 
     # ------------------------------------------------------------------
-    # main loop
+    # iteration protocol
     # ------------------------------------------------------------------
 
     def step(self) -> bool:
         """Execute one RL iteration. Returns True if converged."""
+        if self._converged:
+            return True
+        if self._iteration >= self._max_iterations:
+            return True
+
         self._prev_estimate = self._estimate.copy()
         t0 = time.perf_counter()
 
@@ -177,11 +184,12 @@ class RLDeconvolver:
         tau1 = _compute_tau1(self._estimate, self._prev_estimate)
 
         self.tracker.add(elapsed, tau1, leak, e, s, u, n)
+        self._iteration += 1
 
         if self._verbose:
             logger.info(
                 "iter %02d  tau1=%.4f  leak=%.4e  (e=%.0f s=%.0f u=%.0f n=%.0f)",
-                len(self.tracker._rows),
+                self._iteration,
                 tau1,
                 leak,
                 e,
@@ -190,7 +198,23 @@ class RLDeconvolver:
                 n,
             )
 
-        return self.tracker.has_converged(self._stop_tau)
+        self._converged = (
+            self._iteration >= self._max_iterations
+            or self.tracker.has_converged(self._stop_tau)
+        )
+        return self._converged
+
+    def __iter__(self) -> "RLDeconvolver":
+        return self
+
+    def __next__(self) -> Image:
+        if self._converged:
+            raise StopIteration
+        self.step()
+        return self.result
+
+    def __len__(self) -> int:
+        return self._max_iterations - self._iteration
 
     def _compute_step_cpu(
         self,
@@ -284,15 +308,6 @@ class RLDeconvolver:
             n_total += n
 
         return estimate_new, e_total, s_total, u_total, n_total
-
-    def run(self, *, max_iterations: int | None = None) -> Image:
-        """Run RL until convergence or max iterations."""
-        limit = max_iterations if max_iterations is not None else self._max_iterations
-        for _ in range(limit):
-            converged = self.step()
-            if converged:
-                break
-        return self.result
 
     # ------------------------------------------------------------------
     # results

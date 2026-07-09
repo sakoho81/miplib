@@ -42,7 +42,7 @@ def small_psf():
     return _gaussian_psf_img((32, 32), sigma=1.5)
 
 
-def test_single_view_deconvolution_runs(small_img, small_psf):
+def test_manual_step_loop(small_img, small_psf):
     deconv = RLDeconvolver(
         [small_img],
         [small_psf],
@@ -53,7 +53,7 @@ def test_single_view_deconvolution_runs(small_img, small_psf):
 
     for _ in range(5):
         converged = deconv.step()
-    assert not converged
+    assert converged
 
     result = deconv.result
     assert result.shape == small_img.shape
@@ -61,16 +61,43 @@ def test_single_view_deconvolution_runs(small_img, small_psf):
     assert result.max() > 0
 
 
-def test_single_view_deconvolution_converges(small_img, small_psf):
+def test_iteration_protocol(small_img, small_psf):
     deconv = RLDeconvolver(
         [small_img],
         [small_psf],
-        max_iterations=20,
+        max_iterations=5,
+        verbose=False,
+    )
+
+    results = list(deconv)
+    assert len(results) == 5
+    assert deconv.result.shape == small_img.shape
+
+
+def test_for_loop_syntax(small_img, small_psf):
+    deconv = RLDeconvolver(
+        [small_img],
+        [small_psf],
+        max_iterations=3,
         stop_tau=1.0,
         verbose=False,
     )
 
-    result = deconv.run()
+    count = 0
+    for _ in deconv:
+        count += 1
+
+    assert 1 <= count <= 3
+
+
+def test_result_before_iteration(small_img, small_psf):
+    deconv = RLDeconvolver(
+        [small_img],
+        [small_psf],
+        max_iterations=5,
+        verbose=False,
+    )
+    result = deconv.result
     assert result.shape == small_img.shape
 
 
@@ -80,7 +107,11 @@ def test_multi_view_identity(small_obj, small_psf):
     img = Image(blurred, spacing=(1.0, 1.0))
 
     deconv1 = RLDeconvolver(
-        [img], [small_psf], max_iterations=3, stop_tau=0.0, verbose=False
+        [img],
+        [small_psf],
+        max_iterations=3,
+        stop_tau=0.0,
+        verbose=False,
     )
     deconv3 = RLDeconvolver(
         [img, img, img],
@@ -90,9 +121,10 @@ def test_multi_view_identity(small_obj, small_psf):
         verbose=False,
     )
 
-    for _ in range(3):
-        deconv1.step()
-        deconv3.step()
+    for _ in deconv1:
+        pass
+    for _ in deconv3:
+        pass
 
     r1 = deconv1.result
     r3 = deconv3.result
@@ -108,8 +140,8 @@ def test_progress_tracking(small_img, small_psf):
         verbose=False,
     )
 
-    for _ in range(3):
-        deconv.step()
+    for _ in deconv:
+        pass
 
     df = deconv.tracker.to_dataframe()
     assert len(df) == 3
@@ -126,8 +158,8 @@ def test_first_estimates(small_img, small_psf):
             stop_tau=0.0,
             verbose=False,
         )
-        converged = deconv.step()
-        assert not converged
+        deconv.step()
+        assert deconv.result.min() >= 0
 
 
 def test_invalid_backend():

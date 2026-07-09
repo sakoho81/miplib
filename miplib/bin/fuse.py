@@ -88,7 +88,8 @@ def main():
     )
 
     begin = time.time()
-    task.run()
+    for _ in task:
+        pass
     end = time.time()
 
     if getattr(options, "evaluate_results", False):
