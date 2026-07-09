@@ -8,7 +8,6 @@ from pathlib import Path
 import numpy as np
 
 from miplib.data.containers.image import Image
-from miplib.processing import ops_ext
 from miplib.processing.deconvolution.backends import (
     _CUDA_AVAILABLE,
     convolve_cpu,
@@ -25,6 +24,7 @@ from miplib.processing.deconvolution.psf_utils import (
 )
 from miplib.processing.deconvolution.tracker import RLConvergenceTracker
 from miplib.processing.ndarray import nroot
+from miplib.processing.ops_ext import div_unit_grad, update_estimate_poisson
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +95,8 @@ class RLDeconvolver:
         self._block_pad = block_pad
 
         self._tmpdir: tempfile.TemporaryDirectory | None = None
+        self._estimate: np.ndarray
+        self._estimate_new: np.ndarray
         if memmap_estimates:
             self._tmpdir = tempfile.TemporaryDirectory()
             self._estimate = np.memmap(
@@ -287,17 +289,15 @@ class RLDeconvolver:
                     forward = psf_conv(est_block) * w + bg
                     ratio = _safe_divide(img, forward)
                     correction *= adj_conv(ratio)
-                correction = nroot(correction, self._n_views)
+                correction = np.asarray(nroot(correction, self._n_views))
 
             if self._tv_lambda > 0:
-                correction += self._tv_lambda * ops_ext.div_unit_grad(
+                correction += self._tv_lambda * div_unit_grad(
                     est_block, (1.0,) * est_block.ndim
                 )
 
             new_block = est_block.copy()
-            e, s, u, n = ops_ext.update_estimate_poisson(
-                new_block, correction, self._epsilon
-            )
+            e, s, u, n = update_estimate_poisson(new_block, correction, self._epsilon)
 
             p = block.pad
             inner = tuple(slice(p, p + s) for s in block.inner_size)

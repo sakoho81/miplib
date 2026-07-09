@@ -4,9 +4,9 @@ from typing import Callable
 
 import numpy as np
 
-from miplib.processing import ops_ext
 from miplib.processing.deconvolution.backends import convolve_cpu
 from miplib.processing.ndarray import nroot, safe_divide
+from miplib.processing.ops_ext import div_unit_grad, update_estimate_poisson
 
 
 def rl_single_view(
@@ -50,10 +50,10 @@ def rl_single_view(
     update = convolve(ratio, adj_psf)
 
     if tv_lambda > 0:
-        update += tv_lambda * ops_ext.div_unit_grad(estimate, (1.0,) * estimate.ndim)
+        update += tv_lambda * div_unit_grad(estimate, (1.0,) * estimate.ndim)
 
     new_est = estimate.copy()
-    e, s, u, n = ops_ext.update_estimate_poisson(new_est, update, epsilon)
+    e, s, u, n = update_estimate_poisson(new_est, update, epsilon)
     return new_est, e, s, u, n
 
 
@@ -128,15 +128,13 @@ def rl_multi_view(
             forward = forward * w + bg
             ratio = safe_divide(img, forward)
             correction *= convolve(ratio, adj)
-        correction = nroot(correction, n_views)
+        correction = np.asarray(nroot(correction, n_views))
     else:
         raise ValueError(f"Unknown fusion_mode: {fusion_mode!r}")
 
     if tv_lambda > 0:
-        correction += tv_lambda * ops_ext.div_unit_grad(
-            estimate, (1.0,) * estimate.ndim
-        )
+        correction += tv_lambda * div_unit_grad(estimate, (1.0,) * estimate.ndim)
 
     new_est = estimate.copy()
-    e, s, u, n = ops_ext.update_estimate_poisson(new_est, correction, epsilon)
+    e, s, u, n = update_estimate_poisson(new_est, correction, epsilon)
     return new_est, e, s, u, n
