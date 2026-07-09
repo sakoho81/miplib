@@ -102,6 +102,7 @@ def test_zero_pad_round_trip_2d():
     data = np.arange(9, dtype=np.float64).reshape(3, 3)
     img = Image(data, spacing=(0.5, 0.5))
     padded = zero_pad_to_shape(img, (7, 7))
+    assert padded.shape == (7, 7)
     recovered = remove_zero_padding(padded, (3, 3))
     assert_array_almost_equal(recovered, data)
     assert recovered.spacing == [0.5, 0.5]
@@ -111,6 +112,7 @@ def test_zero_pad_round_trip_3d():
     data = np.arange(27, dtype=np.float64).reshape(3, 3, 3)
     img = Image(data, spacing=(0.2, 0.1, 0.1))
     padded = zero_pad_to_shape(img, (9, 9, 9))
+    assert padded.shape == (9, 9, 9)
     recovered = remove_zero_padding(padded, (3, 3, 3))
     assert_array_almost_equal(recovered, data)
 
@@ -169,12 +171,22 @@ def test_zero_pad_to_matching_shape_type_error():
 # ---------------------------------------------------------------------------
 
 
-def test_checkerboard_split_2d_shapes():
-    """Each half must contain roughly half the pixels of the original."""
-    img = Image(np.ones((8, 8), dtype=np.float64), spacing=(1.0, 1.0))
+def test_checkerboard_split_2d_from_checkerboard():
+    """Splitting a 0/1 checkerboard must produce constant-valued halves.
+
+    The forward split selects pixel positions whose row+col sum is even
+    (odd/odd and even/even pairs). On a checkerboard where (r+c) % 2 == 0
+    marks 1 and the rest 0, both halves are all-1s.
+    """
+    n = 8
+    y, x = np.mgrid[:n, :n]
+    checkerboard = np.where((x + y) % 2 == 0, 1.0, 0.0)
+    img = Image(checkerboard, spacing=(1.0, 1.0))
     h1, h2 = checkerboard_split(img)
     assert h1.shape == (4, 4)
     assert h2.shape == (4, 4)
+    assert_array_almost_equal(h1, np.ones((4, 4)))
+    assert_array_almost_equal(h2, np.ones((4, 4)))
 
 
 def test_checkerboard_split_2d_disjoint_indices():
@@ -183,15 +195,7 @@ def test_checkerboard_split_2d_disjoint_indices():
     data = np.arange(n * n, dtype=np.float64).reshape(n, n)
     img = Image(data, spacing=(1.0, 1.0))
     h1, h2 = checkerboard_split(img)
-    # Flatten both halves; a disjoint split means no shared values
     assert len(np.intersect1d(h1.ravel(), h2.ravel())) == 0
-
-
-def test_checkerboard_split_uniform_image_halves_are_equal():
-    """Splitting a uniform image must produce identical halves."""
-    img = Image(np.full((8, 8), 3.0), spacing=(1.0, 1.0))
-    h1, h2 = checkerboard_split(img)
-    assert_array_almost_equal(h1, h2)
 
 
 def test_checkerboard_split_preserves_spacing():
@@ -206,16 +210,21 @@ def test_checkerboard_split_type_error():
         checkerboard_split(np.ones((8, 8)))
 
 
-# ---------------------------------------------------------------------------
-# reverse_checkerboard_split
-# ---------------------------------------------------------------------------
+def test_reverse_checkerboard_split_2d_from_checkerboard():
+    """Reverse split on a 0/1 checkerboard must produce constant-0 halves.
 
-
-def test_reverse_checkerboard_split_2d_shapes():
-    img = Image(np.ones((8, 8), dtype=np.float64), spacing=(1.0, 1.0))
+    The reverse split selects odd/even and even/odd pairs, whose row+col
+    sums are odd — positions where the checkerboard value is 0.
+    """
+    n = 8
+    y, x = np.mgrid[:n, :n]
+    checkerboard = np.where((x + y) % 2 == 0, 1.0, 0.0)
+    img = Image(checkerboard, spacing=(1.0, 1.0))
     h1, h2 = reverse_checkerboard_split(img)
     assert h1.shape == (4, 4)
     assert h2.shape == (4, 4)
+    assert_array_almost_equal(h1, np.zeros((4, 4)))
+    assert_array_almost_equal(h2, np.zeros((4, 4)))
 
 
 def test_reverse_vs_forward_checkerboard_sample_different_pixels():
@@ -314,6 +323,18 @@ def test_translate_image_integer_shift_moves_impulse():
     # Circular shift: peak should move to (cy+dy) % N
     assert peak[0] == (cy + dy) % shape[0]
     assert peak[1] == (cx + dx) % shape[1]
+
+
+def test_translate_image_integer_shift_matches_roll():
+    """An integer shift must match numpy.roll on non-trivial data."""
+    n = 32
+    data = np.arange(n * n, dtype=np.float64).reshape(n, n)
+    img = Image(data, spacing=(1.0, 1.0))
+
+    dy, dx = 3, -7
+    out = translate_image(img, (dy, dx))
+    expected = np.roll(np.roll(data, dy, axis=0), dx, axis=1)
+    assert_array_almost_equal(out, expected, decimal=10)
 
 
 def test_translate_image_roundtrip():
