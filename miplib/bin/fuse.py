@@ -18,6 +18,7 @@ from pathlib import Path
 import numpy as np
 
 import miplib.data.containers.image_data as image_data
+import miplib.data.io.write as imwrite
 import miplib.processing.to_string as genutils
 import miplib.ui.cli.miplib_entry_point_options as arguments
 import miplib.ui.utils as uiutils
@@ -125,6 +126,8 @@ def main():
     source, psfs = _create_source_and_psfs(data, options)
     estimate, tmpdir = _create_estimate(source, options)
     backend = _resolve_backend(options)
+    channel = getattr(options, "channel", 0)
+    scale = getattr(options, "scale", 100)
 
     algo_options = RLOptions(
         fusion_mode=getattr(options, "fusion_method", "summative"),
@@ -160,14 +163,17 @@ def main():
         % (options.max_nof_iterations, genutils.format_time_string(end - begin))
     )
 
+    result = task.result
     if uiutils.get_user_input("Do you want to save the result to TIFF? "):
         file_path = os.path.join(options.working_directory, "fusion_result.tif")
-        task.save_to_tiff(file_path)
+        imwrite.image(file_path, result)
 
     if uiutils.get_user_input(
         "Do you want to save the result to the HDF data structure? "
     ):
-        task.save_to_hdf()
+        data.add_fused_image(
+            channel, scale, result.view(np.ndarray), list(result.spacing)
+        )
 
     if tmpdir is not None:
         tmpdir.cleanup()
