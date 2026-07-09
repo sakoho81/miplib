@@ -6,6 +6,9 @@ Coverage targets:
       remove_zero_padding, checkerboard_split, reverse_checkerboard_split,
       zero_pad_to_cube, crop_to_largest_square
   - translate_image: FFT-based circular shift (verifies correct fftshift pairing)
+  - Previously untested: maximum_projection, enhance_contrast, noisy,
+      rescale_to_8_bit, crop_to_shape, zoom_to_isotropic_spacing,
+      summed_checkerboard_split
 """
 
 import numpy as np
@@ -16,13 +19,20 @@ from miplib.data.containers.image import Image
 from miplib.processing.image import (
     checkerboard_split,
     crop_to_largest_square,
+    crop_to_shape,
+    enhance_contrast,
+    maximum_projection,
+    noisy,
     remove_zero_padding,
+    rescale_to_8_bit,
     resize,
     reverse_checkerboard_split,
+    summed_checkerboard_split,
     translate_image,
     zero_pad_to_cube,
     zero_pad_to_matching_shape,
     zero_pad_to_shape,
+    zoom_to_isotropic_spacing,
     zoom_to_spacing,
 )
 from tests.conftest import checkerboard_pattern, impulse
@@ -368,3 +378,231 @@ def test_translate_image_shift_ndim_mismatch():
     img = Image(np.ones((16, 16), dtype=np.float64), spacing=(1.0, 1.0))
     with pytest.raises(ValueError):
         translate_image(img, (1.0,))
+
+
+# ---------------------------------------------------------------------------
+# maximum_projection
+# ---------------------------------------------------------------------------
+
+
+def test_maximum_projection_reduces_ndim():
+    data = np.zeros((4, 8, 6), dtype=np.float64)
+    data[2, 3, 4] = 1.0
+    data[1, 5, 2] = 2.0
+    img = Image(data, spacing=(0.2, 0.1, 0.05))
+    proj = maximum_projection(img, axis=0)
+    assert proj.ndim == 2
+    assert proj.shape == (8, 6)
+    # Each pixel is the max along axis 0: the spike at (2,3,4) sets proj[3,4]=1,
+    # the spike at (1,5,2) sets proj[5,2]=2
+    assert proj[3, 4] == pytest.approx(1.0)
+    assert proj[5, 2] == pytest.approx(2.0)
+
+
+def test_maximum_projection_equals_amax_along_axis():
+    """Projection must match NumPy's amax along the given axis."""
+    rng = np.random.default_rng(0)
+    data = rng.random((5, 7, 4))
+    img = Image(data, spacing=(0.2, 0.1, 0.05))
+    for axis in range(data.ndim):
+        proj = maximum_projection(img, axis=axis)
+        assert_array_almost_equal(proj, np.amax(data, axis=axis))
+
+
+def test_maximum_projection_preserves_remaining_spacing():
+    img = Image(np.ones((4, 8, 6), dtype=np.float64), spacing=(0.2, 0.1, 0.05))
+    proj = maximum_projection(img, axis=0)
+    assert proj.spacing == [0.1, 0.05]
+
+
+def test_maximum_projection_type_error():
+    with pytest.raises(TypeError):
+        maximum_projection(np.ones((4, 8, 6)))
+
+
+# ---------------------------------------------------------------------------
+# rescale_to_8_bit
+# ---------------------------------------------------------------------------
+
+
+def test_rescale_to_8_bit_max_maps_to_255():
+    data = np.array([[0.0, 5.0], [10.0, 0.0]], dtype=np.float64)
+    img = Image(data, spacing=(1.0, 1.0))
+    out = rescale_to_8_bit(img)
+    assert out.dtype == np.uint8
+    assert out.max() == 255
+
+
+def test_rescale_to_8_bit_type_error():
+    with pytest.raises(TypeError):
+        rescale_to_8_bit(np.ones((4, 4)))
+
+
+# ---------------------------------------------------------------------------
+# enhance_contrast
+# ---------------------------------------------------------------------------
+
+
+def test_enhance_contrast_output_range():
+    """Output must be uint8, stretched to use most of the [0, 255] range."""
+    data = np.linspace(0, 100, 256, dtype=np.float64).reshape(16, 16)
+    img = Image(data, spacing=(1.0, 1.0))
+    out = enhance_contrast(img, percent_saturated=0.3)
+    assert out.dtype == np.uint8
+    assert 0 <= out.min() < out.max() <= 255
+
+
+def test_enhance_contrast_unsupported_dtype():
+    img = Image(np.ones((4, 4), dtype=np.float64), spacing=(1.0, 1.0))
+    with pytest.raises(ValueError):
+        enhance_contrast(img, out_type=np.float32)
+
+
+def test_enhance_contrast_type_error():
+    with pytest.raises(TypeError):
+        enhance_contrast(np.ones((4, 4)))
+
+
+# ---------------------------------------------------------------------------
+# noisy
+# ---------------------------------------------------------------------------
+
+
+def test_noisy_gauss_adds_noise():
+    np.random.seed(0)
+    img = Image(np.ones((32, 32), dtype=np.float64), spacing=(1.0, 1.0))
+    out = noisy(img, "gauss")
+    # Gaussian noise with var=0.1 was added; output should differ from input
+    assert not np.array_equal(out, img)
+    # The variance of the difference should be approximately 0.1
+    diff_var = np.var(out - img)
+    assert pytest.approx(diff_var, rel=0.15) == 0.1
+
+
+def test_noisy_sp_changes_pixels():
+    np.random.seed(1)
+    img = Image(np.full((32, 32), 0.5, dtype=np.float64), spacing=(1.0, 1.0))
+    out = noisy(img, "s&p")
+    # Salt and pepper sets some pixels to 0 or 1
+    assert (out == 0.0).any()
+    assert (out == 1.0).any()
+    assert not np.array_equal(out, img)
+
+
+def test_noisy_poisson_differs_from_input():
+    np.random.seed(2)
+    img = Image(np.full((32, 32), 0.5, dtype=np.float64), spacing=(1.0, 1.0))
+    out = noisy(img, "poisson")
+    assert not np.array_equal(out, img)
+
+
+def test_noisy_speckle_differs_from_input():
+    np.random.seed(3)
+    img = Image(np.full((32, 32), 0.5, dtype=np.float64), spacing=(1.0, 1.0))
+    out = noisy(img, "speckle")
+    assert not np.array_equal(out, img)
+
+
+def test_noisy_unknown_type():
+    img = Image(np.ones((4, 4), dtype=np.float64), spacing=(1.0, 1.0))
+    with pytest.raises(ValueError):
+        noisy(img, "unknown")
+
+
+def test_noisy_type_error():
+    with pytest.raises(TypeError):
+        noisy(np.ones((4, 4)), "gauss")
+
+
+# ---------------------------------------------------------------------------
+# crop_to_shape
+# ---------------------------------------------------------------------------
+
+
+def test_crop_to_shape_extracts_correct_region():
+    data = np.arange(40, dtype=np.float64).reshape(8, 5)
+    img = Image(data, spacing=(1.0, 1.0))
+    out = crop_to_shape(img, (3, 2), (2, 1))
+    # Offset (2,1), size (3,2) → rows 2:5, cols 1:3
+    assert_array_almost_equal(out, data[2:5, 1:3])
+
+
+def test_crop_to_shape_preserves_spacing():
+    img = Image(np.ones((8, 5), dtype=np.float64), spacing=(0.3, 0.7))
+    out = crop_to_shape(img, (3, 2), (2, 1))
+    assert out.spacing == [0.3, 0.7]
+
+
+def test_crop_to_shape_out_of_bounds():
+    img = Image(np.ones((8, 5), dtype=np.float64), spacing=(1.0, 1.0))
+    with pytest.raises(ValueError):
+        crop_to_shape(img, (3, 3), (6, 3))  # 6 + 3 > 8
+
+
+def test_crop_to_shape_type_error():
+    with pytest.raises(TypeError):
+        crop_to_shape(np.ones((8, 5)), (3, 2), (0, 0))
+
+
+# ---------------------------------------------------------------------------
+# zoom_to_isotropic_spacing
+# ---------------------------------------------------------------------------
+
+
+def test_zoom_to_isotropic_spacing_makes_spacing_uniform():
+    img = Image(np.ones((8, 16), dtype=np.float64), spacing=(0.2, 0.1))
+    out = zoom_to_isotropic_spacing(img)
+    assert out.spacing[0] == out.spacing[1] == pytest.approx(0.1)
+
+
+def test_zoom_to_isotropic_spacing_already_isotropic_noop():
+    img = Image(np.ones((8, 8), dtype=np.float64), spacing=(0.1, 0.1))
+    out = zoom_to_isotropic_spacing(img)
+    assert out is img
+
+
+def test_zoom_to_isotropic_spacing_type_error():
+    with pytest.raises(TypeError):
+        zoom_to_isotropic_spacing(np.ones((8, 16)))
+
+
+# ---------------------------------------------------------------------------
+# summed_checkerboard_split
+# ---------------------------------------------------------------------------
+
+
+def test_summed_checkerboard_split_2d_doubles_spacing():
+    img = Image(np.ones((8, 8), dtype=np.float64), spacing=(0.1, 0.2))
+    h1, h2 = summed_checkerboard_split(img)
+    assert h1.shape == (4, 4)
+    assert h2.shape == (4, 4)
+    assert list(h1.spacing) == [0.2, 0.4]
+    assert list(h2.spacing) == [0.2, 0.4]
+
+
+def test_summed_checkerboard_split_2d_covers_all_pixels():
+    """Each original pixel contributes to exactly one output half.
+
+    Place a 1.0 at (even, even) — it must appear in h1. Place 1.0 at
+    (odd, even) — it must appear in h2. The halves sample disjoint sets.
+    """
+    n = 8
+    data = np.zeros((n, n), dtype=np.float64)
+
+    # (even, even) → contributes to h1 (even/even diagonal group)
+    data[0, 0] = 1.0
+    # (odd, even) → contributes to h2 (odd/even diagonal group)
+    data[1, 0] = 2.0
+
+    img = Image(data, spacing=(1.0, 1.0))
+    h1, h2 = summed_checkerboard_split(img)
+
+    # h1[0//2, 0//2] = h1[0, 0] should contain the 1.0 from data[0,0]
+    assert h1[0, 0] == pytest.approx(1.0)
+    # h2[1//2, 0//2] = h2[0, 0] should contain the 2.0 from data[1,0]
+    assert h2[0, 0] == pytest.approx(2.0)
+
+
+def test_summed_checkerboard_split_type_error():
+    with pytest.raises(TypeError):
+        summed_checkerboard_split(np.ones((8, 8)))
