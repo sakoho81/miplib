@@ -6,7 +6,7 @@ Copyright (c) 2016 Sami Koho  All rights reserved.
 This software may be modified and distributed under the terms
 of the BSD license.  See the LICENSE file for details.
 
-This is the main program file for the miplib fusion calculation
+This is the main program file for the miplib fusion calculation.
 """
 
 import os
@@ -14,12 +14,11 @@ import sys
 import time
 
 import miplib.data.containers.image_data as image_data
-import miplib.processing.fusion.fusion as fusion
-import miplib.processing.fusion.fusion_cuda as gpufusion
 import miplib.processing.to_string as genutils
 import miplib.ui.cli.miplib_entry_point_options as arguments
 import miplib.ui.utils as uiutils
-from miplib.data.containers.image_data import ImageType
+from miplib.data.containers.image_data import ImageKey, ImageType
+from miplib.processing.deconvolution.deconvolver import RLDeconvolver
 
 
 def main():
@@ -41,27 +40,58 @@ def main():
         )
         data.create_rescaled_images(ImageType.REGISTERED, options.scale)
 
-    if data.get_number_of_images(ImageType.PSF) != data.get_number_of_images(
-        ImageType.REGISTERED
-    ):
+    n_psfs = data.get_number_of_images(ImageType.PSF)
+    n_registered = data.get_number_of_images(ImageType.REGISTERED)
+    if n_psfs != n_registered:
         print(
             "Some PSFs are missing. They are going to be calculated from the "
             "original STED PSF (that is assumed to be at index 0)."
         )
         data.calculate_missing_psfs()
 
-    if not options.disable_cuda:
-        print("Trying to run the image fusion with GPU acceleration.")
-        task = gpufusion.MultiViewFusionRLCuda(data, options)
+    views = getattr(options, "fuse_views", -1)
+    if views == -1:
+        views = list(range(n_registered))
+    elif hasattr(views, "__iter__"):
+        pass
     else:
-        task = fusion.MultiViewFusionRL(data, options)
+        views = [views]
 
-    # task = fusion.MultiViewFusionRL(data, options)
+    channel = getattr(options, "channel", 0)
+    scale = getattr(options, "scale", 100)
+
+    images = [
+        data.get_image(ImageKey(ImageType.REGISTERED, v, channel, scale)) for v in views
+    ]
+    psfs = [data.get_image(ImageKey(ImageType.PSF, v, channel, scale)) for v in views]
+
+    backend = "cuda" if not getattr(options, "disable_cuda", False) else "cpu"
+    if backend == "cuda":
+        print("Trying to run the image fusion with GPU acceleration.")
+
+    task = RLDeconvolver(
+        images,
+        psfs,
+        fusion_mode=getattr(options, "fusion_method", "summative"),
+        backend=backend,
+        n_blocks=getattr(options, "blocks", 1),
+        block_pad=getattr(options, "pad", 0),
+        max_iterations=getattr(options, "max_nof_iterations", 100),
+        stop_tau=getattr(options, "rltv_stop_tau", 0.002),
+        tv_lambda=getattr(options, "tv_lambda", 0.0),
+        epsilon=getattr(options, "convergence_epsilon", 0.05),
+        first_estimate=getattr(options, "first_estimate", "image_mean"),
+        estimate_constant=getattr(options, "estimate_constant", 1.0),
+        virtual_psf="opt" in getattr(options, "fusion_method", "summative"),
+        memmap_estimates=getattr(options, "memmap_estimates", False),
+        verbose=True,
+    )
+
     begin = time.time()
-    task.execute()
+    task.run()
     end = time.time()
 
-    if options.evaluate_results:
+    if getattr(options, "evaluate_results", False):
         task.show_result()
 
     print("Fusion complete.")
