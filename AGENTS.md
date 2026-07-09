@@ -82,7 +82,9 @@ Conftest.py with shared Image fixtures and pattern generators lives at `tests/co
 
 - **Prefer built-in images**: `skimage.data.camera()`, `skimage.data.shepp_logan_phantom()`, `skimage.data.binary_blobs(n_dim=3)` for image processing tests.
 - **Shared fixtures** are in `tests/conftest.py`: `image_2d`, `image_3d`, `gaussian_2d`, `camera_image`, `shepp_logan`, `blobs_3d`, `psf_gaussian_2d`.
-- **Pattern generators** in `tests/conftest.py`: `gaussian_spot(shape, sigma)`, `sine_grating(shape, frequency)`, `impulse(shape)`, `step_edge(shape, axis)`, `bin_aligned_sine(shape, n_cycles, axis)`, `two_frequency_signal(shape, low, high, axis)`.
+- **Pattern generators** in `tests/conftest.py`: `gaussian_spot(shape, sigma)`, `sine_grating(shape, frequency)`, `impulse(shape)`, `step_edge(shape, axis)`, `bin_aligned_sine(shape, n_cycles, axis)`, `two_frequency_signal(shape, low, high, axis)`, `checkerboard_pattern(shape)`.
+- **When writing new tests**, prefer conftest fixtures and pattern generators over local duplicates. If a test creates a reusable deterministic pattern (e.g. a 0/1 checkerboard), add it to conftest as a pattern generator function so other test modules can share it. Keep fixtures and generators documented in the lists above.
+- When a new Image-based pattern is needed, import pattern generators from conftest via `from tests.conftest import <name>` and wrap with `Image(...)` inline.
 - **Custom test data**: Store in `tests/testdata/`, tracked via Git LFS for binary files (`.hdf5`, `.tif`, `.mat`). Python source files in `tests/testdata/` are regular git.
 - When `skimage` doesn't provide suitable test data, generate synthetic reference arrays with known properties (e.g. `np.ones`, `np.linspace`, random with fixed seed).
 - For Cython extension tests (like `ops_ext`), use small hand-computed arrays to verify correctness.
@@ -106,6 +108,7 @@ The vast majority of modules have zero test coverage. Priority candidates (small
 | ✓ done | `tests/psf/test_psfgen.py` | PSF generation from FWHM |
 | ✓ done | `tests/data/core/test_dictionary.py` | FixedDictionary (immutable-key dict) |
 | ✓ done | `tests/data/containers/test_fourier_correlation_data.py` | FRC/FSC data containers |
+| ✓ done | `tests/processing/test_image.py` | Image operations, translation, checkerboards, noise, contrast (63 tests) |
 | lower | `processing/deconvolution/*` | Now has Image + blobs_3d + psf_gaussian_2d |
 | lower | `processing/fusion/*` | Now has Image + blobs_3d fixtures |
 | lower | `processing/registration/*` | Needs SimpleITK |
