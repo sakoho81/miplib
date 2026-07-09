@@ -35,8 +35,18 @@ def _resolve_views(views, n_registered):
     return [views]
 
 
-def _psf_key(view, channel, scale):
-    return ImageKey(ImageType.PSF, view, channel, scale)
+def _create_source_and_psfs(data, options):
+    """Build an ImageDataSource and load PSFs from CLI options."""
+    views = _resolve_views(
+        getattr(options, "fuse_views", -1),
+        data.get_number_of_images(ImageType.REGISTERED),
+    )
+    channel = getattr(options, "channel", 0)
+    scale = getattr(options, "scale", 100)
+
+    source = ImageDataSource(data, views, ImageType.REGISTERED, channel, scale)
+    psfs = [data.get_image(ImageKey(ImageType.PSF, v, channel, scale)) for v in views]
+    return source, psfs
 
 
 def _progress_print(task, t0):
@@ -80,12 +90,7 @@ def main():
         )
         data.calculate_missing_psfs()
 
-    views = _resolve_views(getattr(options, "fuse_views", -1), n_registered)
-    channel = getattr(options, "channel", 0)
-    scale = getattr(options, "scale", 100)
-
-    source = ImageDataSource(data, views, ImageType.REGISTERED, channel, scale)
-    psfs = [data.get_image(_psf_key(v, channel, scale)) for v in views]
+    source, psfs = _create_source_and_psfs(data, options)
 
     backend = "cuda" if getattr(options, "enable_cuda", False) else "cpu"
     if backend == "cuda":
