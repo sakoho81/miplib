@@ -23,7 +23,33 @@ import miplib.ui.cli.miplib_entry_point_options as arguments
 import miplib.ui.utils as uiutils
 from miplib.data.adapters.image_data import ImageDataSource
 from miplib.data.containers.image_data import ImageKey, ImageType
-from miplib.processing.deconvolution.deconvolver import RLDeconvolver
+from miplib.processing.deconvolution.backends import _CUDA_AVAILABLE
+from miplib.processing.deconvolution.deconvolver import RLDeconvolver, RLOptions
+
+
+def _resolve_views(views, n_registered):
+    if views == -1:
+        return list(range(n_registered))
+    if hasattr(views, "__iter__"):
+        return list(views)
+    return [views]
+
+
+def _psf_key(view, channel, scale):
+    return ImageKey(ImageType.PSF, view, channel, scale)
+
+
+def _progress_print(task, t0):
+    elapsed = time.time() - t0
+    row = task.tracker.to_dataframe().iloc[-1]
+    print(
+        f"\riter {int(row['t']) + 1:3d}  "
+        f"tau1={row['tau1']:.4f}  "
+        f"leak={row['leak']:.3e}  "
+        f"elapsed={genutils.format_time_string(elapsed)}",
+        end="",
+        flush=True,
+    )
 
 
 def main():
@@ -54,24 +80,20 @@ def main():
         )
         data.calculate_missing_psfs()
 
-    views = getattr(options, "fuse_views", -1)
-    if views == -1:
-        views = list(range(n_registered))
-    elif hasattr(views, "__iter__"):
-        pass
-    else:
-        views = [views]
-
+    views = _resolve_views(getattr(options, "fuse_views", -1), n_registered)
     channel = getattr(options, "channel", 0)
     scale = getattr(options, "scale", 100)
 
     source = ImageDataSource(data, views, ImageType.REGISTERED, channel, scale)
+    psfs = [data.get_image(_psf_key(v, channel, scale)) for v in views]
 
-    psfs = [data.get_image(ImageKey(ImageType.PSF, v, channel, scale)) for v in views]
-
-    backend = "cuda" if not getattr(options, "disable_cuda", False) else "cpu"
+    backend = "cuda" if getattr(options, "enable_cuda", False) else "cpu"
     if backend == "cuda":
-        print("Trying to run the image fusion with GPU acceleration.")
+        if not _CUDA_AVAILABLE:
+            print("CUDA not available, falling back to CPU.")
+            backend = "cpu"
+        else:
+            print("Running image fusion with GPU acceleration.")
 
     tmpdir = None
     estimate = None
@@ -84,10 +106,7 @@ def main():
             shape=source.shape,
         )
 
-    task = RLDeconvolver(
-        source,
-        psfs,
-        estimate=estimate,
+    algo_options = RLOptions(
         fusion_mode=getattr(options, "fusion_method", "summative"),
         backend=backend,
         n_blocks=getattr(options, "blocks", 1),
@@ -99,15 +118,23 @@ def main():
         first_estimate=getattr(options, "first_estimate", "image_mean"),
         estimate_constant=getattr(options, "estimate_constant", 1.0),
         virtual_psf="opt" in getattr(options, "fusion_method", "summative"),
-        verbose=True,
+    )
+
+    task = RLDeconvolver(
+        source,
+        psfs,
+        estimate=estimate,
+        options=algo_options,
+        progress_callback=lambda t: _progress_print(t, begin)
+        if t._iteration > 0
+        else None,
     )
 
     begin = time.time()
-    task.run()
+    for _ in task:
+        pass
     end = time.time()
-
-    if getattr(options, "evaluate_results", False):
-        task.show_result()
+    print()  # newline after progress line
 
     print("Fusion complete.")
     print(
