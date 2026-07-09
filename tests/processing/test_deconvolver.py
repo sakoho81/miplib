@@ -90,6 +90,19 @@ def test_for_loop_syntax(small_img, small_psf):
     assert 1 <= count <= 3
 
 
+def test_run_convenience(small_img, small_psf):
+    deconv = RLDeconvolver(
+        [small_img],
+        [small_psf],
+        max_iterations=5,
+        stop_tau=1.0,
+        verbose=False,
+    )
+    result = deconv.run()
+    assert result.shape == small_img.shape
+    assert len(deconv.tracker.to_dataframe()) >= 1
+
+
 def test_result_before_iteration(small_img, small_psf):
     deconv = RLDeconvolver(
         [small_img],

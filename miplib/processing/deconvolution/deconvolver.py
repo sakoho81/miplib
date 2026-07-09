@@ -309,6 +309,12 @@ class RLDeconvolver:
 
         return estimate_new, e_total, s_total, u_total, n_total
 
+    def run(self) -> Image:
+        """Run all remaining iterations. Returns final result."""
+        for _ in self:
+            pass
+        return self.result
+
     # ------------------------------------------------------------------
     # results
     # ------------------------------------------------------------------
