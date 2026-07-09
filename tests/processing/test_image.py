@@ -145,10 +145,20 @@ def test_remove_zero_padding_type_error():
 
 
 def test_zero_pad_to_matching_shape_equal_output_shape():
-    img1 = Image(np.ones((4, 6), dtype=np.float64), spacing=(1.0, 1.0))
-    img2 = Image(np.ones((6, 4), dtype=np.float64), spacing=(1.0, 1.0))
+    """Both images padded to the larger shape; each retains its values."""
+    img1 = Image(np.full((4, 6), 2.0), spacing=(1.0, 1.0))
+    img2 = Image(np.full((6, 4), 7.0), spacing=(1.0, 1.0))
     out1, out2 = zero_pad_to_matching_shape(img1, img2)
     assert out1.shape == out2.shape == (6, 6)
+    # Data is centred in the expanded array (asymmetric when difference is odd).
+    # (4, 6) → (6, 6): 1 row of padding top, 1 row bottom.
+    assert_array_almost_equal(out1[1:5, :], np.full((4, 6), 2.0))
+    assert_array_almost_equal(out1[0, :], np.zeros(6))
+    assert_array_almost_equal(out1[5, :], np.zeros(6))
+    # (6, 4) → (6, 6): 1 col of padding left, 1 col right.
+    assert_array_almost_equal(out2[:, 1:5], np.full((6, 4), 7.0))
+    assert_array_almost_equal(out2[:, 0], np.zeros(6))
+    assert_array_almost_equal(out2[:, 5], np.zeros(6))
 
 
 def test_zero_pad_to_matching_shape_already_equal():
@@ -281,9 +291,13 @@ def test_zero_pad_to_cube_type_error():
 
 
 def test_crop_to_largest_square_2d_pixel_dims():
-    img = Image(np.ones((10, 6), dtype=np.float64), spacing=(1.0, 1.0))
+    """Must crop centrally to the largest square, preserving pixel values."""
+    data = np.arange(60, dtype=np.float64).reshape(10, 6)
+    img = Image(data, spacing=(1.0, 1.0))
     out = crop_to_largest_square(img)
     assert out.shape[0] == out.shape[1] == 6
+    # Central crop: removes 2 rows from each end of axis 0, none from axis 1
+    assert_array_almost_equal(out, data[2:8, :])
 
 
 def test_crop_to_largest_square_already_square():
