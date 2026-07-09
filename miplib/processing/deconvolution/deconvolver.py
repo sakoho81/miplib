@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import logging
-import tempfile
 import time
-from pathlib import Path
 
 import numpy as np
 
@@ -14,6 +12,7 @@ from miplib.processing.deconvolution.backends import (
     make_cuda_psf_convolve,
 )
 from miplib.processing.deconvolution.blocks import (
+    BlockSpec,
     calculate_block_layout,
     extract_padded_block,
 )
@@ -32,16 +31,23 @@ logger = logging.getLogger(__name__)
 class RLDeconvolver:
     """Richardson-Lucy deconvolution and multi-view fusion.
 
-    Single-view deconvolution is the special case with one view
-    (weight=1, background=0). Multi-view fusion uses multiple views
-    with per-view weights and backgrounds.
+    Accepts any *source* with a duck-typed block-access contract:
+
+        source.shape          -> tuple[int, ...]
+        source.spacing        -> tuple[float, ...]
+        source.n_views        -> int
+        source.get_image_block(view, block) -> np.ndarray
+
+    ``ArrayDataSource`` wraps in-memory images for testing.
+    ``ImageDataSource`` wraps ``ImageData`` for lazy HDF5 reads.
     """
 
     def __init__(
         self,
-        images: list[Image],
+        source,
         psfs: list[Image],
         *,
+        estimate: np.ndarray | None = None,
         weights: list[float] | None = None,
         backgrounds: list[float] | None = None,
         fusion_mode: str = "summative",
@@ -55,7 +61,6 @@ class RLDeconvolver:
         first_estimate: str = "image",
         estimate_constant: float = 1.0,
         virtual_psf: bool = False,
-        memmap_estimates: bool = False,
         verbose: bool = False,
     ) -> None:
         if backend not in ("cpu", "cuda"):
@@ -63,10 +68,11 @@ class RLDeconvolver:
         if backend == "cuda" and not _CUDA_AVAILABLE:
             raise RuntimeError("cupy is not installed")
 
-        n_views = len(images)
+        n_views = source.n_views
         if len(psfs) != n_views:
             raise ValueError("images and psfs must have the same length")
 
+        self._source = source
         self._n_views = n_views
         self._fusion_mode = fusion_mode
         self._backend = backend
@@ -75,7 +81,7 @@ class RLDeconvolver:
         self._max_iterations = max_iterations
         self._stop_tau = stop_tau
         self._verbose = verbose
-        self._image_spacing = images[0].spacing
+        self._image_spacing = tuple(source.spacing)
 
         if weights is None:
             weights = [1.0] * n_views
@@ -86,36 +92,23 @@ class RLDeconvolver:
         if virtual_psf and n_views >= 2:
             self._adjs = compute_virtual_psfs(self._norms, self._adjs)
 
-        self._images: list[np.ndarray] = [img.view(np.ndarray) for img in images]
         self._weights = weights
         self._backgrounds = backgrounds
 
-        self._shape = self._images[0].shape
+        self._shape = source.shape
         self._blocks = calculate_block_layout(self._shape, n_blocks, pad=block_pad)
         self._block_pad = block_pad
 
-        self._tmpdir: tempfile.TemporaryDirectory | None = None
-        self._estimate: np.ndarray
-        self._estimate_new: np.ndarray
-        if memmap_estimates:
-            self._tmpdir = tempfile.TemporaryDirectory()
-            self._estimate = np.memmap(
-                Path(self._tmpdir.name) / "estimate.dat",
-                dtype=np.float32,
-                mode="w+",
-                shape=self._shape,
-            )
-            self._estimate_new = np.memmap(
-                Path(self._tmpdir.name) / "estimate_new.dat",
-                dtype=np.float32,
-                mode="w+",
-                shape=self._shape,
-            )
-            self._estimate[:] = 0
-            self._estimate_new[:] = 0
+        if estimate is not None:
+            if estimate.shape != self._shape:
+                raise ValueError(
+                    f"estimate shape {estimate.shape} does not match "
+                    f"source shape {self._shape}"
+                )
+            self._estimate: np.ndarray = estimate
         else:
             self._estimate = np.zeros(self._shape, dtype=np.float32)
-            self._estimate_new = np.zeros(self._shape, dtype=np.float32)
+        self._estimate_new: np.ndarray = np.zeros_like(self._estimate)
 
         self._prev_estimate: np.ndarray | None = None
         self._init_estimate(first_estimate, estimate_constant)
@@ -133,13 +126,23 @@ class RLDeconvolver:
         if first_estimate == "constant":
             self._estimate[:] = constant
         elif first_estimate == "image":
-            self._estimate[:] = self._images[0]
+            blk = _full_image_block(self._shape)
+            self._estimate[:] = self._source.get_image_block(0, blk)
         elif first_estimate == "image_mean":
-            self._estimate[:] = self._images[0].mean()
+            blk = _full_image_block(self._shape)
+            first_img = self._source.get_image_block(0, blk)
+            self._estimate[:] = first_img.mean()
         elif first_estimate == "average":
-            self._estimate[:] = np.mean(self._images, axis=0)
+            self._estimate[:] = 0
+            blk = _full_image_block(self._shape)
+            for v in range(self._n_views):
+                self._estimate += self._source.get_image_block(v, blk)
+            self._estimate /= self._n_views
         elif first_estimate == "sum":
-            self._estimate[:] = np.sum(self._images, axis=0)
+            self._estimate[:] = 0
+            blk = _full_image_block(self._shape)
+            for v in range(self._n_views):
+                self._estimate += self._source.get_image_block(v, blk)
         else:
             raise ValueError(f"Unknown first_estimate: {first_estimate!r}")
 
@@ -218,6 +221,16 @@ class RLDeconvolver:
     def __len__(self) -> int:
         return self._max_iterations - self._iteration
 
+    def run(self) -> Image:
+        """Run all remaining iterations. Returns final result."""
+        for _ in self:
+            pass
+        return self.result
+
+    # ------------------------------------------------------------------
+    # compute steps
+    # ------------------------------------------------------------------
+
     def _compute_step_cpu(
         self,
     ) -> tuple[np.ndarray, float, float, float, float]:
@@ -227,7 +240,9 @@ class RLDeconvolver:
 
         for block in self._blocks:
             est_block = extract_padded_block(self._estimate, block)
-            img_blocks = [extract_padded_block(img, block) for img in self._images]
+            img_blocks = [
+                self._source.get_image_block(v, block) for v in range(self._n_views)
+            ]
 
             new_block, e, s, u, n = rl_multi_view(
                 est_block,
@@ -262,7 +277,9 @@ class RLDeconvolver:
 
         for block in self._blocks:
             est_block = extract_padded_block(self._estimate, block)
-            img_blocks = [extract_padded_block(img, block) for img in self._images]
+            img_blocks = [
+                self._source.get_image_block(v, block) for v in range(self._n_views)
+            ]
 
             if self._fusion_mode == "summative":
                 correction = np.zeros_like(est_block)
@@ -309,12 +326,6 @@ class RLDeconvolver:
 
         return estimate_new, e_total, s_total, u_total, n_total
 
-    def run(self) -> Image:
-        """Run all remaining iterations. Returns final result."""
-        for _ in self:
-            pass
-        return self.result
-
     # ------------------------------------------------------------------
     # results
     # ------------------------------------------------------------------
@@ -323,15 +334,16 @@ class RLDeconvolver:
     def result(self) -> Image:
         return Image(self._estimate.copy(), list(self._image_spacing))
 
-    def close(self) -> None:
-        if self._tmpdir is not None:
-            self._tmpdir.cleanup()
-            self._tmpdir = None
-
 
 # ------------------------------------------------------------------
 # helpers
 # ------------------------------------------------------------------
+
+
+def _full_image_block(shape: tuple[int, ...]) -> BlockSpec:
+    start = np.zeros(len(shape), dtype=int)
+    size = np.array(shape, dtype=int)
+    return BlockSpec(start=start, size=size, pad=0)
 
 
 def _compute_tau1(current: np.ndarray, previous: np.ndarray) -> float:

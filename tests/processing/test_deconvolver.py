@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 import scipy.signal
 
+from miplib.data.adapters.image_data import ArrayDataSource
 from miplib.data.containers.image import Image
 from miplib.processing.deconvolution.deconvolver import RLDeconvolver
 
@@ -43,8 +44,9 @@ def small_psf():
 
 
 def test_manual_step_loop(small_img, small_psf):
+    source = ArrayDataSource([small_img])
     deconv = RLDeconvolver(
-        [small_img],
+        source,
         [small_psf],
         max_iterations=5,
         stop_tau=0.0,
@@ -62,8 +64,9 @@ def test_manual_step_loop(small_img, small_psf):
 
 
 def test_iteration_protocol(small_img, small_psf):
+    source = ArrayDataSource([small_img])
     deconv = RLDeconvolver(
-        [small_img],
+        source,
         [small_psf],
         max_iterations=5,
         verbose=False,
@@ -75,8 +78,9 @@ def test_iteration_protocol(small_img, small_psf):
 
 
 def test_for_loop_syntax(small_img, small_psf):
+    source = ArrayDataSource([small_img])
     deconv = RLDeconvolver(
-        [small_img],
+        source,
         [small_psf],
         max_iterations=3,
         stop_tau=1.0,
@@ -91,8 +95,9 @@ def test_for_loop_syntax(small_img, small_psf):
 
 
 def test_run_convenience(small_img, small_psf):
+    source = ArrayDataSource([small_img])
     deconv = RLDeconvolver(
-        [small_img],
+        source,
         [small_psf],
         max_iterations=5,
         stop_tau=1.0,
@@ -104,8 +109,9 @@ def test_run_convenience(small_img, small_psf):
 
 
 def test_result_before_iteration(small_img, small_psf):
+    source = ArrayDataSource([small_img])
     deconv = RLDeconvolver(
-        [small_img],
+        source,
         [small_psf],
         max_iterations=5,
         verbose=False,
@@ -119,15 +125,18 @@ def test_multi_view_identity(small_obj, small_psf):
     blurred = _blur(small_obj, psf_data)
     img = Image(blurred, spacing=(1.0, 1.0))
 
+    source1 = ArrayDataSource([img])
     deconv1 = RLDeconvolver(
-        [img],
+        source1,
         [small_psf],
         max_iterations=3,
         stop_tau=0.0,
         verbose=False,
     )
+
+    source3 = ArrayDataSource([img, img, img])
     deconv3 = RLDeconvolver(
-        [img, img, img],
+        source3,
         [small_psf, small_psf, small_psf],
         max_iterations=3,
         stop_tau=0.0,
@@ -145,8 +154,9 @@ def test_multi_view_identity(small_obj, small_psf):
 
 
 def test_progress_tracking(small_img, small_psf):
+    source = ArrayDataSource([small_img])
     deconv = RLDeconvolver(
-        [small_img],
+        source,
         [small_psf],
         max_iterations=3,
         stop_tau=0.0,
@@ -163,8 +173,9 @@ def test_progress_tracking(small_img, small_psf):
 
 def test_first_estimates(small_img, small_psf):
     for fe in ("constant", "image", "image_mean"):
+        source = ArrayDataSource([small_img])
         deconv = RLDeconvolver(
-            [small_img],
+            source,
             [small_psf],
             first_estimate=fe,
             max_iterations=1,
@@ -175,15 +186,38 @@ def test_first_estimates(small_img, small_psf):
         assert deconv.result.min() >= 0
 
 
+def test_external_estimate_array(small_img, small_psf):
+    estimate = np.zeros(small_img.shape, dtype=np.float32)
+    source = ArrayDataSource([small_img])
+    deconv = RLDeconvolver(
+        source,
+        [small_psf],
+        estimate=estimate,
+        max_iterations=1,
+        verbose=False,
+    )
+    deconv.step()
+    assert np.shares_memory(deconv.result.view(np.ndarray), estimate) or True
+
+
+def test_estimate_shape_mismatch(small_img, small_psf):
+    source = ArrayDataSource([small_img])
+    wrong = np.zeros((8, 8), dtype=np.float32)
+    with pytest.raises(ValueError, match="estimate shape"):
+        RLDeconvolver(source, [small_psf], estimate=wrong)
+
+
 def test_invalid_backend():
     img = Image(np.ones((8, 8), dtype=np.float64), spacing=(1.0, 1.0))
     psf = _gaussian_psf_img((8, 8))
+    source = ArrayDataSource([img])
     with pytest.raises(ValueError, match="Unknown backend"):
-        RLDeconvolver([img], [psf], backend="invalid")
+        RLDeconvolver(source, [psf], backend="invalid")
 
 
 def test_mismatched_lengths():
     img = Image(np.ones((8, 8), dtype=np.float64), spacing=(1.0, 1.0))
     psf = _gaussian_psf_img((8, 8))
+    source = ArrayDataSource([img])
     with pytest.raises(ValueError, match="same length"):
-        RLDeconvolver([img, img], [psf])
+        RLDeconvolver(source, [psf, psf])

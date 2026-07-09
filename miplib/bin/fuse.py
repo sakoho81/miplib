@@ -11,12 +11,17 @@ This is the main program file for the miplib fusion calculation.
 
 import os
 import sys
+import tempfile
 import time
+from pathlib import Path
+
+import numpy as np
 
 import miplib.data.containers.image_data as image_data
 import miplib.processing.to_string as genutils
 import miplib.ui.cli.miplib_entry_point_options as arguments
 import miplib.ui.utils as uiutils
+from miplib.data.adapters.image_data import ImageDataSource
 from miplib.data.containers.image_data import ImageKey, ImageType
 from miplib.processing.deconvolution.deconvolver import RLDeconvolver
 
@@ -60,18 +65,29 @@ def main():
     channel = getattr(options, "channel", 0)
     scale = getattr(options, "scale", 100)
 
-    images = [
-        data.get_image(ImageKey(ImageType.REGISTERED, v, channel, scale)) for v in views
-    ]
+    source = ImageDataSource(data, views, ImageType.REGISTERED, channel, scale)
+
     psfs = [data.get_image(ImageKey(ImageType.PSF, v, channel, scale)) for v in views]
 
     backend = "cuda" if not getattr(options, "disable_cuda", False) else "cpu"
     if backend == "cuda":
         print("Trying to run the image fusion with GPU acceleration.")
 
+    tmpdir = None
+    estimate = None
+    if getattr(options, "memmap_estimates", False):
+        tmpdir = tempfile.TemporaryDirectory()
+        estimate = np.memmap(
+            Path(tmpdir.name) / "estimate.dat",
+            dtype=np.float32,
+            mode="w+",
+            shape=source.shape,
+        )
+
     task = RLDeconvolver(
-        images,
+        source,
         psfs,
+        estimate=estimate,
         fusion_mode=getattr(options, "fusion_method", "summative"),
         backend=backend,
         n_blocks=getattr(options, "blocks", 1),
@@ -83,7 +99,6 @@ def main():
         first_estimate=getattr(options, "first_estimate", "image_mean"),
         estimate_constant=getattr(options, "estimate_constant", 1.0),
         virtual_psf="opt" in getattr(options, "fusion_method", "summative"),
-        memmap_estimates=getattr(options, "memmap_estimates", False),
         verbose=True,
     )
 
@@ -110,7 +125,8 @@ def main():
     ):
         task.save_to_hdf()
 
-    task.close()
+    if tmpdir is not None:
+        tmpdir.cleanup()
     data.close()
 
 
