@@ -56,6 +56,16 @@ def two_frequency_signal(shape, low_cycles, high_cycles, axis=0):
     )
 
 
+def checkerboard_pattern(shape):
+    """2D 0/1 checkerboard where (x + y) % 2 == 0 positions are 1.
+
+    Splitting this pattern via a forward checkerboard subsample produces
+    constant-1 halves; the reverse split produces constant-0 halves.
+    """
+    y, x = np.mgrid[: shape[0], : shape[1]]
+    return np.where((x + y) % 2 == 0, 1.0, 0.0).astype(np.float64)
+
+
 @pytest.fixture
 def image_2d():
     """16x16 float64 Image with isotropic spacing."""

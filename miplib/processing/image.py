@@ -4,28 +4,24 @@ import numpy as np
 from scipy.ndimage import interpolation
 
 from miplib.data.containers.image import Image
+from miplib.processing import fftutils
 
 from . import ndarray
 
 logger = logging.getLogger(__name__)
 
 
-def zoom_to_isotropic_spacing(image, order=3):
-    """
-    Resize an Image to isotropic pixel spacing.
-
-    :param image:   a Image object
-    :param order:   the spline interpolation type
-    :return:        a isotropically spaced Image
-    """
-    assert isinstance(image, Image)
+def zoom_to_isotropic_spacing(image: Image, order: int = 3) -> Image:
+    """Resize an Image to isotropic pixel spacing."""
+    if not isinstance(image, Image):
+        raise TypeError(f"Expected Image, got {type(image).__name__}")
 
     spacing = image.spacing
     old_shape = image.shape
     min_spacing = min(spacing)
     zoom = tuple(pixel_spacing / min_spacing for pixel_spacing in spacing)
     new_shape = tuple(
-        int(pixels * dim_zoom)
+        round(pixels * dim_zoom)
         for (pixels, dim_zoom) in zip(old_shape, zoom, strict=False)
     )
 
@@ -35,9 +31,14 @@ def zoom_to_isotropic_spacing(image, order=3):
         return resize(image, new_shape, order)
 
 
-def zoom_to_spacing(image, spacing, order=3):
-    assert isinstance(image, Image)
-    assert image.ndim == len(spacing)
+def zoom_to_spacing(image: Image, spacing: tuple[float, ...], order: int = 3) -> Image:
+    """Resample an Image to the given pixel spacing."""
+    if not isinstance(image, Image):
+        raise TypeError(f"Expected Image, got {type(image).__name__}")
+    if image.ndim != len(spacing):
+        raise ValueError(
+            f"spacing length {len(spacing)} does not match image ndim {image.ndim}"
+        )
 
     zoom = tuple(i / j for i, j in zip(image.spacing, spacing, strict=False))
     logger.debug("The zoom is %s", zoom)
@@ -47,17 +48,15 @@ def zoom_to_spacing(image, spacing, order=3):
     return Image(array, spacing)
 
 
-def resize(image, size, order=3):  # type: (Image, tuple, int) -> Image
-    """
-    Resize the image, using interpolation.
+def resize(image: Image, size: tuple[int, ...], order: int = 3) -> Image:
+    """Resize the image using spline interpolation.
 
-    :param order:   The interpolation type defined as order of the b-spline
-    :param image:   The MyImage object.
+    :param image:   The Image object.
     :param size:    A tuple of new image dimensions.
-
+    :param order:   The interpolation type defined as order of the b-spline.
     """
-    assert isinstance(size, tuple)
-    assert isinstance(image, Image)
+    if not isinstance(image, Image):
+        raise TypeError(f"Expected Image, got {type(image).__name__}")
 
     zoom = [float(a) / b for a, b in zip(size, image.shape, strict=False)]
     logger.debug("The zoom is %s", zoom)
@@ -68,32 +67,13 @@ def resize(image, size, order=3):  # type: (Image, tuple, int) -> Image
     return Image(array, spacing)
 
 
-def apply_hanning(image):  # type: (Image) -> Image
+def zero_pad_to_shape(image: Image, shape: tuple[int, ...]) -> Image:
+    """Apply zero padding to cast an Image into the given shape.
+
+    Padding is applied evenly on all sides of the image.
     """
-    Apply Hanning window to the image.
-
-    :return:
-    """
-
-    windows = (np.hanning(i) for i in image.shape)
-
-    result = Image(image.astype("float64"), image.spacing)
-    for window in windows:
-        result *= window  # type: ignore[misc]
-
-    return result
-
-
-def zero_pad_to_shape(image, shape):
-    """
-    Apply zero padding to cast an Image into the given shape. The zero padding
-    will be applied evenly on all sides of the image.
-
-    :param image: an Image object
-    :param shape: a shape tuple
-    :return:      the zero padded Image
-    """
-    assert isinstance(image, Image)
+    if not isinstance(image, Image):
+        raise TypeError(f"Expected Image, got {type(image).__name__}")
 
     if image.shape == shape:
         return image
@@ -101,16 +81,12 @@ def zero_pad_to_shape(image, shape):
         return Image(ndarray.expand_to_shape(image, shape), image.spacing)
 
 
-def zero_pad_to_matching_shape(image1, image2):
-    """
-    Apply zero padding to make the size of two Images match.
-    :param image1: an Image object
-    :param image2: an Image object
-    :return:       zero padded image1 and image2
-    """
-
-    assert isinstance(image1, Image)
-    assert isinstance(image2, Image)
+def zero_pad_to_matching_shape(image1: Image, image2: Image) -> tuple[Image, Image]:
+    """Apply zero padding to make the size of two Images match."""
+    if not isinstance(image1, Image):
+        raise TypeError(f"Expected Image for image1, got {type(image1).__name__}")
+    if not isinstance(image2, Image):
+        raise TypeError(f"Expected Image for image2, got {type(image2).__name__}")
 
     shape = tuple(max(x, y) for x, y in zip(image1.shape, image2.shape, strict=False))
 
@@ -122,35 +98,34 @@ def zero_pad_to_matching_shape(image1, image2):
     return image1, image2
 
 
-def remove_zero_padding(image, shape):
-    """
-
-    :param image: The zero padded image
-    :param shape: The original image size (before padding)
-    :return:
-    """
-
-    assert isinstance(image, Image)
-    assert len(shape) == image.ndim
+def remove_zero_padding(image: Image, shape: tuple[int, ...]) -> Image:
+    """Remove zero padding to restore an Image to the given shape."""
+    if not isinstance(image, Image):
+        raise TypeError(f"Expected Image, got {type(image).__name__}")
+    if len(shape) != image.ndim:
+        raise ValueError(
+            f"shape length {len(shape)} does not match image ndim {image.ndim}"
+        )
 
     return Image(ndarray.contract_to_shape(image, shape), image.spacing)
 
 
-def checkerboard_split(image, disable_3d_sum=False):
-    """
-    Splits an image in two, by using a checkerboard pattern.
+def checkerboard_split(
+    image: Image, disable_3d_sum: bool = False
+) -> tuple[Image, Image]:
+    """Split an image in two using a checkerboard subsampling pattern.
 
-    :param image:   a miplib Image
-    :return:        two miplib Images
+    For 2D images the even/odd pixel pairs are separated. For 3D the default
+    behaviour sums spatially adjacent pairs to reduce noise (set
+    ``disable_3d_sum=True`` to get a pure subsampling instead).
     """
-    assert isinstance(image, Image)
+    if not isinstance(image, Image):
+        raise TypeError(f"Expected Image, got {type(image).__name__}")
 
-    # Make an index chess board structure
     shape = image.shape
     odd_index = [np.arange(1, shape[i], 2) for i in range(len(shape))]
     even_index = [np.arange(0, shape[i], 2) for i in range(len(shape))]
 
-    # Create the two pseudo images
     if image.ndim == 2:
         image1 = image[odd_index[0], :][:, odd_index[1]]
         image2 = image[even_index[0], :][:, even_index[1]]
@@ -160,7 +135,6 @@ def checkerboard_split(image, disable_3d_sum=False):
             image2 = image[even_index[0], :, :][:, even_index[1], :][
                 :, :, even_index[2]
             ]
-
         else:
             image1 = (
                 image.astype(np.uint32)[even_index[0], :, :][:, odd_index[1], :][
@@ -180,28 +154,23 @@ def checkerboard_split(image, disable_3d_sum=False):
                 ]
             )
 
-    # image1.spacing = tuple(i * np.sqrt(2) for i in image.spacing)
-    image1.spacing = image.spacing
-    image2.spacing = image1.spacing
-
     return image1, image2
 
 
-def reverse_checkerboard_split(image, disable_3d_sum=False):
-    """
-    Splits an image in two, by using a checkerboard pattern.
+def reverse_checkerboard_split(
+    image: Image, disable_3d_sum: bool = False
+) -> tuple[Image, Image]:
+    """Split an image in two using the reverse checkerboard pattern.
 
-    :param image:   a miplib Image
-    :return:        two miplib Images
+    Like :func:`checkerboard_split` but with odd/even index roles swapped.
     """
-    assert isinstance(image, Image)
+    if not isinstance(image, Image):
+        raise TypeError(f"Expected Image, got {type(image).__name__}")
 
-    # Make an index chess board structure
     shape = image.shape
     odd_index = [np.arange(1, shape[i], 2) for i in range(len(shape))]
     even_index = [np.arange(0, shape[i], 2) for i in range(len(shape))]
 
-    # Create the two pseudo images
     if image.ndim == 2:
         image1 = image[odd_index[0], :][:, even_index[1]]
         image2 = image[even_index[0], :][:, odd_index[1]]
@@ -209,7 +178,6 @@ def reverse_checkerboard_split(image, disable_3d_sum=False):
         if disable_3d_sum:
             image1 = image[odd_index[0], :, :][:, odd_index[1], :][:, :, even_index[2]]
             image2 = image[even_index[0], :, :][:, even_index[1], :][:, :, odd_index[2]]
-
         else:
             image1 = (
                 image.astype(np.uint32)[even_index[0], :, :][:, odd_index[1], :][
@@ -229,30 +197,24 @@ def reverse_checkerboard_split(image, disable_3d_sum=False):
                 ]
             )
 
-    # image1.spacing = tuple(i * np.sqrt(2) for i in image.spacing)
-    image1.spacing = image.spacing
-    image2.spacing = image1.spacing
-
     return image1, image2
 
 
-def summed_checkerboard_split(image):
-    """
-    Splits an image in two, by using a checkerboard pattern and diagonal pixels
-    in each 4 pixel group (2D) case and orthogonal diagonal groups (never adjacent)
-    in 3D case.
+def summed_checkerboard_split(image: Image) -> tuple[Image, Image]:
+    """Split an image using diagonal pixel pairs from each 2×2 block.
 
-    :param image:   a miplib Image
-    :return:        two miplib Images
+    In 2D each output contains the sum of one diagonal pair per 2×2 block.
+    In 3D the split uses orthogonal diagonal groups (never adjacent pixels).
+    The output spacing is doubled relative to the input to reflect the
+    effective pixel pitch after subsampling.
     """
-    assert isinstance(image, Image)
+    if not isinstance(image, Image):
+        raise TypeError(f"Expected Image, got {type(image).__name__}")
 
-    # Make an index chess board structure
     shape = image.shape
     odd_index = [np.arange(1, shape[i], 2) for i in range(len(shape))]
     even_index = [np.arange(0, shape[i], 2) for i in range(len(shape))]
 
-    # Create the two pseudo images
     if image.ndim == 2:
         image1 = (
             image[odd_index[0], :][:, odd_index[1]]
@@ -302,14 +264,13 @@ def summed_checkerboard_split(image):
     return image1, image2
 
 
-def zero_pad_to_cube(image):
+def zero_pad_to_cube(image: Image) -> Image:
+    """Apply zero padding to cast an image into a cubic shape.
+
+    Returns the original image unchanged if it is already cubic.
     """
-    Apply zero padding to cast an image into a cube shape (to match the number
-    of pixels in all dimensions)
-    :param image: an Image object
-    :return:      zero padded input image, or the original, if already a cube
-    """
-    assert isinstance(image, Image)
+    if not isinstance(image, Image):
+        raise TypeError(f"Expected Image, got {type(image).__name__}")
 
     original_shape = image.shape
     nmax = max(original_shape)
@@ -320,43 +281,44 @@ def zero_pad_to_cube(image):
         return image
 
 
-def crop_to_largest_square(image, physical_dims=False):
+def crop_to_largest_square(image: Image, physical_dims: bool = False) -> Image:
+    """Crop an image to the largest square shape that fits inside it.
+
+    :param image:         an Image object
+    :param physical_dims: if True, compute the square in physical units
+                          rather than pixels
     """
-    Crops an image into a largest square shape that fits inside the image area in all
-    dimensions. The cropping can bone either in physical units or in pixels (typically pixels)
-    :param image: an image Object
-    :return: the cropped image
-    """
-    assert isinstance(image, Image)
+    if not isinstance(image, Image):
+        raise TypeError(f"Expected Image, got {type(image).__name__}")
 
     if physical_dims:
         shape_real = [x * y for x, y in zip(image.shape, image.spacing, strict=False)]
         min_shape_real = (min(*shape_real),) * image.ndim
-        min_shape_px = [
+        min_shape_px = tuple(
             x / y for x, y in zip(min_shape_real, image.spacing, strict=False)
-        ]
+        )
     else:
         min_shape_px = (min(*image.shape),) * image.ndim
 
     return remove_zero_padding(image, min_shape_px)
 
 
-def crop_to_shape(image, shape, offset):
-    """
-    Crop image to shape.
+def crop_to_shape(
+    image: Image, shape: tuple[int, ...], offset: tuple[int, ...]
+) -> Image:
+    """Crop image to the given shape starting at offset.
 
-    :param image:   An N-dimensional Image to be cropped
-    :type image:    Image
-    :param shape:   The new, cropped size; should be greater or equal than
-                    the original
-    :type shape:    tuple
-    :return:        Returns the cropped image as an Image object
+    :param image:   An N-dimensional Image to be cropped.
+    :param shape:   The desired output shape; each dimension must fit within
+                    the image at the given offset.
+    :param offset:  Per-axis start indices for the crop.
     """
-    assert isinstance(image, Image)
-    assert image.ndim == len(shape) == len(offset)
-    assert all(
-        (v + x <= y for v, x, y in zip(offset, shape, image.shape, strict=False))
-    )
+    if not isinstance(image, Image):
+        raise TypeError(f"Expected Image, got {type(image).__name__}")
+    if image.ndim != len(shape) or image.ndim != len(offset):
+        raise ValueError("image.ndim, shape, and offset must all have the same length")
+    if not all(v + x <= y for v, x, y in zip(offset, shape, image.shape, strict=False)):
+        raise ValueError("crop region (offset + shape) extends beyond image bounds")
 
     crop_idx = tuple(
         slice(start, size + start) for start, size in zip(offset, shape, strict=False)
@@ -365,23 +327,20 @@ def crop_to_shape(image, shape, offset):
     return Image(image[crop_idx], image.spacing)
 
 
-def noisy(image, noise_type):
-    """
+def noisy(image: Image, noise_type: str) -> Image:
+    """Add synthetic noise to an image.
+
     Parameters
     ----------
     image :
         Input image data. Will be converted to float.
     noise_type : str
-        One of the following strings, selecting the type of noise to add:
-
-        'gauss'     Gaussian-distributed additive noise.
-        'poisson'   Poisson-distributed noise generated from the data.
-        's&p'       Replaces random pixels with 0  or 1.
-        'speckle'   Multiplicative noise using out = image + n*image,where
-                    n is uniform noise with specified mean & variance.
+        One of ``'gauss'``, ``'poisson'``, ``'s&p'``, or ``'speckle'``.
     """
-    assert isinstance(image, Image)
-    assert image.ndim < 4
+    if not isinstance(image, Image):
+        raise TypeError(f"Expected Image, got {type(image).__name__}")
+    if image.ndim >= 4:
+        raise ValueError(f"noisy() supports up to 3D images, got {image.ndim}D")
     spacing = image.spacing
 
     if noise_type == "gauss":
@@ -395,12 +354,9 @@ def noisy(image, noise_type):
         s_vs_p = 0.5
         amount = 0.004
         out = np.copy(image)
-        # Salt mode
         num_salt = np.ceil(amount * image.size * s_vs_p)
         coords = [np.random.randint(0, i - 1, int(num_salt)) for i in image.shape]
         out[coords] = 1
-
-        # Pepper mode
         num_pepper = np.ceil(amount * image.size * (1.0 - s_vs_p))
         coords = [np.random.randint(0, i - 1, int(num_pepper)) for i in image.shape]
         out[coords] = 0
@@ -411,20 +367,23 @@ def noisy(image, noise_type):
     elif noise_type == "speckle":
         gauss = np.random.standard_normal(image.shape).reshape(image.shape)
         return Image(image + image * gauss, spacing)
+    else:
+        raise ValueError(f"Unknown noise_type {noise_type!r}")
 
 
-def enhance_contrast(image, percent_saturated=0.3, out_type=np.uint8):
+def enhance_contrast(
+    image: Image,
+    percent_saturated: float = 0.3,
+    out_type: type = np.uint8,
+) -> Image:
+    """Perform histogram stretching with a given saturation percentage.
+
+    :param image:              an Image object
+    :param percent_saturated:  percentage of pixels to saturate (default 0.3)
+    :param out_type:           output dtype (only np.uint8 supported)
     """
-    Performs historgram stretching (not equalization), with a given percentage
-    :param percent_saturated of pixels saturated in the output.
-
-    :param image: an Image object
-    :param percent_saturated: Percentage value of saturated pixels. Defaults to 0.3
-    :param out_type: The type of the output image. The default is 8-bit uint
-    :return: an Image with intensity values rescaled to the whole dynamic range
-    """
-
-    assert isinstance(image, Image)
+    if not isinstance(image, Image):
+        raise TypeError(f"Expected Image, got {type(image).__name__}")
 
     percent_saturated /= 100
 
@@ -436,7 +395,6 @@ def enhance_contrast(image, percent_saturated=0.3, out_type=np.uint8):
     else:
         raise ValueError(f"Not supported output type {out_type}")
 
-    # Get Input Image Min/Max from histogram
     histogram, bin_edges = np.histogram(image, bins=250, density=True)
     cumulative = np.cumsum(histogram * np.diff(bin_edges))
 
@@ -448,73 +406,58 @@ def enhance_contrast(image, percent_saturated=0.3, out_type=np.uint8):
     else:
         in_min = bin_edges[1:][to_zero].max()
 
-    # Trim and rescale
     image = np.clip(image, in_min, in_max)
     image *= (out_max - out_min) / image.max()
     return Image(image.astype(out_type), spacing)
 
 
-def rescale_to_8_bit(image):
-    """
-    Converts an Image into 8-bit (typically for saving)
-    :param image: an Image object
-    :return: a 8-bit version of the Image
-    """
-    assert isinstance(image, Image)
+def rescale_to_8_bit(image: Image) -> Image:
+    """Convert an Image to 8-bit by scaling to the full [0, 255] range."""
+    if not isinstance(image, Image):
+        raise TypeError(f"Expected Image, got {type(image).__name__}")
     return Image((image * (255.0 / image.max())).astype(np.uint8), image.spacing)
 
 
-def flip_image(image):
-    assert isinstance(image, Image)
+def translate_image(image: Image, shift: tuple[float, ...]) -> Image:
+    """Apply a circular shift to an image using Fourier phase multiplication.
 
-    indexer = (np.s_[::-1],) * image.ndim
+    The shift is applied along all axes simultaneously. Sub-pixel shifts are
+    supported. The image is assumed to be periodic (circular boundary).
 
-    return Image(image[indexer], image.spacing)
-
-
-def translate_image(image, shift):
+    :param image: an Image object (2D or 3D)
+    :param shift: per-axis shift in pixels, e.g. ``(dy, dx)`` for 2D
     """
-    Apply a circular shift to an image
+    if not isinstance(image, Image):
+        raise TypeError(f"Expected Image, got {type(image).__name__}")
+    if len(shift) != image.ndim:
+        raise ValueError(
+            f"shift length {len(shift)} does not match image ndim {image.ndim}"
+        )
 
-    :param image: An Image object
-    :param shift: The shift as a single numeric value
-    :return: returns the translated image.
+    F = fftutils.fft(image, window=None)
+
+    # Build the phase ramp in the DC-centred frequency domain.
+    # fftfreq returns frequencies in cycles/sample; after fftshift the DC
+    # component is at the centre, matching the layout produced by fftutils.fft.
+    freqs = [np.fft.fftshift(np.fft.fftfreq(s)) for s in image.shape]
+    mesh = np.meshgrid(*freqs, indexing="ij")
+    phase_ramp = sum(s * f for s, f in zip(shift, mesh, strict=True))
+    F *= np.exp(-2j * np.pi * phase_ramp)
+
+    result = fftutils.ifft(F)
+    return Image(result.real, image.spacing)
+
+
+def maximum_projection(image: Image, axis: int = 0) -> Image:
+    """Generate a maximum intensity projection along the given axis.
+
+    :param image: an Image
+    :param axis:  the axis along which the projection is calculated (default 0)
+    :return:      a projection image with one fewer dimension than the input
     """
-    fft_image = np.fft.fftshift(np.fft.fft2(image))
-
-    shape = fft_image.shape
-    axes = (np.arange(-np.floor(i / 2.0), np.ceil(i / 2.0)) for i in shape)
-    axes = (i / (2 * i.max()) for i in axes)
-    y, x = np.meshgrid(*axes)
-
-    xx = np.zeros(fft_image.shape, dtype=np.complex64)
-    xx.real[:] = np.cos(2 * np.pi * shift * x)
-    xx.imag[:] = np.sin(-2 * np.pi * shift * x)
-
-    yy = np.zeros(fft_image.shape, dtype=np.complex64)
-    yy.real[:] = np.cos(2 * np.pi * shift * y)
-    yy.imag[:] = np.sin(-2 * np.pi * shift * y)
-
-    multiplier = xx * yy
-
-    # TODO: Investigate shift convention. The forward FFT uses fftshift,
-    # but the inverse applies ifftn directly without ifftshift — verify
-    # whether this asymmetry is correct or a latent bug.
-    result = np.abs(np.fft.ifftn(fft_image * multiplier).real)
-
-    return Image(result, image.spacing)
-
-
-def maximum_projection(image, axis=0):
-    """Generate a maximum projection image along an axis
-
-    :param image: an image
-    :type image: Image
-    :param axis: the axis on which the projeciton is to be calculated, defaults to 0
-    :type axis: int, optional
-    :return: a maximum projection image, with one dimension less thatn the input image
-    :rtype: Image
-    """
-    assert isinstance(image, Image)
-    spacing = (image.spacing[s] for s in filter(lambda x: x != axis, range(image.ndim)))
+    if not isinstance(image, Image):
+        raise TypeError(f"Expected Image, got {type(image).__name__}")
+    spacing = tuple(
+        image.spacing[s] for s in filter(lambda x: x != axis, range(image.ndim))
+    )
     return Image(np.amax(image, axis=axis), spacing)
