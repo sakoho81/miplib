@@ -175,6 +175,11 @@ def resolve_backend(
 # ---------------------------------------------------------------------------
 
 
+def convolve_cpu(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Convolve *a* and *b* via scipy FFT (mode='same')."""
+    return _convolve(a, b)
+
+
 def _convolve(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     return scipy.signal.fftconvolve(a, b, mode="same")
 

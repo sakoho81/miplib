@@ -2,30 +2,14 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
 
 from miplib.data.containers.image import Image
-from miplib.processing.deconvolution.backends import (
-    _CUDA_AVAILABLE,
-    convolve_cpu,
-    make_cuda_psf_convolve,
-)
-from miplib.processing.deconvolution.blocks import (
-    BlockSpec,
-    calculate_block_layout,
-    extract_padded_block,
-)
-from miplib.processing.deconvolution.kernels import rl_multi_view
-from miplib.processing.deconvolution.psf_utils import (
-    compute_virtual_psfs,
-    prepare_psfs,
-)
+from miplib.processing.deconvolution.backends import CPUBackend, CUDABackend
+from miplib.processing.deconvolution.blocks import extract_padded_block, iter_blocks
 from miplib.processing.deconvolution.tracker import RLConvergenceTracker
-from miplib.processing.ndarray import nroot
-from miplib.processing.ops_ext import div_unit_grad, update_estimate_poisson
 
 logger = logging.getLogger(__name__)
 
@@ -35,143 +19,58 @@ class RLOptions:
     """Algorithm parameters for Richardson-Lucy deconvolution / fusion."""
 
     fusion_mode: str = "summative"
-    backend: str = "cpu"
     n_blocks: int = 1
     block_pad: int = 0
     epsilon: float = 1e-7
     tv_lambda: float = 0.0
     max_iterations: int = 100
     stop_tau: float = 1e-4
-    first_estimate: str = "image"
-    estimate_constant: float = 1.0
-    virtual_psf: bool = False
-    verbose: bool = False
+
+    def __post_init__(self):
+        if self.fusion_mode not in ("summative", "multiplicative"):
+            raise ValueError(f"Unknown fusion_mode: {self.fusion_mode!r}")
+        if self.n_blocks < 1:
+            raise ValueError(f"n_blocks must be >= 1, got {self.n_blocks}")
+        if self.epsilon < 0 or self.epsilon > 0.5:
+            raise ValueError("epsilon must be between 0 and 0.5")
+        if self.max_iterations < 1:
+            raise ValueError(f"max_iterations must be >= 1, got {self.max_iterations}")
 
 
 class RLDeconvolver:
     """Richardson-Lucy deconvolution and multi-view fusion.
 
-    Accepts any *source* with a duck-typed block-access contract:
-
-        source.shape          -> tuple[int, ...]
-        source.spacing        -> tuple[float, ...]
-        source.n_views        -> int
-        source.get_image_block(view, block) -> np.ndarray
-
-    ``ArrayDataSource`` wraps in-memory images for testing.
-    ``ImageDataSource`` wraps ``ImageData`` for lazy HDF5 reads.
+    Takes a backend instance (``CPUBackend`` or ``CUDABackend``) and an
+    optional pre-allocated estimate array.  The backend owns all per-view
+    data through ``ViewData``.
     """
 
     def __init__(
         self,
-        source,
-        psfs: list[Image],
+        backend: CPUBackend | CUDABackend,
         *,
         estimate: np.ndarray | None = None,
         options: RLOptions | None = None,
-        weights: list[float] | None = None,
-        backgrounds: list[float] | None = None,
-        progress_callback: "Callable[[RLDeconvolver], None] | None" = None,
-        **kwargs,
     ) -> None:
-        if options is None:
-            options = RLOptions(**kwargs)
-        elif kwargs:
-            for k, v in kwargs.items():
-                setattr(options, k, v)
+        self._backend = backend
+        self._options = options or RLOptions()
 
-        if options.backend not in ("cpu", "cuda"):
-            raise ValueError(f"Unknown backend: {options.backend!r}")
-        if options.backend == "cuda" and not _CUDA_AVAILABLE:
-            raise RuntimeError("cupy is not installed")
-
-        n_views = source.n_views
-        if len(psfs) != n_views:
-            raise ValueError("images and psfs must have the same length")
-
-        self._source = source
-        self._options = options
-        self._n_views = n_views
-        self._progress_callback = progress_callback
-        self._image_spacing = tuple(source.spacing)
-
-        if weights is None:
-            weights = [1.0] * n_views
-        if backgrounds is None:
-            backgrounds = [0.0] * n_views
-
-        self._norms, self._adjs = prepare_psfs(psfs, self._image_spacing)
-        if options.virtual_psf and n_views >= 2:
-            self._adjs = compute_virtual_psfs(self._norms, self._adjs)
-
-        self._weights = weights
-        self._backgrounds = backgrounds
-
-        self._shape = source.shape
-        self._blocks = calculate_block_layout(
-            self._shape, options.n_blocks, pad=options.block_pad
-        )
-
-        if estimate is not None:
-            if estimate.shape != self._shape:
+        vd = backend._vd
+        if estimate is None:
+            self._estimate = np.zeros(vd.source.shape, dtype=np.float32)
+        else:
+            if estimate.shape != vd.source.shape:
                 raise ValueError(
                     f"estimate shape {estimate.shape} does not match "
-                    f"source shape {self._shape}"
+                    f"source shape {vd.source.shape}"
                 )
-            self._estimate: np.ndarray = estimate
-        else:
-            self._estimate = np.zeros(self._shape, dtype=np.float32)
-        self._estimate_new: np.ndarray = np.zeros_like(self._estimate)
+            self._estimate = estimate
 
-        self._prev_estimate: np.ndarray | None = None
-        self._init_estimate(options.first_estimate, options.estimate_constant)
-        self._setup_backend()
-
+        self._estimate_new = np.zeros_like(self._estimate)
+        self._shape = vd.source.shape
         self.tracker = RLConvergenceTracker()
         self._iteration: int = 0
         self._converged: bool = False
-
-    # ------------------------------------------------------------------
-    # initialisation helpers
-    # ------------------------------------------------------------------
-
-    def _init_estimate(self, first_estimate: str, constant: float) -> None:
-        if first_estimate == "constant":
-            self._estimate[:] = constant
-        elif first_estimate == "image":
-            blk = _full_image_block(self._shape)
-            self._estimate[:] = self._source.get_image_block(0, blk)
-        elif first_estimate == "image_mean":
-            blk = _full_image_block(self._shape)
-            first_img = self._source.get_image_block(0, blk)
-            self._estimate[:] = first_img.mean()
-        elif first_estimate == "average":
-            self._estimate[:] = 0
-            blk = _full_image_block(self._shape)
-            for v in range(self._n_views):
-                self._estimate += self._source.get_image_block(v, blk)
-            self._estimate /= self._n_views
-        elif first_estimate == "sum":
-            self._estimate[:] = 0
-            blk = _full_image_block(self._shape)
-            for v in range(self._n_views):
-                self._estimate += self._source.get_image_block(v, blk)
-        else:
-            raise ValueError(f"Unknown first_estimate: {first_estimate!r}")
-
-    def _setup_backend(self) -> None:
-        if self._options.backend == "cuda":
-            self._psf_convolves = [
-                make_cuda_psf_convolve(p, self._shape) for p in self._norms
-            ]
-            self._adj_convolves = [
-                make_cuda_psf_convolve(a, self._shape) for a in self._adjs
-            ]
-            self._convolve_fn = None
-        else:
-            self._convolve_fn = convolve_cpu
-            self._psf_convolves = None
-            self._adj_convolves = None
 
     # ------------------------------------------------------------------
     # iteration protocol
@@ -184,46 +83,48 @@ class RLDeconvolver:
         if self._iteration >= self._options.max_iterations:
             return True
 
-        self._prev_estimate = self._estimate.copy()
+        prev = self._estimate.copy()
         t0 = time.perf_counter()
+        self._estimate_new.fill(0)
 
-        if self._options.backend == "cuda":
-            assert self._psf_convolves is not None
-            assert self._adj_convolves is not None
-            self._estimate_new, e, s, u, n = self._compute_step_cuda()
-        else:
-            self._estimate_new, e, s, u, n = self._compute_step_cpu()
+        vd = self._backend._vd
+        opts = self._options
+        e_tot = s_tot = u_tot = n_tot = 0.0
+
+        for block in iter_blocks(self._shape, opts.n_blocks, pad=opts.block_pad):
+            est_block = extract_padded_block(self._estimate, block)
+            img_blocks = [
+                vd.source.get_image_block(v, block) for v in range(vd.n_views)
+            ]
+
+            new_block, e, s, u, n = self._backend.compute_block(
+                est_block, img_blocks, opts
+            )
+
+            p = block.pad
+            ndim = len(self._shape)
+            write_slice = tuple(
+                slice(p, new_block.shape[ax] - p if p > 0 else None)
+                for ax in range(ndim)
+            )
+            self._estimate_new[block.inner_slice] = new_block[write_slice]
+            e_tot += e
+            s_tot += s
+            u_tot += u
+            n_tot += n
 
         self._estimate[:] = self._estimate_new
 
         elapsed = time.perf_counter() - t0
-        total_photons = self._estimate.sum()
-        leak = (total_photons - self._prev_estimate.sum()) / (total_photons + 1e-30)
-        tau1 = _compute_tau1(self._estimate, self._prev_estimate)
-
-        self.tracker.add(elapsed, tau1, leak, e, s, u, n)
+        _record_step(
+            self.tracker, elapsed, self._estimate, prev, e_tot, s_tot, u_tot, n_tot
+        )
         self._iteration += 1
-
-        if self._options.verbose:
-            logger.info(
-                "iter %02d  tau1=%.4f  leak=%.4e  (e=%.0f s=%.0f u=%.0f n=%.0f)",
-                self._iteration,
-                tau1,
-                leak,
-                e,
-                s,
-                u,
-                n,
-            )
 
         self._converged = (
             self._iteration >= self._options.max_iterations
             or self.tracker.has_converged(self._options.stop_tau)
         )
-
-        if self._progress_callback is not None:
-            self._progress_callback(self)
-
         return self._converged
 
     def __iter__(self) -> "RLDeconvolver":
@@ -239,111 +140,9 @@ class RLDeconvolver:
         return self._options.max_iterations - self._iteration
 
     def run(self) -> Image:
-        """Run all remaining iterations. Returns final result."""
         for _ in self:
             pass
         return self.result
-
-    # ------------------------------------------------------------------
-    # compute steps
-    # ------------------------------------------------------------------
-
-    def _compute_step_cpu(
-        self,
-    ) -> tuple[np.ndarray, float, float, float, float]:
-        assert self._convolve_fn is not None
-        estimate_new = np.zeros_like(self._estimate)
-        e_total = s_total = u_total = n_total = 0.0
-
-        for block in self._blocks:
-            est_block = extract_padded_block(self._estimate, block)
-            img_blocks = [
-                self._source.get_image_block(v, block) for v in range(self._n_views)
-            ]
-
-            new_block, e, s, u, n = rl_multi_view(
-                est_block,
-                img_blocks,
-                self._norms,
-                self._adjs,
-                weights=self._weights,
-                backgrounds=self._backgrounds,
-                fusion_mode=self._options.fusion_mode,
-                convolve=self._convolve_fn,
-                tv_lambda=self._options.tv_lambda,
-                epsilon=self._options.epsilon,
-            )
-
-            p = block.pad
-            inner = tuple(slice(p, p + s) for s in block.inner_size)
-            estimate_new[block.inner_slice] = new_block[inner]
-            e_total += e
-            s_total += s
-            u_total += u
-            n_total += n
-
-        return estimate_new, e_total, s_total, u_total, n_total
-
-    def _compute_step_cuda(
-        self,
-    ) -> tuple[np.ndarray, float, float, float, float]:
-        assert self._psf_convolves is not None
-        assert self._adj_convolves is not None
-        estimate_new = np.zeros_like(self._estimate)
-        e_total = s_total = u_total = n_total = 0.0
-
-        for block in self._blocks:
-            est_block = extract_padded_block(self._estimate, block)
-            img_blocks = [
-                self._source.get_image_block(v, block) for v in range(self._n_views)
-            ]
-
-            if self._options.fusion_mode == "summative":
-                correction = np.zeros_like(est_block)
-                for img, psf_conv, adj_conv, w, bg in zip(
-                    img_blocks,
-                    self._psf_convolves,
-                    self._adj_convolves,
-                    self._weights,
-                    self._backgrounds,
-                ):
-                    forward = psf_conv(est_block) * w + bg
-                    ratio = _safe_divide(img, forward)
-                    correction += adj_conv(ratio)
-                correction /= self._n_views
-            else:
-                correction = np.ones_like(est_block)
-                for img, psf_conv, adj_conv, w, bg in zip(
-                    img_blocks,
-                    self._psf_convolves,
-                    self._adj_convolves,
-                    self._weights,
-                    self._backgrounds,
-                ):
-                    forward = psf_conv(est_block) * w + bg
-                    ratio = _safe_divide(img, forward)
-                    correction *= adj_conv(ratio)
-                correction = np.asarray(nroot(correction, self._n_views))
-
-            if self._options.tv_lambda > 0:
-                correction += self._options.tv_lambda * div_unit_grad(
-                    est_block, (1.0,) * est_block.ndim
-                )
-
-            new_block = est_block.copy()
-            e, s, u, n = update_estimate_poisson(
-                new_block, correction, self._options.epsilon
-            )
-
-            p = block.pad
-            inner = tuple(slice(p, p + s) for s in block.inner_size)
-            estimate_new[block.inner_slice] = new_block[inner]
-            e_total += e
-            s_total += s
-            u_total += u
-            n_total += n
-
-        return estimate_new, e_total, s_total, u_total, n_total
 
     # ------------------------------------------------------------------
     # results
@@ -351,7 +150,8 @@ class RLDeconvolver:
 
     @property
     def result(self) -> Image:
-        return Image(self._estimate.copy(), list(self._image_spacing))
+        vd = self._backend._vd
+        return Image(self._estimate.copy(), list(vd.source.spacing))
 
 
 # ------------------------------------------------------------------
@@ -359,10 +159,20 @@ class RLDeconvolver:
 # ------------------------------------------------------------------
 
 
-def _full_image_block(shape: tuple[int, ...]) -> BlockSpec:
-    start = np.zeros(len(shape), dtype=int)
-    size = np.array(shape, dtype=int)
-    return BlockSpec(start=start, size=size, pad=0)
+def _record_step(
+    tracker: RLConvergenceTracker,
+    elapsed: float,
+    current: np.ndarray,
+    previous: np.ndarray,
+    e: float,
+    s: float,
+    u: float,
+    n: float,
+) -> None:
+    total = current.sum()
+    leak = (total - previous.sum()) / (total + 1e-30)
+    tau1 = _compute_tau1(current, previous)
+    tracker.add(elapsed, tau1, leak, e, s, u, n)
 
 
 def _compute_tau1(current: np.ndarray, previous: np.ndarray) -> float:
@@ -370,9 +180,3 @@ def _compute_tau1(current: np.ndarray, previous: np.ndarray) -> float:
     denom = np.abs(previous)
     denom[denom == 0] = 1e-30
     return float(np.max(diff / denom))
-
-
-def _safe_divide(num: np.ndarray, den: np.ndarray) -> np.ndarray:
-    with np.errstate(divide="ignore", invalid="ignore"):
-        quotient = np.where(den != 0, num / den, 0.0)
-    return quotient

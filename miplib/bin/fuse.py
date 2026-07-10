@@ -23,8 +23,13 @@ import miplib.processing.to_string as genutils
 import miplib.ui.cli.miplib_entry_point_options as arguments
 from miplib.data.adapters.image_data import ImageDataSource
 from miplib.data.containers.image_data import ImageKey, ImageType
-from miplib.processing.deconvolution.backends import _CUDA_AVAILABLE
+from miplib.processing.deconvolution.backends import (
+    ViewData,
+    resolve_backend,
+)
 from miplib.processing.deconvolution.deconvolver import RLDeconvolver, RLOptions
+from miplib.processing.deconvolution.estimates import FirstEstimate, create_estimate
+from miplib.processing.deconvolution.psf_utils import compute_virtual_psfs, prepare_psfs
 
 
 def _resolve_views(views, n_registered):
@@ -33,49 +38,6 @@ def _resolve_views(views, n_registered):
     if hasattr(views, "__iter__"):
         return list(views)
     return [views]
-
-
-def _resolve_backend(options):
-    """Determine backend from CLI options, falling back to CPU if CUDA unavailable."""
-    if getattr(options, "enable_cuda", False):
-        if not _CUDA_AVAILABLE:
-            print("CUDA not available, falling back to CPU.")
-            return "cpu"
-        print("Running image fusion with GPU acceleration.")
-        return "cuda"
-    return "cpu"
-
-
-def _create_estimate(source, options):
-    """Create an estimate array, optionally memory-mapped to disk.
-
-    Returns ``(estimate, tmpdir)`` where *tmpdir* is ``None`` for
-    in-memory arrays.  The caller owns *tmpdir* lifecycle.
-    """
-    if not getattr(options, "memmap_estimates", False):
-        return None, None
-    tmpdir = tempfile.TemporaryDirectory()
-    estimate = np.memmap(
-        Path(tmpdir.name) / "estimate.dat",
-        dtype=np.float32,
-        mode="w+",
-        shape=source.shape,
-    )
-    return estimate, tmpdir
-
-
-def _create_source_and_psfs(data, options):
-    """Build an ImageDataSource and load PSFs from CLI options."""
-    views = _resolve_views(
-        getattr(options, "fuse_views", -1),
-        data.get_number_of_images(ImageType.REGISTERED),
-    )
-    channel = getattr(options, "channel", 0)
-    scale = getattr(options, "scale", 100)
-
-    source = ImageDataSource(data, views, ImageType.REGISTERED, channel, scale)
-    psfs = [data.get_image(ImageKey(ImageType.PSF, v, channel, scale)) for v in views]
-    return source, psfs
 
 
 def _progress_print(task, t0):
@@ -95,7 +57,6 @@ def _progress_print(task, t0):
 
 
 def _save_results(data, result, options):
-    """Save result based on CLI flags (--save-tiff, --save-hdf)."""
     save_tiff = getattr(options, "save_tiff", None)
     if save_tiff:
         imwrite.image(save_tiff, result)
@@ -105,6 +66,11 @@ def _save_results(data, result, options):
         data.add_fused_image(
             channel, scale, result.view(np.ndarray), list(result.spacing)
         )
+
+
+def _strategy_from_options(options):
+    name = getattr(options, "first_estimate", "image_mean")
+    return FirstEstimate(name)
 
 
 def main():
@@ -135,36 +101,68 @@ def main():
         )
         data.calculate_missing_psfs()
 
-    source, psfs = _create_source_and_psfs(data, options)
-    estimate, tmpdir = _create_estimate(source, options)
-    backend = _resolve_backend(options)
+    views = _resolve_views(getattr(options, "fuse_views", -1), n_registered)
+    channel = getattr(options, "channel", 0)
+    scale = getattr(options, "scale", 100)
+
+    source = ImageDataSource(data, views, ImageType.REGISTERED, channel, scale)
+    psf_images = [
+        data.get_image(ImageKey(ImageType.PSF, v, channel, scale)) for v in views
+    ]
+    norms, adjs = prepare_psfs(psf_images, source.spacing)
+
+    virtual_psf = "opt" in getattr(options, "fusion_method", "summative")
+    if virtual_psf and len(norms) >= 2:
+        adjs = compute_virtual_psfs(norms, adjs)
+
+    weights = [1.0] * source.n_views
+    backgrounds = [0.0] * source.n_views
+
+    view_data = ViewData(
+        source=source,
+        psfs=norms,
+        adj_psfs=adjs,
+        weights=weights,
+        backgrounds=backgrounds,
+    )
+
+    backend_name = "cuda" if getattr(options, "enable_cuda", False) else "cpu"
+    backend = resolve_backend(backend_name, view_data, source.shape)
 
     algo_options = RLOptions(
         fusion_mode=getattr(options, "fusion_method", "summative"),
-        backend=backend,
         n_blocks=getattr(options, "blocks", 1),
         block_pad=getattr(options, "pad", 0),
         max_iterations=getattr(options, "max_nof_iterations", 100),
         stop_tau=getattr(options, "rltv_stop_tau", 0.002),
         tv_lambda=getattr(options, "tv_lambda", 0.0),
         epsilon=getattr(options, "convergence_epsilon", 0.05),
-        first_estimate=getattr(options, "first_estimate", "image_mean"),
-        estimate_constant=getattr(options, "estimate_constant", 1.0),
-        virtual_psf="opt" in getattr(options, "fusion_method", "summative"),
+    )
+
+    tmpdir = None
+    estimate = None
+    if getattr(options, "memmap_estimates", False):
+        tmpdir = tempfile.TemporaryDirectory()
+        estimate = np.memmap(
+            Path(tmpdir.name) / "estimate.dat",
+            dtype=np.float32,
+            mode="w+",
+            shape=source.shape,
+        )
+
+    estimate = create_estimate(
+        source,
+        _strategy_from_options(options),
+        constant=getattr(options, "estimate_constant", 1.0),
+        out=estimate,
     )
 
     begin = time.time()
-    task = RLDeconvolver(
-        source,
-        psfs,
-        estimate=estimate,
-        options=algo_options,
-        progress_callback=lambda t: _progress_print(t, begin),
-    )
+    task = RLDeconvolver(backend, estimate=estimate, options=algo_options)
     for _ in task:
-        pass
+        _progress_print(task, begin)
     end = time.time()
-    print()  # newline after progress line
+    print()
 
     print("Fusion complete.")
     print(
