@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import itertools
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 import numpy as np
@@ -42,22 +44,20 @@ class BlockSpec:
         return start_to_stop_idx(self.inner_start, self.inner_start + self.inner_size)
 
 
-def calculate_block_layout(
+def iter_blocks(
     image_shape: tuple[int, ...],
     n_blocks: int = 1,
     pad: int = 0,
-) -> list[BlockSpec]:
-    """Split each axis of *image_shape* into *n_blocks* pieces, producing
-    ``n_blocks ** ndim`` BlockSpecs whose inner (unpadded) regions tile the
-    image without gaps or overlaps.
+) -> Iterator[BlockSpec]:
+    """Yield ``n_blocks ** ndim`` blocks whose inner regions tile *image_shape*.
+
+    Each block carries *pad* pixels of zero-padding on every side.
     """
     if n_blocks < 1:
         raise ValueError(f"n_blocks must be >= 1, got {n_blocks}")
 
     ndim = len(image_shape)
-    blocks: list[BlockSpec] = []
-
-    for coords in np.ndindex(*([n_blocks] * ndim)):
+    for coords in itertools.product(range(n_blocks), repeat=ndim):
         inner_start = np.zeros(ndim, dtype=int)
         inner_size = np.zeros(ndim, dtype=int)
 
@@ -70,18 +70,14 @@ def calculate_block_layout(
         padded_start = inner_start - pad
         padded_size = inner_size + 2 * pad
 
-        blocks.append(BlockSpec(start=padded_start, size=padded_size, pad=pad))
-
-    return blocks
+        yield BlockSpec(start=padded_start, size=padded_size, pad=pad)
 
 
 def extract_padded_block(
     data: np.ndarray,
     block: BlockSpec,
 ) -> np.ndarray:
-    """Extract a padded block from *data*, zero-padding where the block extends
-    beyond the array boundaries.
-    """
+    """Extract a padded block from *data*, zero-padding at boundaries."""
     result = np.zeros(block.size.tolist(), dtype=data.dtype)
     src_slice, dst_slice = _compute_src_dst_slices(data.shape, block.start, block.size)
     result[dst_slice] = data[src_slice]
@@ -93,7 +89,6 @@ def _compute_src_dst_slices(
     block_start: np.ndarray,
     block_size: np.ndarray,
 ) -> tuple[tuple[slice, ...], tuple[slice, ...]]:
-    """Compute source and destination slices for padded block extraction."""
     src_slices = []
     dst_slices = []
     for dim in range(len(data_shape)):
@@ -104,21 +99,3 @@ def _compute_src_dst_slices(
         src_slices.append(slice(src_start, src_end))
         dst_slices.append(slice(dst_start, dst_end))
     return tuple(src_slices), tuple(dst_slices)
-
-
-def reconstruct_from_blocks(
-    blocks: list[BlockSpec],
-    block_results: list[np.ndarray],
-    out_shape: tuple[int, ...],
-) -> np.ndarray:
-    """Reconstruct a full image from per-block results by copying the inner
-    (unpadded) region of each block result into the output array.
-
-    The block inner regions must tile *out_shape* exactly.
-    """
-    result = np.zeros(out_shape, dtype=block_results[0].dtype)
-    for block, block_data in zip(blocks, block_results):
-        p = block.pad
-        inner_data = block_data[tuple(slice(p, p + s) for s in block.inner_size)]
-        result[block.inner_slice] = inner_data
-    return result
