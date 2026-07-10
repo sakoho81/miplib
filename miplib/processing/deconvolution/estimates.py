@@ -11,7 +11,7 @@ def create_estimate(
     *,
     constant: float = 1.0,
     out: np.ndarray | None = None,
-    dtype: np.dtype = np.float32,
+    dtype: np.dtype = np.dtype(np.float32),
 ) -> np.ndarray:
     """Allocate and initialise an estimate array for RL deconvolution."""
     shape = source.shape
