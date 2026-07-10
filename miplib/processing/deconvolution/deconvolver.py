@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
+from enum import Enum
 
 import numpy as np
 
@@ -14,11 +15,16 @@ from miplib.processing.deconvolution.tracker import RLConvergenceTracker
 logger = logging.getLogger(__name__)
 
 
+class FusionMode(Enum):
+    SUMMATIVE = "summative"
+    MULTIPLICATIVE = "multiplicative"
+
+
 @dataclass
 class RLOptions:
     """Algorithm parameters for Richardson-Lucy deconvolution / fusion."""
 
-    fusion_mode: str = "summative"
+    fusion_mode: FusionMode = FusionMode.SUMMATIVE
     n_blocks: int = 1
     block_pad: int = 0
     epsilon: float = 1e-7
@@ -27,8 +33,8 @@ class RLOptions:
     stop_tau: float = 1e-4
 
     def __post_init__(self):
-        if self.fusion_mode not in ("summative", "multiplicative"):
-            raise ValueError(f"Unknown fusion_mode: {self.fusion_mode!r}")
+        if not isinstance(self.fusion_mode, FusionMode):
+            self.fusion_mode = FusionMode(self.fusion_mode)
         if self.n_blocks < 1:
             raise ValueError(f"n_blocks must be >= 1, got {self.n_blocks}")
         if self.epsilon < 0 or self.epsilon > 0.5:

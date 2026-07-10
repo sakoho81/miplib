@@ -14,6 +14,7 @@ from miplib.processing.deconvolution.backends import (
     resolve_backend,
 )
 from miplib.processing.deconvolution.blocks import extract_padded_block, iter_blocks
+from miplib.processing.deconvolution.deconvolver import FusionMode
 from miplib.processing.deconvolution.estimates import FirstEstimate, create_estimate
 
 
@@ -57,7 +58,7 @@ def _make_view_data(n_views=1, shape=(32, 32)):
 
 
 class FakeOptions:
-    fusion_mode = "summative"
+    fusion_mode = FusionMode.SUMMATIVE
     epsilon = 0.1
     tv_lambda = 0.0
     n_blocks = 1
@@ -109,7 +110,7 @@ def test_cpu_backend_multiplicative():
     vd = _make_view_data(n_views=2)
     backend = CPUBackend(vd)
     opts = FakeOptions()
-    opts.fusion_mode = "multiplicative"
+    opts.fusion_mode = FusionMode.MULTIPLICATIVE
 
     estimate = create_estimate(vd.source, FirstEstimate.IMAGE_MEAN)
     block = next(iter_blocks(estimate.shape, n_blocks=1, pad=0))

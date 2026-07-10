@@ -7,7 +7,11 @@ import scipy.signal
 from miplib.data.adapters.image_data import ArrayDataSource
 from miplib.data.containers.image import Image
 from miplib.processing.deconvolution.backends import CPUBackend, ViewData
-from miplib.processing.deconvolution.deconvolver import RLDeconvolver, RLOptions
+from miplib.processing.deconvolution.deconvolver import (
+    FusionMode,
+    RLDeconvolver,
+    RLOptions,
+)
 from miplib.processing.deconvolution.estimates import FirstEstimate, create_estimate
 
 
@@ -191,17 +195,23 @@ def test_external_estimate_array():
 def test_estimate_shape_mismatch():
     vd = _view_data(n_views=1)
     backend = CPUBackend(vd)
+    est_null = np.zeros(vd.source.shape, dtype=np.float32)
     wrong = np.zeros((8, 8), dtype=np.float32)
     with pytest.raises(ValueError, match="estimate shape"):
-        RLDeconvolver(backend, estimate=wrong)
+        RLDeconvolver(backend, estimate=wrong, options=RLOptions(max_iterations=1))
+    # valid estimate works
+    RLDeconvolver(backend, estimate=est_null, options=RLOptions(max_iterations=1))
 
 
 def test_rloptions_validation():
-    with pytest.raises(ValueError, match="fusion_mode"):
-        RLOptions(fusion_mode="invalid")
     with pytest.raises(ValueError, match="n_blocks"):
         RLOptions(n_blocks=0)
     with pytest.raises(ValueError, match="epsilon"):
         RLOptions(epsilon=-0.1)
     with pytest.raises(ValueError, match="max_iterations"):
         RLOptions(max_iterations=0)
+    # fusion_mode string is converted by __post_init__
+    opts = RLOptions(fusion_mode="summative")
+    assert opts.fusion_mode == FusionMode.SUMMATIVE
+    with pytest.raises(ValueError):
+        RLOptions(fusion_mode="invalid")

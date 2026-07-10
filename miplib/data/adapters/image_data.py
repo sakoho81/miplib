@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Protocol
+
 import numpy as np
 
 from miplib.data.containers.image import Image
@@ -9,8 +11,23 @@ from miplib.data.containers.image_data import ImageData, ImageKey, ImageType
 from miplib.processing.deconvolution.blocks import BlockSpec, extract_padded_block
 
 
+class DataSource(Protocol):
+    """Duck-typed contract for block-wise multi-view image access."""
+
+    shape: tuple[int, ...]
+    spacing: tuple[float, ...]
+    n_views: int
+
+    def get_image_block(self, view: int, block: BlockSpec) -> np.ndarray: ...
+    def get_full_image(self, view: int) -> np.ndarray: ...
+
+
 class ArrayDataSource:
     """Wraps a list of in-memory Images for testing and small datasets."""
+
+    n_views: int
+    shape: tuple[int, ...]
+    spacing: tuple[float, ...]
 
     def __init__(self, images: list[Image]):
         if not images:
@@ -33,6 +50,10 @@ class ImageDataSource:
     Reads only the needed sub-blocks from disk on each call to
     ``get_image_block``, never loading full images into memory.
     """
+
+    n_views: int
+    shape: tuple[int, ...]
+    spacing: tuple[float, ...]
 
     def __init__(
         self,

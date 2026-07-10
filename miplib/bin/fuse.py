@@ -68,9 +68,50 @@ def _save_results(data, result, options):
         )
 
 
-def _strategy_from_options(options):
-    name = getattr(options, "first_estimate", "image_mean")
-    return FirstEstimate(name)
+def _create_view_data(data, views, options):
+    """Build an ImageDataSource, load and prepare PSFs, return ViewData."""
+    channel = getattr(options, "channel", 0)
+    scale = getattr(options, "scale", 100)
+
+    source = ImageDataSource(data, views, ImageType.REGISTERED, channel, scale)
+    psf_images = [
+        data.get_image(ImageKey(ImageType.PSF, v, channel, scale)) for v in views
+    ]
+    norms, adjs = prepare_psfs(psf_images, source.spacing)
+
+    virtual_psf = "opt" in getattr(options, "fusion_method", "summative")
+    if virtual_psf and len(norms) >= 2:
+        adjs = compute_virtual_psfs(norms, adjs)
+
+    return ViewData(
+        source=source,
+        psfs=norms,
+        adj_psfs=adjs,
+        weights=[1.0] * source.n_views,
+        backgrounds=[0.0] * source.n_views,
+    )
+
+
+def _allocate_estimate(source, options):
+    """Allocate and initialise the estimate array, returning (array, tmpdir)."""
+    if getattr(options, "memmap_estimates", False):
+        tmpdir = tempfile.TemporaryDirectory()
+        estimate = np.memmap(
+            Path(tmpdir.name) / "estimate.dat",
+            dtype=np.float32,
+            mode="w+",
+            shape=source.shape,
+        )
+    else:
+        tmpdir = None
+        estimate = np.zeros(source.shape, dtype=np.float32)
+    create_estimate(
+        source,
+        getattr(options, "first_estimate", FirstEstimate.IMAGE_MEAN),
+        constant=getattr(options, "estimate_constant", 1.0),
+        out=estimate,
+    )
+    return estimate, tmpdir
 
 
 def main():
@@ -102,32 +143,11 @@ def main():
         data.calculate_missing_psfs()
 
     views = _resolve_views(getattr(options, "fuse_views", -1), n_registered)
-    channel = getattr(options, "channel", 0)
-    scale = getattr(options, "scale", 100)
-
-    source = ImageDataSource(data, views, ImageType.REGISTERED, channel, scale)
-    psf_images = [
-        data.get_image(ImageKey(ImageType.PSF, v, channel, scale)) for v in views
-    ]
-    norms, adjs = prepare_psfs(psf_images, source.spacing)
-
-    virtual_psf = "opt" in getattr(options, "fusion_method", "summative")
-    if virtual_psf and len(norms) >= 2:
-        adjs = compute_virtual_psfs(norms, adjs)
-
-    weights = [1.0] * source.n_views
-    backgrounds = [0.0] * source.n_views
-
-    view_data = ViewData(
-        source=source,
-        psfs=norms,
-        adj_psfs=adjs,
-        weights=weights,
-        backgrounds=backgrounds,
-    )
+    view_data = _create_view_data(data, views, options)
+    estimate, tmpdir = _allocate_estimate(view_data.source, options)
 
     backend_name = "cuda" if getattr(options, "enable_cuda", False) else "cpu"
-    backend = resolve_backend(backend_name, view_data, source.shape)
+    backend = resolve_backend(backend_name, view_data, view_data.source.shape)
 
     algo_options = RLOptions(
         fusion_mode=getattr(options, "fusion_method", "summative"),
@@ -137,24 +157,6 @@ def main():
         stop_tau=getattr(options, "rltv_stop_tau", 0.002),
         tv_lambda=getattr(options, "tv_lambda", 0.0),
         epsilon=getattr(options, "convergence_epsilon", 0.05),
-    )
-
-    tmpdir = None
-    estimate = None
-    if getattr(options, "memmap_estimates", False):
-        tmpdir = tempfile.TemporaryDirectory()
-        estimate = np.memmap(
-            Path(tmpdir.name) / "estimate.dat",
-            dtype=np.float32,
-            mode="w+",
-            shape=source.shape,
-        )
-
-    estimate = create_estimate(
-        source,
-        _strategy_from_options(options),
-        constant=getattr(options, "estimate_constant", 1.0),
-        out=estimate,
     )
 
     begin = time.time()
