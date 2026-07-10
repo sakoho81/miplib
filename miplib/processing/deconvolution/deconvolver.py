@@ -101,13 +101,7 @@ class RLDeconvolver:
                 est_block, img_blocks, opts
             )
 
-            p = block.pad
-            ndim = len(self._shape)
-            write_slice = tuple(
-                slice(p, new_block.shape[ax] - p if p > 0 else None)
-                for ax in range(ndim)
-            )
-            self._estimate_new[block.inner_slice] = new_block[write_slice]
+            self._estimate_new[block.inner_slice] = new_block[block.inner_slice_local]
             e_tot += e
             s_tot += s
             u_tot += u

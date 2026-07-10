@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import scipy.signal
@@ -24,7 +25,7 @@ except ImportError:
 class ViewData:
     """Per-iteration data shared between backends."""
 
-    source: object  # duck-typed DataSource
+    source: Any  # duck-typed DataSource
     psfs: list[np.ndarray]
     adj_psfs: list[np.ndarray]
     weights: list[float]

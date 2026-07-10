@@ -43,6 +43,11 @@ class BlockSpec:
     def inner_slice(self) -> tuple[slice, ...]:
         return start_to_stop_idx(self.inner_start, self.inner_start + self.inner_size)
 
+    @property
+    def inner_slice_local(self) -> tuple[slice, ...]:
+        """Slice to extract the inner (unpadded) region from the padded block."""
+        return tuple(slice(self.pad, self.pad + s) for s in self.inner_size)
+
 
 def iter_blocks(
     image_shape: tuple[int, ...],
