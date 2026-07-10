@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 
 import numpy as np
-import numpy.fft as fft
 
 from miplib.data.containers.image import Image
 from miplib.processing.deconvolution.backends import resolve_fft
@@ -55,10 +54,7 @@ def wiener_deconvolution(
 
     fft_backend = resolve_fft(backend)
 
-    if backend == "cpu":
-        psf_f = fft_backend.fftn(fft.fftshift(psf_arr))
-    else:
-        psf_f = fft_backend.fftn(psf_arr)
+    psf_f = fft_backend.fftn(fft_backend.fftshift(psf_arr))
     wiener = _wiener_filter(psf_f, nsr)
     image_f = fft_backend.ifftn(fft_backend.fftn(image_arr) * wiener)
 

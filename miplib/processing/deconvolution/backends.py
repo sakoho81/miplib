@@ -227,6 +227,11 @@ class _BaseFFT:
         """Inverse FFT, returning a real-valued spatial array."""
         raise NotImplementedError
 
+    @staticmethod
+    def fftshift(a: np.ndarray) -> np.ndarray:
+        """Shift zero-frequency component to centre (pre-FFT PSF centring)."""
+        raise NotImplementedError
+
 
 class _CPUFFT(_BaseFFT):
     """NumPy FFT."""
@@ -238,6 +243,10 @@ class _CPUFFT(_BaseFFT):
     @staticmethod
     def ifftn(a: np.ndarray) -> np.ndarray:
         return np.fft.ifftn(a).real
+
+    @staticmethod
+    def fftshift(a: np.ndarray) -> np.ndarray:
+        return np.fft.fftshift(a)
 
 
 if _CUDA_AVAILABLE:
@@ -255,6 +264,12 @@ if _CUDA_AVAILABLE:
             if isinstance(a, np.ndarray):
                 a = cp.asarray(a, dtype=_CUDAFFT._cpx_dtype(a.dtype))
             return cufft.fftn(a)
+
+        @staticmethod
+        def fftshift(a: "cp.ndarray") -> "cp.ndarray":
+            if isinstance(a, np.ndarray):
+                a = cp.asarray(a)
+            return cp.fft.fftshift(a)
 
         @staticmethod
         def ifftn(a: "cp.ndarray") -> np.ndarray:

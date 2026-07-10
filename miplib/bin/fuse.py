@@ -13,6 +13,7 @@ import os
 import sys
 import tempfile
 import time
+from contextlib import ExitStack
 from pathlib import Path
 
 import numpy as np
@@ -92,18 +93,16 @@ def _create_view_data(data, views, options):
     )
 
 
-def _allocate_estimate(source, options):
-    """Allocate and initialise the estimate array, returning (array, tmpdir)."""
-    if getattr(options, "memmap_estimates", False):
-        tmpdir = tempfile.TemporaryDirectory()
+def _allocate_estimate(source, options, tmpdir: Path | str | None = None):
+    """Allocate and initialise the estimate array."""
+    if tmpdir is not None:
         estimate = np.memmap(
-            Path(tmpdir.name) / "estimate.dat",
+            Path(tmpdir) / "estimate.dat",
             dtype=np.float32,
             mode="w+",
             shape=source.shape,
         )
     else:
-        tmpdir = None
         estimate = np.zeros(source.shape, dtype=np.float32)
     create_estimate(
         source,
@@ -111,7 +110,7 @@ def _allocate_estimate(source, options):
         constant=getattr(options, "estimate_constant", 1.0),
         out=estimate,
     )
-    return estimate, tmpdir
+    return estimate
 
 
 def main():
@@ -144,39 +143,43 @@ def main():
 
     views = _resolve_views(getattr(options, "fuse_views", -1), n_registered)
     view_data = _create_view_data(data, views, options)
-    estimate, tmpdir = _allocate_estimate(view_data.source, options)
 
-    backend_name = "cuda" if getattr(options, "enable_cuda", False) else "cpu"
-    backend = resolve_backend(backend_name, view_data, view_data.source.shape)
+    with ExitStack() as stack:
+        tmpdir: Path | None = None
+        if getattr(options, "memmap_estimates", False):
+            tmpdir = Path(stack.enter_context(tempfile.TemporaryDirectory()))
 
-    algo_options = RLOptions(
-        fusion_mode=getattr(options, "fusion_method", "summative"),
-        n_blocks=getattr(options, "blocks", 1),
-        block_pad=getattr(options, "pad", 0),
-        max_iterations=getattr(options, "max_nof_iterations", 100),
-        stop_tau=getattr(options, "rltv_stop_tau", 0.002),
-        tv_lambda=getattr(options, "tv_lambda", 0.0),
-        epsilon=getattr(options, "convergence_epsilon", 0.05),
-    )
+        estimate = _allocate_estimate(view_data.source, options, tmpdir)
 
-    begin = time.time()
-    task = RLDeconvolver(backend, estimate=estimate, options=algo_options)
-    for _ in task:
-        _progress_print(task, begin)
-    end = time.time()
-    print()
+        backend_name = "cuda" if getattr(options, "enable_cuda", False) else "cpu"
+        backend = resolve_backend(backend_name, view_data, view_data.source.shape)
 
-    print("Fusion complete.")
-    print(
-        "The fusion process with %i iterations "
-        "took %s (H:M:S) to complete."
-        % (options.max_nof_iterations, genutils.format_time_string(end - begin))
-    )
+        algo_options = RLOptions(
+            fusion_mode=getattr(options, "fusion_method", "summative"),
+            n_blocks=getattr(options, "blocks", 1),
+            block_pad=getattr(options, "pad", 0),
+            max_iterations=getattr(options, "max_nof_iterations", 100),
+            stop_tau=getattr(options, "rltv_stop_tau", 0.002),
+            tv_lambda=getattr(options, "tv_lambda", 0.0),
+            epsilon=getattr(options, "convergence_epsilon", 0.05),
+        )
 
-    _save_results(data, task.result(), options)
+        begin = time.time()
+        task = RLDeconvolver(backend, estimate=estimate, options=algo_options)
+        for _ in task:
+            _progress_print(task, begin)
+        end = time.time()
+        print()
 
-    if tmpdir is not None:
-        tmpdir.cleanup()
+        print("Fusion complete.")
+        print(
+            "The fusion process with %i iterations "
+            "took %s (H:M:S) to complete."
+            % (options.max_nof_iterations, genutils.format_time_string(end - begin))
+        )
+
+        _save_results(data, task.result(), options)
+
     data.close()
 
 
