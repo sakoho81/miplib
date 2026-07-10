@@ -207,8 +207,3 @@ def convolve_cpu(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 def _safe_divide(num: np.ndarray, den: np.ndarray) -> np.ndarray:
     with np.errstate(divide="ignore", invalid="ignore"):
         return np.where(den != 0, num / den, 0.0)
-
-
-def _safe_divide(num: np.ndarray, den: np.ndarray) -> np.ndarray:
-    with np.errstate(divide="ignore", invalid="ignore"):
-        return np.where(den != 0, num / den, 0.0)
