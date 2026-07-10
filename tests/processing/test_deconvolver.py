@@ -254,6 +254,13 @@ def test_deconvolve_blurred_checkerboard():
     # Deconvolution sharpens the image — gradients move toward original
     assert abs(grad_result - grad_original) < abs(grad_blurred - grad_original) * 0.6
 
+    # Tracker recorded meaningful statistics
+    df = deconv.tracker.to_dataframe()
+    assert len(df) == 30
+    assert list(df.columns) == ["t", "tau1", "leak", "e", "s", "u", "n"]
+    assert df["tau1"].iloc[-1] < df["tau1"].iloc[0]  # tau1 decreases
+    assert (df["t"] > 0).all()
+
 
 def test_deconvolve_impulse_recovery():
     """RL deconvolution recovers a Gaussian-blurred impulse.

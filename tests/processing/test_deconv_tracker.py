@@ -57,3 +57,28 @@ def test_has_converged_ignores_estimate_in_tau1_mode():
     assert not tracker.has_converged(0.05, estimate=None)
     # With tau1 met: True regardless of estimate
     assert tracker.has_converged(0.2, estimate=None)
+
+
+@pytest.mark.xfail(
+    reason="FRC analysis code crashes when correlation never crosses the "
+    "resolution threshold (first_guess IndexError). Needs cleanup of the old "
+    "FRC analysis module."
+)
+def test_frc_tracker_does_not_crash():
+    """Smoke-test: FRC tracker survives a real image without crashing.
+
+    FRC convergence on synthetic test patterns may be unreliable until the
+    old FRC analysis code is cleaned up, but the tracker should at least
+    not raise when handed a real Image. Uses a real photo so the FRC
+    correlation has actual structure to work with.
+    """
+    import skimage.data
+
+    from miplib.data.containers.image import Image
+
+    tracker = ConvergenceTracker(tracker_type="frc", frc_check_frequency=1)
+
+    coins = skimage.data.coins().astype(np.float64)
+    img = Image(coins, spacing=(1.0, 1.0))
+    result = tracker.has_converged(tau_threshold=1e-8, estimate=img)
+    assert result in (True, False)

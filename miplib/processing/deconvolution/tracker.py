@@ -85,6 +85,7 @@ class ConvergenceTracker:
             resolution_threshold_criterion="fixed",
             resolution_threshold_value=1.0 / 7,
             resolution_point_sigma=0.01,
+            resolution_snr_value=0.25,
             verbose=False,
         )
         result = calculate_single_image_frc(estimate, args)
