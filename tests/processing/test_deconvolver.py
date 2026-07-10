@@ -18,7 +18,7 @@ from miplib.processing.deconvolution.deconvolver import (
 )
 from miplib.processing.deconvolution.estimates import FirstEstimate, create_estimate
 from miplib.processing.deconvolution.psf_utils import prepare_psf
-from tests.conftest import checkerboard_pattern, gaussian_spot
+from tests.conftest import checkerboard_pattern, gaussian_spot, impulse
 
 
 def _make_view_data(n_views=1, shape=(32, 32), seed=42):
@@ -253,3 +253,53 @@ def test_deconvolve_blurred_checkerboard():
 
     # Deconvolution sharpens the image — gradients move toward original
     assert abs(grad_result - grad_original) < abs(grad_blurred - grad_original) * 0.6
+
+
+def test_deconvolve_impulse_recovery():
+    """RL deconvolution recovers a Gaussian-blurred impulse.
+
+    Starting from a constant estimate, after a few RL iterations the
+    pixel-level error vs the original impulse should drop well below the
+    blurred input's error.
+    """
+    shape = (32, 32)
+    original = impulse(shape)
+    psf_data = gaussian_spot((8, 8), sigma=1.0)
+    psf_data /= psf_data.sum()
+
+    blurred_data = convolve_cpu(original, psf_data)
+    psf_img = Image(psf_data, spacing=(1.0, 1.0))
+
+    images = [Image(blurred_data, spacing=(1.0, 1.0))]
+    psfs = [psf_img.view(np.ndarray)]
+    adjs = [psf_data[::-1, ::-1].copy()]
+
+    vd = ViewData(
+        source=ArrayDataSource(images),
+        psfs=psfs,
+        adj_psfs=adjs,
+        weights=[1.0],
+        backgrounds=[0.0],
+    )
+    backend = CPUBackend(vd)
+    estimate = create_estimate(vd.source, FirstEstimate.IMAGE_MEAN, constant=0.0)
+    deconv = RLDeconvolver(
+        backend,
+        estimate=estimate,
+        options=RLOptions(max_iterations=10, stop_tau=0.0),
+    )
+    for _ in deconv:
+        pass
+
+    result = deconv.result()
+
+    def mse(a, b):
+        return ((a - b) ** 2).mean()
+
+    mse_blurred = mse(blurred_data, original)
+    mse_deconv = mse(result.view(np.ndarray), original)
+
+    # Deconvolution should reduce MSE — narrower PSF and more iterations
+    # produce a sharper recovery
+    assert mse_deconv < mse_blurred * 0.7
+    assert result.min() >= 0
