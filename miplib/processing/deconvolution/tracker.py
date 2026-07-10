@@ -76,6 +76,7 @@ class ConvergenceTracker:
             calculate_single_image_frc,
         )
 
+        # TODO: replace argparse.Namespace with a proper FRCOptions dataclass.
         args = argparse.Namespace(
             d_bin=1,
             disable_hamming=False,
