@@ -48,7 +48,12 @@ def compute_virtual_psfs(
     """Replace adjoint PSFs with virtual PSFs per Preibisch et al. 2014.
 
     For each view *i*, the virtual adjoint PSF incorporates cross-view PSF
-    information to improve multi-view deconvolution convergence.
+    information to improve multi-view deconvolution convergence. The original
+    paper showed this avoids the slow convergence of standard RL when multiple
+    views have only partially overlapping frequency support.
+
+    Reference: Preibisch, S. et al. "Efficient Bayesian-based multiview
+    deconvolution." Nature Methods 11, 645–648 (2014).
 
     ``len(psfs)`` and ``len(adj_psfs)`` must be equal and >= 2.
     """

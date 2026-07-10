@@ -9,7 +9,10 @@ import numpy as np
 from miplib.data.containers.image import Image
 from miplib.processing.deconvolution.backends import CPUBackend, CUDABackend
 from miplib.processing.deconvolution.blocks import extract_padded_block, iter_blocks
-from miplib.processing.deconvolution.tracker import RLConvergenceTracker
+from miplib.processing.deconvolution.tracker import (
+    FRCConvergenceTracker,
+    Tau1ConvergenceTracker,
+)
 from miplib.processing.deconvolution.types import FusionMode
 
 logger = logging.getLogger(__name__)
@@ -26,6 +29,7 @@ class RLOptions:
     tv_lambda: float = 0.0
     max_iterations: int = 100
     stop_tau: float = 1e-4
+    tracker_type: str = "tau1"
 
     def __post_init__(self):
         if not isinstance(self.fusion_mode, FusionMode):
@@ -60,7 +64,11 @@ class RLDeconvolver:
         self._estimate = estimate
         self._estimate_new = np.zeros_like(estimate)
         self._shape = vd.source.shape
-        self.tracker = RLConvergenceTracker()
+        self.tracker: Tau1ConvergenceTracker | FRCConvergenceTracker
+        if self._options.tracker_type == "frc":
+            self.tracker = FRCConvergenceTracker()
+        else:
+            self.tracker = Tau1ConvergenceTracker()
         self._iteration: int = 0
         self._converged: bool = False
 
@@ -108,6 +116,9 @@ class RLDeconvolver:
         self._converged = (
             self._iteration >= self._options.max_iterations
             or self.tracker.has_converged(self._options.stop_tau)
+            or self.tracker.check_estimate(
+                Image(self._estimate, list(vd.source.spacing))
+            )
         )
         return self._converged
 

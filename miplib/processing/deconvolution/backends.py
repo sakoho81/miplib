@@ -208,3 +208,70 @@ def convolve_cpu(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 def _safe_divide(num: np.ndarray, den: np.ndarray) -> np.ndarray:
     with np.errstate(divide="ignore", invalid="ignore"):
         return np.where(den != 0, num / den, 0.0)
+
+
+# ---------------------------------------------------------------------------
+# FFT primitives
+# ---------------------------------------------------------------------------
+
+
+class _BaseFFT:
+    """Spatial-to-frequency FFT and inverse."""
+
+    @staticmethod
+    def fftn(a: np.ndarray) -> np.ndarray:
+        raise NotImplementedError
+
+    @staticmethod
+    def ifftn(a: np.ndarray) -> np.ndarray:
+        """Inverse FFT, returning a real-valued spatial array."""
+        raise NotImplementedError
+
+
+class _CPUFFT(_BaseFFT):
+    """NumPy FFT."""
+
+    @staticmethod
+    def fftn(a: np.ndarray) -> np.ndarray:
+        return np.fft.fftn(a)
+
+    @staticmethod
+    def ifftn(a: np.ndarray) -> np.ndarray:
+        return np.fft.ifftn(a).real
+
+
+if _CUDA_AVAILABLE:
+
+    class _CUDAFFT(_BaseFFT):
+        """CuPy FFT — input/output are numpy, intermediates stay on GPU."""
+
+        @staticmethod
+        def _cpx_dtype(fp: np.dtype) -> "cp.dtype":
+            return cp.complex64 if fp.type is np.float32 else cp.complex128
+
+        @staticmethod
+        def fftn(a: np.ndarray) -> "cp.ndarray":
+            """FFT returning a cupy complex array (on GPU)."""
+            if isinstance(a, np.ndarray):
+                a = cp.asarray(a, dtype=_CUDAFFT._cpx_dtype(a.dtype))
+            return cufft.fftn(a)
+
+        @staticmethod
+        def ifftn(a: "cp.ndarray") -> np.ndarray:
+            """Inverse FFT returning a numpy real array (back to CPU)."""
+            result = cufft.ifftn(a)
+            return cp.asnumpy(cp.abs(result))
+
+
+def resolve_fft(name: str) -> _BaseFFT:
+    """Return an FFT backend for the given *name*.
+
+    ``"cpu"`` → numpy, ``"cuda"`` → cupy (requires cupy installed).
+    """
+    if name == "cuda":
+        if not _CUDA_AVAILABLE:
+            raise RuntimeError("cupy is not installed — cannot use CUDA FFT")
+        return _CUDAFFT()
+    if name == "cpu":
+        return _CPUFFT()
+    raise ValueError(f"Unknown FFT backend: {name!r}")

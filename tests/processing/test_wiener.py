@@ -6,10 +6,8 @@ import pytest
 import scipy.signal
 
 from miplib.data.containers.image import Image
-from miplib.processing.deconvolution.wiener import (
-    _CUDA_AVAILABLE,
-    wiener_deconvolution,
-)
+from miplib.processing.deconvolution.backends import _CUDA_AVAILABLE
+from miplib.processing.deconvolution.wiener import wiener_deconvolution
 
 
 def _gaussian_spot_img(shape, sigma=2.0):

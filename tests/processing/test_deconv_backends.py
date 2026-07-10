@@ -11,41 +11,31 @@ from miplib.processing.deconvolution.backends import (
     CPUBackend,
     CUDABackend,
     ViewData,
+    convolve_cpu,
     resolve_backend,
 )
 from miplib.processing.deconvolution.blocks import extract_padded_block, iter_blocks
 from miplib.processing.deconvolution.deconvolver import FusionMode
 from miplib.processing.deconvolution.estimates import FirstEstimate, create_estimate
+from miplib.processing.deconvolution.psf_utils import prepare_psf
+from tests.conftest import gaussian_spot
 
 
 def _make_view_data(n_views=1, shape=(32, 32)):
     rng = np.random.default_rng(42)
 
-    def _psf(sigma=1.5):
-        coords = [np.arange(s) - s // 2 for s in shape]
-        grid = np.meshgrid(*coords, indexing="ij")
-        r_sq = sum(g**2 for g in grid)
-        p = np.exp(-r_sq / (2 * sigma**2)).astype(np.float64)
-        p /= p.sum()
-        return p
-
-    def _blur(img, psf):
-        import scipy.signal
-
-        return scipy.signal.fftconvolve(img, psf, mode="same")
-
-    images = []
-    psfs = []
-    adj_psfs = []
+    images: list[Image] = []
+    psfs: list[np.ndarray] = []
+    adj_psfs: list[np.ndarray] = []
 
     for i in range(n_views):
-        obj = rng.normal(loc=10, scale=2, size=shape).astype(np.float64)
-        obj = np.abs(obj)
-        psf = _psf(sigma=1.5 + i * 0.5)
-        blurred = _blur(obj, psf)
+        obj = np.abs(rng.normal(loc=10, scale=2, size=shape).astype(np.float64))
+        psf_img = Image(gaussian_spot(shape, sigma=1.5 + i * 0.5), spacing=(1.0, 1.0))
+        psf, adj = prepare_psf(psf_img, psf_img.spacing)
+        blurred = convolve_cpu(obj, psf)
         images.append(Image(blurred, spacing=(1.0, 1.0)))
         psfs.append(psf)
-        adj_psfs.append(psf[tuple(slice(None, None, -1) for _ in range(psf.ndim))])
+        adj_psfs.append(adj)
 
     source = ArrayDataSource(images)
     return ViewData(
@@ -76,20 +66,25 @@ def test_view_data_n_views():
     assert vd.n_views == 3
 
 
+def _run_block(backend, vd, opts):
+    estimate = create_estimate(vd.source, FirstEstimate.IMAGE_MEAN)
+    block = next(iter_blocks(estimate.shape, n_blocks=1, pad=0))
+    est_block = extract_padded_block(estimate, block)
+    img_blocks = [vd.source.get_image_block(v, block) for v in range(vd.n_views)]
+    return backend.compute_block(est_block, img_blocks, opts)
+
+
 def test_cpu_backend_compute_block_single():
     vd = _make_view_data(n_views=1)
     backend = CPUBackend(vd)
     opts = FakeOptions()
 
-    estimate = create_estimate(vd.source, FirstEstimate.IMAGE_MEAN)
-    block = next(iter_blocks(estimate.shape, n_blocks=1, pad=0))
-    est_block = extract_padded_block(estimate, block)
-    img_blocks = [vd.source.get_image_block(v, block) for v in range(vd.n_views)]
-
-    new_block, e, s, u, n = backend.compute_block(est_block, img_blocks, opts)
-    assert new_block.shape == est_block.shape
+    new_block, e, s, u, n = _run_block(backend, vd, opts)
+    assert new_block.shape == (32, 32)
     assert new_block.min() >= 0
     assert e >= 0
+    # Deconvolution should produce output similar in structure to input
+    assert np.abs(new_block.sum() - vd.source.get_full_image(0).sum()) < 1000
 
 
 def test_cpu_backend_compute_block_multi():
@@ -97,13 +92,10 @@ def test_cpu_backend_compute_block_multi():
     backend = CPUBackend(vd)
     opts = FakeOptions()
 
-    estimate = create_estimate(vd.source, FirstEstimate.IMAGE_MEAN)
-    block = next(iter_blocks(estimate.shape, n_blocks=1, pad=0))
-    est_block = extract_padded_block(estimate, block)
-    img_blocks = [vd.source.get_image_block(v, block) for v in range(vd.n_views)]
-
-    new_block, e, s, u, n = backend.compute_block(est_block, img_blocks, opts)
-    assert new_block.shape == est_block.shape
+    new_block, e, s, u, n = _run_block(backend, vd, opts)
+    assert new_block.shape == (32, 32)
+    assert e >= 0
+    assert s >= 0
 
 
 def test_cpu_backend_multiplicative():
@@ -112,13 +104,8 @@ def test_cpu_backend_multiplicative():
     opts = FakeOptions()
     opts.fusion_mode = FusionMode.MULTIPLICATIVE
 
-    estimate = create_estimate(vd.source, FirstEstimate.IMAGE_MEAN)
-    block = next(iter_blocks(estimate.shape, n_blocks=1, pad=0))
-    est_block = extract_padded_block(estimate, block)
-    img_blocks = [vd.source.get_image_block(v, block) for v in range(vd.n_views)]
-
-    new_block, *_ = backend.compute_block(est_block, img_blocks, opts)
-    assert new_block.shape == est_block.shape
+    new_block, *_ = _run_block(backend, vd, opts)
+    assert new_block.shape == (32, 32)
 
 
 def test_resolve_backend_cpu():
@@ -146,13 +133,8 @@ def test_cuda_backend_compute_block():
     backend = CUDABackend(vd, vd.source.shape)
     opts = FakeOptions()
 
-    estimate = create_estimate(vd.source, FirstEstimate.IMAGE_MEAN)
-    block = next(iter_blocks(estimate.shape, n_blocks=1, pad=0))
-    est_block = extract_padded_block(estimate, block)
-    img_blocks = [vd.source.get_image_block(v, block) for v in range(vd.n_views)]
-
-    new_block, *_ = backend.compute_block(est_block, img_blocks, opts)
-    assert new_block.shape == est_block.shape
+    new_block, *_ = _run_block(backend, vd, opts)
+    assert new_block.shape == (32, 32)
     assert new_block.min() >= 0
 
 
@@ -163,12 +145,7 @@ def test_cuda_matches_cpu():
     cuda = CUDABackend(vd, vd.source.shape)
     opts = FakeOptions()
 
-    estimate = create_estimate(vd.source, FirstEstimate.IMAGE_MEAN)
-    block = next(iter_blocks(estimate.shape, n_blocks=1, pad=0))
-    est_block = extract_padded_block(estimate, block)
-    img_blocks = [vd.source.get_image_block(v, block) for v in range(vd.n_views)]
-
-    cpu_result, *_ = cpu.compute_block(est_block, img_blocks, opts)
-    cuda_result, *_ = cuda.compute_block(est_block, img_blocks, opts)
+    cpu_result, *_ = _run_block(cpu, vd, opts)
+    cuda_result, *_ = _run_block(cuda, vd, opts)
 
     npt.assert_allclose(cpu_result, cuda_result, rtol=1e-3)

@@ -1,53 +1,39 @@
 from __future__ import annotations
 
 import numpy as np
+import numpy.testing as npt
 import pytest
-import scipy.signal
 
 from miplib.data.adapters.image_data import ArrayDataSource
 from miplib.data.containers.image import Image
-from miplib.processing.deconvolution.backends import CPUBackend, ViewData
+from miplib.processing.deconvolution.backends import (
+    CPUBackend,
+    ViewData,
+    convolve_cpu,
+)
 from miplib.processing.deconvolution.deconvolver import (
     FusionMode,
     RLDeconvolver,
     RLOptions,
 )
 from miplib.processing.deconvolution.estimates import FirstEstimate, create_estimate
+from miplib.processing.deconvolution.psf_utils import prepare_psf
+from tests.conftest import checkerboard_pattern, gaussian_spot
 
 
-def _gaussian_psf_img(shape, sigma=2.0):
-    coords = [np.arange(s) - s // 2 for s in shape]
-    grid = np.meshgrid(*coords, indexing="ij")
-    r_sq = sum(g**2 for g in grid)
-    data = np.exp(-r_sq / (2 * sigma**2)).astype(np.float64)
-    return Image(data, spacing=(1.0, 1.0))
-
-
-def _blur(img, psf):
-    return scipy.signal.fftconvolve(img, psf, mode="same")
-
-
-def _psf_data(shape, sigma=1.5):
-    coords = [np.arange(s) - s // 2 for s in shape]
-    grid = np.meshgrid(*coords, indexing="ij")
-    r_sq = sum(g**2 for g in grid)
-    p = np.exp(-r_sq / (2 * sigma**2)).astype(np.float64)
-    p /= p.sum()
-    return p
-
-
-def _view_data(n_views=1, shape=(32, 32), seed=42):
+def _make_view_data(n_views=1, shape=(32, 32), seed=42):
     rng = np.random.default_rng(seed)
-    images = []
-    psfs = []
-    adjs = []
+    images: list[Image] = []
+    psfs: list[np.ndarray] = []
+    adjs: list[np.ndarray] = []
     for i in range(n_views):
         obj = np.abs(rng.normal(loc=10, scale=2, size=shape).astype(np.float64))
-        psf = _psf_data(shape, sigma=1.5 + i * 0.5)
-        blurred = _blur(obj, psf)
+        psf_img = Image(gaussian_spot(shape, sigma=1.5 + i * 0.5), spacing=(1.0, 1.0))
+        psf, adj = prepare_psf(psf_img, psf_img.spacing)
+        blurred = convolve_cpu(obj, psf)
         images.append(Image(blurred, spacing=(1.0, 1.0)))
         psfs.append(psf)
-        adjs.append(psf[tuple(slice(None, None, -1) for _ in range(psf.ndim))])
+        adjs.append(adj)
     source = ArrayDataSource(images)
     return ViewData(
         source=source,
@@ -59,7 +45,7 @@ def _view_data(n_views=1, shape=(32, 32), seed=42):
 
 
 def test_manual_step_loop():
-    vd = _view_data(n_views=1)
+    vd = _make_view_data(n_views=1)
     backend = CPUBackend(vd)
     estimate = create_estimate(vd.source, FirstEstimate.IMAGE_MEAN)
     deconv = RLDeconvolver(
@@ -77,7 +63,7 @@ def test_manual_step_loop():
 
 
 def test_iteration_protocol():
-    vd = _view_data(n_views=1)
+    vd = _make_view_data(n_views=1)
     backend = CPUBackend(vd)
     estimate = create_estimate(vd.source, FirstEstimate.IMAGE_MEAN)
     deconv = RLDeconvolver(
@@ -89,7 +75,7 @@ def test_iteration_protocol():
 
 
 def test_for_loop_syntax():
-    vd = _view_data(n_views=1)
+    vd = _make_view_data(n_views=1)
     backend = CPUBackend(vd)
     estimate = create_estimate(vd.source, FirstEstimate.IMAGE_MEAN)
     deconv = RLDeconvolver(
@@ -103,7 +89,7 @@ def test_for_loop_syntax():
 
 
 def test_run_convenience():
-    vd = _view_data(n_views=1)
+    vd = _make_view_data(n_views=1)
     backend = CPUBackend(vd)
     estimate = create_estimate(vd.source, FirstEstimate.IMAGE_MEAN)
     deconv = RLDeconvolver(
@@ -115,7 +101,7 @@ def test_run_convenience():
 
 
 def test_result_before_iteration():
-    vd = _view_data(n_views=1)
+    vd = _make_view_data(n_views=1)
     backend = CPUBackend(vd)
     estimate = create_estimate(vd.source, FirstEstimate.IMAGE_MEAN)
     deconv = RLDeconvolver(
@@ -129,9 +115,9 @@ def test_multi_view_identity():
     shape = (32, 32)
     rng = np.random.default_rng(42)
     obj = np.abs(rng.normal(loc=10, scale=2, size=shape).astype(np.float64))
-    psf = _psf_data(shape, sigma=1.5)
-    adj = psf[tuple(slice(None, None, -1) for _ in range(psf.ndim))]
-    blurred = _blur(obj, psf)
+    psf_img = Image(gaussian_spot(shape, sigma=1.5), spacing=(1.0, 1.0))
+    psf, adj = prepare_psf(psf_img, psf_img.spacing)
+    blurred = convolve_cpu(obj, psf)
     img = Image(blurred, spacing=(1.0, 1.0))
 
     vd1 = ViewData(
@@ -163,11 +149,11 @@ def test_multi_view_identity():
     for _ in deconv3:
         pass
 
-    np.testing.assert_allclose(deconv1.result(), deconv3.result(), rtol=1e-5)
+    npt.assert_allclose(deconv1.result(), deconv3.result(), rtol=1e-5)
 
 
 def test_progress_tracking():
-    vd = _view_data(n_views=1)
+    vd = _make_view_data(n_views=1)
     backend = CPUBackend(vd)
     estimate = create_estimate(vd.source, FirstEstimate.IMAGE_MEAN)
     deconv = RLDeconvolver(
@@ -183,7 +169,7 @@ def test_progress_tracking():
 
 
 def test_external_estimate_array():
-    vd = _view_data(n_views=1)
+    vd = _make_view_data(n_views=1)
     backend = CPUBackend(vd)
     estimate = np.zeros(vd.source.shape, dtype=np.float32)
     deconv = RLDeconvolver(
@@ -193,13 +179,12 @@ def test_external_estimate_array():
 
 
 def test_estimate_shape_mismatch():
-    vd = _view_data(n_views=1)
+    vd = _make_view_data(n_views=1)
     backend = CPUBackend(vd)
     est_null = np.zeros(vd.source.shape, dtype=np.float32)
     wrong = np.zeros((8, 8), dtype=np.float32)
     with pytest.raises(ValueError, match="estimate shape"):
         RLDeconvolver(backend, estimate=wrong, options=RLOptions(max_iterations=1))
-    # valid estimate works
     RLDeconvolver(backend, estimate=est_null, options=RLOptions(max_iterations=1))
 
 
@@ -210,8 +195,61 @@ def test_rloptions_validation():
         RLOptions(epsilon=-0.1)
     with pytest.raises(ValueError, match="max_iterations"):
         RLOptions(max_iterations=0)
-    # fusion_mode string is converted by __post_init__
     opts = RLOptions(fusion_mode="summative")
     assert opts.fusion_mode == FusionMode.SUMMATIVE
     with pytest.raises(ValueError):
         RLOptions(fusion_mode="invalid")
+
+
+# ---------------------------------------------------------------------------
+# Deconvolution of a known grating
+# ---------------------------------------------------------------------------
+
+
+def test_deconvolve_blurred_checkerboard():
+    """RL deconvolution sharpens a Gaussian-blurred checkerboard.
+
+    After deconvolving, the result should have larger gradients (sharper
+    edges) than the blurred input, moving it closer to the original.
+    """
+    shape = (64, 64)
+    obj = checkerboard_pattern(shape)
+    psf_data = gaussian_spot((16, 16), sigma=2.0)
+    psf_data /= psf_data.sum()
+
+    blurred_data = convolve_cpu(obj, psf_data)
+    psf_img = Image(psf_data, spacing=(1.0, 1.0))
+
+    images = [Image(blurred_data, spacing=(1.0, 1.0))]
+    psfs = [psf_img.view(np.ndarray)]
+    adjs = [psf_data[::-1, ::-1].copy()]
+
+    vd = ViewData(
+        source=ArrayDataSource(images),
+        psfs=psfs,
+        adj_psfs=adjs,
+        weights=[1.0],
+        backgrounds=[0.0],
+    )
+    backend = CPUBackend(vd)
+    estimate = create_estimate(vd.source, FirstEstimate.IMAGE_MEAN)
+    deconv = RLDeconvolver(
+        backend,
+        estimate=estimate,
+        options=RLOptions(max_iterations=30, stop_tau=0.0),
+    )
+    for _ in deconv:
+        pass
+
+    result = deconv.result()
+
+    def gradient_magnitude(arr):
+        gy, gx = np.gradient(arr.astype(np.float64))
+        return (gy**2 + gx**2).mean()
+
+    grad_blurred = gradient_magnitude(blurred_data)
+    grad_result = gradient_magnitude(result.view(np.ndarray))
+    grad_original = gradient_magnitude(obj)
+
+    # Deconvolution sharpens the image — gradients move toward original
+    assert abs(grad_result - grad_original) < abs(grad_blurred - grad_original) * 0.6

@@ -16,11 +16,13 @@ from miplib.processing.deconvolution.blocks import BlockSpec
 # ---------------------------------------------------------------------------
 
 
-def _make_images(n_views, shape=(32, 32), seed=42):
-    rng = np.random.default_rng(seed)
+def _make_images(n_views, shape=(32, 32)):
     return [
-        Image(rng.normal(size=shape).astype(np.float64), spacing=(0.1, 0.1))
-        for _ in range(n_views)
+        Image(
+            (np.ones(shape, dtype=np.float64) * (i + 1)),
+            spacing=(0.1, 0.1),
+        )
+        for i in range(n_views)
     ]
 
 
@@ -36,6 +38,12 @@ def test_array_source_multi_view():
     images = _make_images(3)
     source = ArrayDataSource(images)
     assert source.n_views == 3
+    # Each view returns its own image
+    for v in range(3):
+        full = source.get_full_image(v)
+        expected_value = float(v + 1)
+        assert full.shape == (32, 32)
+        npt.assert_allclose(full, np.full((32, 32), expected_value))
 
 
 def test_array_source_empty_raises():
@@ -70,19 +78,34 @@ def test_array_source_get_block_at_boundary():
 
 
 def test_array_source_multi_view_distinct():
-    images = _make_images(3, seed=0)
-    images[1] = Image(np.ones((32, 32), dtype=np.float64), spacing=(0.1, 0.1))
+    images = [
+        Image(np.full((32, 32), 1.0, dtype=np.float64), spacing=(0.1, 0.1)),
+        Image(np.full((32, 32), 2.0, dtype=np.float64), spacing=(0.1, 0.1)),
+        Image(np.full((32, 32), 3.0, dtype=np.float64), spacing=(0.1, 0.1)),
+    ]
     source = ArrayDataSource(images)
 
     block = BlockSpec(start=np.array([8, 8]), size=np.array([16, 16]), pad=0)
     r0 = source.get_image_block(0, block)
     r1 = source.get_image_block(1, block)
+    r2 = source.get_image_block(2, block)
 
-    assert not np.allclose(r0, r1)
+    npt.assert_allclose(r0, 1.0)
+    npt.assert_allclose(r1, 2.0)
+    npt.assert_allclose(r2, 3.0)
+
+
+def test_array_source_get_full_image():
+    images = _make_images(2)
+    source = ArrayDataSource(images)
+
+    for v in range(2):
+        full = source.get_full_image(v)
+        npt.assert_array_equal(full, images[v])
 
 
 # ---------------------------------------------------------------------------
-# ImageDataSource — mock delegation
+# ImageDataSource -- mock delegation
 # ---------------------------------------------------------------------------
 
 
@@ -126,7 +149,7 @@ def test_image_source_delegates_get_registered_block():
 
 
 # ---------------------------------------------------------------------------
-# ImageDataSource — integration with real HDF5
+# ImageDataSource -- integration with real HDF5
 # ---------------------------------------------------------------------------
 
 
