@@ -114,6 +114,11 @@ The vast majority of modules have zero test coverage. Priority candidates (small
 | lower | `processing/registration/*` | Needs SimpleITK |
 | lower | `analysis/*` | Depends on data containers |
 
+## Known Gaps / Future Work
+
+- **ISM reconstruction CLI** — `miplib/bin/ism.py` existed in older revisions (last in `56a7ea1`) but was deleted. It processed Carma `.mat` / AiryScan `.czi` detector data with `ismrec.find_image_shifts` / `shift_and_sum`, plus optional Wiener/RL deconvolution. Needs a ground-up rewrite to work with the refactored `RLDeconvolver` pipeline and current module structure.
+- **FRC analysis cleanup** — `miplib/analysis/resolution/analysis.py` has a `first_guess` that crashes with `IndexError` when the FRC curve never crosses the resolution threshold. The tracker FRC smoke test is marked `xfail` for this reason.
+
 ## Code Style
 
 - Python >=3.11, no legacy compat needed
