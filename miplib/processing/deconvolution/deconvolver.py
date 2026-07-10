@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
-from enum import Enum
 
 import numpy as np
 
@@ -11,13 +10,9 @@ from miplib.data.containers.image import Image
 from miplib.processing.deconvolution.backends import CPUBackend, CUDABackend
 from miplib.processing.deconvolution.blocks import extract_padded_block, iter_blocks
 from miplib.processing.deconvolution.tracker import RLConvergenceTracker
+from miplib.processing.deconvolution.types import FusionMode
 
 logger = logging.getLogger(__name__)
-
-
-class FusionMode(Enum):
-    SUMMATIVE = "summative"
-    MULTIPLICATIVE = "multiplicative"
 
 
 @dataclass

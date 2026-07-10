@@ -1,16 +1,8 @@
 from __future__ import annotations
 
-from enum import Enum
-
 import numpy as np
 
-
-class FirstEstimate(Enum):
-    CONSTANT = "constant"
-    IMAGE = "image"
-    IMAGE_MEAN = "image_mean"
-    AVERAGE = "average"
-    SUM = "sum"
+from miplib.processing.deconvolution.types import FirstEstimate
 
 
 def create_estimate(

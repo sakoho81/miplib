@@ -7,6 +7,7 @@ import numpy as np
 import scipy.signal
 
 from miplib.data.adapters.image_data import DataSource
+from miplib.processing.deconvolution.types import FusionMode
 from miplib.processing.ndarray import nroot, safe_divide
 from miplib.processing.ops_ext import div_unit_grad, update_estimate_poisson
 
@@ -61,7 +62,7 @@ class _BaseBackend:
         fusion_mode,
     ) -> np.ndarray:
         """Accumulate the RL correction across all views."""
-        if fusion_mode.value == "summative":
+        if fusion_mode == FusionMode.SUMMATIVE:
             # additive: correction = mean(backproject(data / forward))
             correction: np.ndarray = np.zeros_like(est_block)
             for idx, (img, w, bg) in enumerate(
