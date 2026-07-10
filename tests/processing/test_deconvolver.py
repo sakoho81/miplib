@@ -113,7 +113,10 @@ def test_run_convenience():
 def test_result_before_iteration():
     vd = _view_data(n_views=1)
     backend = CPUBackend(vd)
-    deconv = RLDeconvolver(backend, options=RLOptions(max_iterations=5))
+    estimate = create_estimate(vd.source, FirstEstimate.IMAGE_MEAN)
+    deconv = RLDeconvolver(
+        backend, estimate=estimate, options=RLOptions(max_iterations=5)
+    )
     result = deconv.result
     assert result.shape == vd.source.shape
 

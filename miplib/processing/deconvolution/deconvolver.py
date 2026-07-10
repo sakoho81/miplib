@@ -38,35 +38,26 @@ class RLOptions:
 
 
 class RLDeconvolver:
-    """Richardson-Lucy deconvolution and multi-view fusion.
-
-    Takes a backend instance (``CPUBackend`` or ``CUDABackend``) and an
-    optional pre-allocated estimate array.  The backend owns all per-view
-    data through ``ViewData``.
-    """
+    """Richardson-Lucy deconvolution and multi-view fusion."""
 
     def __init__(
         self,
         backend: CPUBackend | CUDABackend,
+        estimate: np.ndarray,
         *,
-        estimate: np.ndarray | None = None,
         options: RLOptions | None = None,
     ) -> None:
         self._backend = backend
         self._options = options or RLOptions()
 
         vd = backend._vd
-        if estimate is None:
-            self._estimate = np.zeros(vd.source.shape, dtype=np.float32)
-        else:
-            if estimate.shape != vd.source.shape:
-                raise ValueError(
-                    f"estimate shape {estimate.shape} does not match "
-                    f"source shape {vd.source.shape}"
-                )
-            self._estimate = estimate
-
-        self._estimate_new = np.zeros_like(self._estimate)
+        if estimate.shape != vd.source.shape:
+            raise ValueError(
+                f"estimate shape {estimate.shape} does not match "
+                f"source shape {vd.source.shape}"
+            )
+        self._estimate = estimate
+        self._estimate_new = np.zeros_like(estimate)
         self._shape = vd.source.shape
         self.tracker = RLConvergenceTracker()
         self._iteration: int = 0
@@ -110,9 +101,7 @@ class RLDeconvolver:
         self._estimate[:] = self._estimate_new
 
         elapsed = time.perf_counter() - t0
-        _record_step(
-            self.tracker, elapsed, self._estimate, prev, e_tot, s_tot, u_tot, n_tot
-        )
+        self.__record_step(prev, elapsed, e_tot, s_tot, u_tot, n_tot)
         self._iteration += 1
 
         self._converged = (
@@ -147,30 +136,27 @@ class RLDeconvolver:
         vd = self._backend._vd
         return Image(self._estimate.copy(), list(vd.source.spacing))
 
+    # ------------------------------------------------------------------
+    # helpers
+    # ------------------------------------------------------------------
 
-# ------------------------------------------------------------------
-# helpers
-# ------------------------------------------------------------------
+    @staticmethod
+    def __compute_tau1(current: np.ndarray, previous: np.ndarray) -> float:
+        diff = np.abs(current - previous)
+        denom = np.abs(previous)
+        denom[denom == 0] = 1e-30
+        return float(np.max(diff / denom))
 
-
-def _record_step(
-    tracker: RLConvergenceTracker,
-    elapsed: float,
-    current: np.ndarray,
-    previous: np.ndarray,
-    e: float,
-    s: float,
-    u: float,
-    n: float,
-) -> None:
-    total = current.sum()
-    leak = (total - previous.sum()) / (total + 1e-30)
-    tau1 = _compute_tau1(current, previous)
-    tracker.add(elapsed, tau1, leak, e, s, u, n)
-
-
-def _compute_tau1(current: np.ndarray, previous: np.ndarray) -> float:
-    diff = np.abs(current - previous)
-    denom = np.abs(previous)
-    denom[denom == 0] = 1e-30
-    return float(np.max(diff / denom))
+    def __record_step(
+        self,
+        previous: np.ndarray,
+        elapsed: float,
+        e: float,
+        s: float,
+        u: float,
+        n: float,
+    ) -> None:
+        total = self._estimate.sum()
+        leak = (total - previous.sum()) / (total + 1e-30)
+        tau1 = self.__compute_tau1(self._estimate, previous)
+        self.tracker.add(elapsed, tau1, leak, e, s, u, n)

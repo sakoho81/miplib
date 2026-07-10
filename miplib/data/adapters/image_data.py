@@ -23,6 +23,9 @@ class ArrayDataSource:
     def get_image_block(self, view: int, block: BlockSpec) -> np.ndarray:
         return extract_padded_block(self._images[view], block)
 
+    def get_full_image(self, view: int) -> np.ndarray:
+        return self._images[view]
+
 
 class ImageDataSource:
     """Lazy HDF5-backed data source for large multi-view datasets.
@@ -60,3 +63,7 @@ class ImageDataSource:
         return self._data.get_registered_block(
             key, block.inner_size, block.pad, block.inner_start
         )
+
+    def get_full_image(self, view: int) -> np.ndarray:
+        key = ImageKey(self._image_type, self._views[view], self._channel, self._scale)
+        return self._data.get_image_data(key)
