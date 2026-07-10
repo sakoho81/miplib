@@ -64,7 +64,17 @@ def _get_psf(
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Richardson-Lucy deconvolution of a single image."
+        description="Deconvolve a single image using Richardson-Lucy iteration.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Examples:\n"
+            "  # Deconvolve with auto-generated Gaussian PSF\n"
+            "  miplib-deconvolve image.tif --fwhm 2.0 --iterations 50\n\n"
+            "  # Deconvolve with a PSF loaded from file\n"
+            "  miplib-deconvolve image.tif --psf psf.tif --iterations 100\n\n"
+            "  # Deconvolve with TV regularization and CUDA\n"
+            "  miplib-deconvolve image.tif --fwhm 1.5 --tv-lambda 0.01 --enable-cuda\n"
+        ),
     )
     parser.add_argument("image", help="Path to the input image (TIFF).")
     parser.add_argument(
