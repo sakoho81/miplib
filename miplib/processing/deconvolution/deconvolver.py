@@ -123,7 +123,8 @@ class RLDeconvolver:
         if self._converged:
             raise StopIteration
         self.step()
-        return self.result
+        vd = self._backend._vd
+        return Image(self._estimate, list(vd.source.spacing))
 
     def __len__(self) -> int:
         return self._options.max_iterations - self._iteration
@@ -131,13 +132,12 @@ class RLDeconvolver:
     def run(self) -> Image:
         for _ in self:
             pass
-        return self.result
+        return self.result()
 
     # ------------------------------------------------------------------
     # results
     # ------------------------------------------------------------------
 
-    @property
     def result(self) -> Image:
         vd = self._backend._vd
         return Image(self._estimate.copy(), list(vd.source.spacing))

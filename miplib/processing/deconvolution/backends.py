@@ -62,6 +62,7 @@ class _BaseBackend:
     ) -> np.ndarray:
         """Accumulate the RL correction across all views."""
         if fusion_mode.value == "summative":
+            # additive: correction = mean(backproject(data / forward))
             correction: np.ndarray = np.zeros_like(est_block)
             for idx, (img, w, bg) in enumerate(
                 zip(img_blocks, vd.weights, vd.backgrounds)
@@ -71,6 +72,7 @@ class _BaseBackend:
                 correction += bwd_fn(ratio, idx)
             correction /= vd.n_views
         else:
+            # multiplicative: correction = nroot(product(backproject(data / forward)))
             correction = np.ones_like(est_block)
             for idx, (img, w, bg) in enumerate(
                 zip(img_blocks, vd.weights, vd.backgrounds)
@@ -121,11 +123,15 @@ class _BaseBackend:
 class CPUBackend(_BaseBackend):
     """In-memory RL compute kernel (one block at a time)."""
 
+    @staticmethod
+    def _scipy_convolve(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+        return scipy.signal.fftconvolve(a, b, mode="same")
+
     def _forward_convolve(self, data: np.ndarray, idx: int) -> np.ndarray:
-        return _convolve(data, self._vd.psfs[idx])
+        return self._scipy_convolve(data, self._vd.psfs[idx])
 
     def _backward_convolve(self, data: np.ndarray, idx: int) -> np.ndarray:
-        return _convolve(data, self._vd.adj_psfs[idx])
+        return self._scipy_convolve(data, self._vd.adj_psfs[idx])
 
 
 # ---------------------------------------------------------------------------
@@ -157,10 +163,17 @@ class CUDABackend(_BaseBackend):
         ]
 
     def _forward_convolve(self, data: np.ndarray, idx: int) -> np.ndarray:
-        return _cuda_convolve(data, self._psfs_fft[idx], self._shape, self._cpx)
+        return self._cuda_convolve(data, self._psfs_fft[idx])
 
     def _backward_convolve(self, data: np.ndarray, idx: int) -> np.ndarray:
-        return _cuda_convolve(data, self._adjs_fft[idx], self._shape, self._cpx)
+        return self._cuda_convolve(data, self._adjs_fft[idx])
+
+    def _cuda_convolve(self, a: np.ndarray, b_fft: "cp.ndarray") -> np.ndarray:
+        a_dev = cp.asarray(a, dtype=self._cpx)
+        a_fft = cufft.fftn(a_dev, self._shape, overwrite_x=True)
+        a_fft *= b_fft
+        result_dev = cufft.ifftn(a_fft, self._shape, overwrite_x=True)
+        return cp.asnumpy(cp.abs(result_dev))
 
 
 # ---------------------------------------------------------------------------
@@ -188,24 +201,12 @@ def resolve_backend(
 
 def convolve_cpu(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     """Convolve *a* and *b* via scipy FFT (mode='same')."""
-    return _convolve(a, b)
-
-
-def _convolve(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     return scipy.signal.fftconvolve(a, b, mode="same")
 
 
-def _cuda_convolve(
-    a: np.ndarray,
-    b_fft: "cp.ndarray",
-    shape: tuple[int, ...],
-    cpx,
-) -> np.ndarray:
-    a_dev = cp.asarray(a, dtype=cpx)
-    a_fft = cufft.fftn(a_dev, shape, overwrite_x=True)
-    a_fft *= b_fft
-    result_dev = cufft.ifftn(a_fft, shape, overwrite_x=True)
-    return cp.asnumpy(cp.abs(result_dev))
+def _safe_divide(num: np.ndarray, den: np.ndarray) -> np.ndarray:
+    with np.errstate(divide="ignore", invalid="ignore"):
+        return np.where(den != 0, num / den, 0.0)
 
 
 def _safe_divide(num: np.ndarray, den: np.ndarray) -> np.ndarray:

@@ -173,7 +173,7 @@ def main():
         % (options.max_nof_iterations, genutils.format_time_string(end - begin))
     )
 
-    _save_results(data, task.result, options)
+    _save_results(data, task.result(), options)
 
     if tmpdir is not None:
         tmpdir.cleanup()

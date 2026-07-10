@@ -70,7 +70,7 @@ def test_manual_step_loop():
         converged = deconv.step()
     assert converged
 
-    result = deconv.result
+    result = deconv.result()
     assert result.shape == vd.source.shape
     assert result.min() >= 0
     assert result.max() > 0
@@ -121,7 +121,7 @@ def test_result_before_iteration():
     deconv = RLDeconvolver(
         backend, estimate=estimate, options=RLOptions(max_iterations=5)
     )
-    result = deconv.result
+    result = deconv.result()
     assert result.shape == vd.source.shape
 
 
@@ -163,7 +163,7 @@ def test_multi_view_identity():
     for _ in deconv3:
         pass
 
-    np.testing.assert_allclose(deconv1.result, deconv3.result, rtol=1e-5)
+    np.testing.assert_allclose(deconv1.result(), deconv3.result(), rtol=1e-5)
 
 
 def test_progress_tracking():
