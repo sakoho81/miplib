@@ -96,6 +96,26 @@ def __bioformats(
     else:
         reader = reader[0]
 
+    # When OME metadata is missing, bioformats cannot label RGB axes as
+    # channels and returns a spatial+colour array (e.g. (3, H, W)) whose
+    # ndim exceeds len(spacing).  Collapse to a single spatial image via
+    # max projection — a heuristic that preserves signal.
+    extra = reader.ndim - len(spacing)
+    while reader.ndim > len(spacing):
+        if reader.shape[0] in (3, 4):
+            reader = reader.max(axis=0)
+        elif reader.shape[-1] in (3, 4):
+            reader = reader.max(axis=-1)
+        else:
+            # fallback: collapse leading extra axis
+            reader = reader.max(axis=0)
+    if extra > 0:
+        logger.info(
+            "Collapsed %d non-spatial axis(es) via max projection "
+            "(OME metadata missing — image may contain RGB channels).",
+            extra,
+        )
+
     if return_itk:
         return itkutils.convert_from_numpy(reader, spacing)
     return Image(reader, spacing)
