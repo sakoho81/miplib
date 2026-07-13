@@ -3,8 +3,6 @@ import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 
-plt.style.use("seaborn-paper")
-
 
 def make_template_image(data, imagesz=250):
     """
