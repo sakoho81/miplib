@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 
 from miplib.processing.deconvolution.types import FirstEstimate
@@ -10,16 +12,19 @@ def create_estimate(
     strategy: FirstEstimate = FirstEstimate.IMAGE_MEAN,
     *,
     constant: float = 1.0,
-    out: np.ndarray | None = None,
+    path: str | Path | None = None,
     dtype: np.dtype = np.dtype(np.float32),
 ) -> np.ndarray:
-    """Allocate and initialise an estimate array for RL deconvolution."""
+    """Allocate and initialise an estimate array for RL deconvolution.
+
+    If *path* is given, the array is backed by a memory-mapped file.
+    """
     shape = source.shape
 
-    if out is None:
+    if path is not None:
+        out: np.ndarray = np.memmap(str(path), dtype=dtype, mode="w+", shape=shape)
+    else:
         out = np.zeros(shape, dtype=dtype)
-    elif out.shape != shape:
-        raise ValueError(f"out shape {out.shape} does not match source shape {shape}")
 
     if strategy == FirstEstimate.CONSTANT:
         out[:] = constant

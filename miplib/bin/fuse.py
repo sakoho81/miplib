@@ -93,26 +93,6 @@ def _create_view_data(data, views, options):
     )
 
 
-def _allocate_estimate(source, options, tmpdir: Path | str | None = None):
-    """Allocate and initialise the estimate array."""
-    if tmpdir is not None:
-        estimate = np.memmap(
-            Path(tmpdir) / "estimate.dat",
-            dtype=np.float32,
-            mode="w+",
-            shape=source.shape,
-        )
-    else:
-        estimate = np.zeros(source.shape, dtype=np.float32)
-    create_estimate(
-        source,
-        getattr(options, "first_estimate", FirstEstimate.IMAGE_MEAN),
-        constant=getattr(options, "estimate_constant", 1.0),
-        out=estimate,
-    )
-    return estimate
-
-
 def main():
     options = arguments.get_fusion_script_options(sys.argv[1:])
     full_path = os.path.join(options.working_directory, options.data_file)
@@ -149,7 +129,16 @@ def main():
         if getattr(options, "memmap_estimates", False):
             tmpdir = Path(stack.enter_context(tempfile.TemporaryDirectory()))
 
-        estimate = _allocate_estimate(view_data.source, options, tmpdir)
+        estimate_path: Path | None = None
+        if tmpdir is not None:
+            estimate_path = tmpdir / "estimate.dat"
+
+        estimate = create_estimate(
+            view_data.source,
+            getattr(options, "first_estimate", FirstEstimate.IMAGE_MEAN),
+            constant=getattr(options, "estimate_constant", 1.0),
+            path=estimate_path,
+        )
 
         backend_name = "cuda" if getattr(options, "enable_cuda", False) else "cpu"
         backend = resolve_backend(backend_name, view_data, view_data.source.shape)

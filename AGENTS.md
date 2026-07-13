@@ -120,6 +120,7 @@ The vast majority of modules have zero test coverage. Priority candidates (small
 - **FRC analysis cleanup** — `miplib/analysis/resolution/analysis.py` has a `first_guess` that crashes with `IndexError` when the FRC curve never crosses the resolution threshold. The tracker FRC smoke test is marked `xfail` for this reason.
 - **FFT primitives consolidation** — `miplib/processing/deconvolution/backends.py` defines `_CPUFFT`/`_CUDAFFT`/`resolve_fft` for GPU-aware `fftn`/`ifftn` dispatch. These should move into `miplib/processing/fftutils.py` so the whole library has one CPU+CUDA FFT layer. `fftutils.fft()` and `ifft()` would gain an optional `backend` kwarg. Currently `backends.py` and `wiener.py` each do their own `cupy` import guard — this should become a single import in `fftutils`.
 - **FRCOptions dataclass** — The FRC tracker constructs an `argparse.Namespace` for `calculate_single_image_frc()`. Replace with a proper `FRCOptions` dataclass (TODO already in code at `tracker.py:_check_frc`).
+- **Estimate checkpoint support** — Saving/loading estimate state mid-deconvolution would allow resuming from checkpoints. Needs `EstimateIO.save(estimate, path)` / `load(path, shape, spacing)` plus metadata (iteration count, tracker state, PSF parameters).
 
 ## Code Style
 

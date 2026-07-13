@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import numpy as np
 import numpy.testing as npt
-import pytest
 
 from miplib.data.adapters.image_data import ArrayDataSource
 from miplib.data.containers.image import Image
@@ -63,19 +62,14 @@ def test_sum():
     npt.assert_allclose(est, expected, rtol=1e-6)
 
 
-def test_out_parameter():
+def test_path_parameter(tmp_path):
     source = _make_source()
-    out = np.zeros(source.shape, dtype=np.float64)
-    result = create_estimate(source, FirstEstimate.CONSTANT, constant=3.0, out=out)
-    assert result is out
-    npt.assert_array_equal(out, 3.0)
-
-
-def test_out_shape_mismatch():
-    source = _make_source()
-    out = np.zeros((8, 8), dtype=np.float32)
-    with pytest.raises(ValueError, match="does not match"):
-        create_estimate(source, FirstEstimate.CONSTANT, out=out)
+    memmap_path = tmp_path / "estimate.dat"
+    result = create_estimate(
+        source, FirstEstimate.CONSTANT, constant=3.0, path=str(memmap_path)
+    )
+    assert isinstance(result, np.memmap)
+    npt.assert_array_equal(result, 3.0)
 
 
 def test_default_strategy():
