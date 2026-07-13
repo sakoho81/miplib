@@ -1,7 +1,5 @@
 import matplotlib.pyplot as plt
 
-plt.style.use("seaborn-colorblind")
-
 
 def xy_scatter_plot_with_labels(
     x,

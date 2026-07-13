@@ -11,8 +11,6 @@ from miplib.data.containers.fourier_correlation_data import (
 )
 from miplib.processing.converters import degrees_to_radians
 
-plt.style.use("seaborn-colorblind")
-
 
 def plot_resolution_curves(data_to_plot, x_idx=0, size=(2, 2), disable_ax_labels=False):
     """

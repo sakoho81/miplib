@@ -1,43 +1,76 @@
+from __future__ import annotations
+
+import logging
+
 import numpy as np
-from numpy.fft import fftn, fftshift, ifftn
 
-import miplib.processing.image as imops
-import miplib.processing.ndarray as arrayops
 from miplib.data.containers.image import Image
+from miplib.processing.deconvolution.backends import resolve_fft
+from miplib.processing.image import (
+    remove_zero_padding,
+    zero_pad_to_matching_shape,
+    zero_pad_to_shape,
+    zoom_to_spacing,
+)
 
-# todo: Speed up with CUDA/Multithreading. Functions are ready in the ufuncs.py
+logger = logging.getLogger(__name__)
 
 
-def wiener_deconvolution(image, psf, snr=30, add_pad=0):
-    assert isinstance(image, Image)
-    assert isinstance(psf, Image)
+def wiener_deconvolution(
+    image: Image,
+    psf: Image,
+    nsr: float = 30,
+    add_pad: int = 0,
+    *,
+    backend: str = "cpu",
+) -> Image:
+    """Linear Wiener deconvolution.
 
-    image_s = Image(image.copy(), image.spacing)
-    orig_shape = image.shape
+    Parameters
+    ----------
+    image : Image
+        Blurred / observed image.
+    psf : Image
+        Point-spread function.
+    nsr : float
+        Noise-to-signal ratio (higher = more regularization, lower = sharper).
+    add_pad : int
+        Extra zero-padding voxels beyond the PSF support.
+    backend : {"cpu", "cuda"}
+        Computation backend.
+    """
+    if backend not in ("cpu", "cuda"):
+        raise ValueError(f"Unknown backend: {backend!r}")
 
-    if image.ndim != psf.ndim:
-        raise ValueError("Image and psf dimensions do not match")
+    psf = zoom_to_spacing(psf, image.spacing)
+    image, psf = zero_pad_to_matching_shape(image, psf)
+    if add_pad > 0:
+        pad_shape = tuple(s + add_pad * 2 for s in image.shape)
+        image = zero_pad_to_shape(image, pad_shape)
+        psf = zero_pad_to_shape(psf, pad_shape)
 
-    if psf.spacing != image.spacing:
-        psf = imops.zoom_to_spacing(psf, image.spacing)
+    psf_arr = psf.view(np.ndarray) / psf.max()
+    image_arr = image.view(np.ndarray)
 
-    if add_pad != 0:
-        new_shape = [i + 2 * add_pad for i in image_s.shape]
-        image_s = imops.zero_pad_to_shape(image_s, new_shape)
+    fft_backend = resolve_fft(backend)
 
-    if psf.shape != image_s.shape:
-        psf = imops.zero_pad_to_shape(psf, image_s.shape)
+    psf_f = fft_backend.fftn(fft_backend.fftshift(psf_arr))
+    wiener = _wiener_filter(psf_f, nsr)
+    image_f = fft_backend.ifftn(fft_backend.fftn(image_arr) * wiener)
 
-    psf /= psf.max()
+    result = Image(image_f.astype(image_arr.dtype), image.spacing)
+    if add_pad > 0:
+        result = remove_zero_padding(result, image.shape)
+    return result
 
-    psf_f = fftn(fftshift(psf))
 
-    wiener = arrayops.safe_divide(
-        np.abs(psf_f) ** 2 / (np.abs(psf_f) ** 2 + snr), psf_f
-    )
-
-    image_s = fftn(image_s)
-
-    image_s = Image(np.abs(ifftn(image_s * wiener).real), image.spacing)
-
-    return imops.remove_zero_padding(image_s, orig_shape)
+def _wiener_filter(
+    psf_f: np.ndarray,
+    nsr: float,
+) -> np.ndarray:
+    """Frequency-domain Wiener filter — works on numpy or cupy arrays."""
+    psf_abs_sq = np.abs(psf_f) ** 2
+    with np.errstate(divide="ignore", invalid="ignore"):
+        result = psf_abs_sq / (psf_abs_sq + nsr) / psf_f
+        result[result == np.inf] = 0.0
+        return np.nan_to_num(result)

@@ -4,6 +4,8 @@ Options for multi-view image fusion
 
 import argparse
 
+from miplib.processing.deconvolution.deconvolver import FusionMode
+from miplib.processing.deconvolution.estimates import FirstEstimate
 from miplib.ui.cli.argparse_helpers import parse_range_list
 
 
@@ -11,7 +13,7 @@ def get_fusion_options_group(parser):
     assert isinstance(parser, argparse.ArgumentParser)
     group = parser.add_argument_group("Fusion", "Options for image fusion")
 
-    group.add_argument("--disable-cuda", action="store_true")
+    group.add_argument("--enable-cuda", action="store_true")
     group.add_argument(
         "--max-nof-iterations",
         type=int,
@@ -29,16 +31,9 @@ def get_fusion_options_group(parser):
 
     group.add_argument(
         "--first-estimate",
-        choices=[
-            "first_image",
-            "first_image_mean",
-            "sum_of_originals",
-            "sum_of_registered",
-            "average_of_all",
-            "simple_fusion",
-            "constant",
-        ],
-        default="first_image_mean",
+        type=FirstEstimate,
+        choices=list(FirstEstimate),
+        default=FirstEstimate.IMAGE_MEAN,
         help="Specify first estimate for iteration.",
     )
 
@@ -65,13 +60,13 @@ def get_fusion_options_group(parser):
     group.add_argument(
         "--fusion-method",
         dest="fusion_method",
-        choices=["multiplicative", "multiplicative-opt", "summative", "summative-opt"],
-        default="summative",
+        type=FusionMode,
+        choices=list(FusionMode),
+        default=FusionMode.SUMMATIVE,
     )
 
     group.add_argument(
         "--blocks",
-        dest="num_blocks",
         type=int,
         default=1,
         help="Define the number of blocks you want to break the images into"
@@ -94,7 +89,6 @@ def get_fusion_options_group(parser):
 
     group.add_argument(
         "--pad",
-        dest="block_pad",
         type=int,
         default=0,
         help="The amount of padding to apply to a fusion block.",
@@ -107,4 +101,16 @@ def get_fusion_options_group(parser):
     group.add_argument("--disable-tau1", action="store_true")
 
     group.add_argument("--disable-fft-psf-memmap", action="store_true")
+
+    group.add_argument(
+        "--save-tiff",
+        default=None,
+        metavar="PATH",
+        help="Save result as TIFF to the given path.",
+    )
+    group.add_argument(
+        "--save-hdf",
+        action="store_true",
+        help="Save result to the HDF data structure.",
+    )
     return parser

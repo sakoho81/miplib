@@ -183,7 +183,19 @@ def get_fusion_script_options(arguments):
     """
 
     parser = argparse.ArgumentParser(
-        description="Command line arguments for themiplib image fusion script"
+        description="Multi-view image fusion using Richardson-Lucy deconvolution.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Examples:\n"
+            "  # Fuse all views with 100 iterations\n"
+            "  miplib-fuse data.hdf5 --max-nof-iterations 100\n\n"
+            "  # Fuse specific views with CUDA\n"
+            "  miplib-fuse data.hdf5 --fuse-views 0,1,2 --enable-cuda "
+            "--max-nof-iterations 200\n\n"
+            "  # Fuse with multiplicative fusion mode\n"
+            "  miplib-fuse data.hdf5 --fusion-method multiplicative "
+            "--max-nof-iterations 100\n"
+        ),
     )
     parser.add_argument(
         "data_file", help="Give a path to a HDF5 file that contains the images"

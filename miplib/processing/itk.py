@@ -158,7 +158,7 @@ def rotate_image(
         transform: sitk.Transform = sitk.Euler3DTransform()
         rotation = [0.0, 0.0, 0.0]
         rotation[axis] = radians
-        transform.SetRotation(*rotation)
+        transform.SetRotation(*rotation)  # type: ignore[attr-defined]  # type: ignore[attr-defined]
     elif image.GetDimension() == 2:
         transform = sitk.Euler2DTransform()
         transform.SetAngle(radians)
@@ -167,7 +167,7 @@ def rotate_image(
             f"rotate_image supports 2D and 3D only, got {image.GetDimension()}D"
         )
 
-    transform.SetCenter(calculate_center_of_image(image))
+    transform.SetCenter(calculate_center_of_image(image))  # type: ignore[attr-defined]
 
     return resample_image(image, transform, interpolation=interpolation)
 

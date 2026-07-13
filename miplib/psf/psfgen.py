@@ -33,7 +33,9 @@ class PsfFromFwhm:
             fwhm = [fwhm[0], fwhm[0]]
 
         self.shape = int(shape[0]), int(shape[1])
-        self.dims = psf.Dimensions(px=shape, um=(float(dims[0]), float(dims[1])))
+        self.dims: psf.Dimensions = psf.Dimensions(
+            px=shape, um=(float(dims[0]), float(dims[1]))
+        )
 
         self.spacing = [x / y for x, y in zip(self.dims.um, self.dims.px, strict=False)]
         self.sigma_px = [

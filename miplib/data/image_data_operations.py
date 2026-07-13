@@ -102,7 +102,7 @@ def calculate_missing_psfs(store: ImageDataStore) -> None:
 
             store.add_image(
                 key_psf_new,
-                psf_new,
+                psf_new,  # type: ignore[arg-type]
                 attrs_reg["angle"],
                 image_spacing,
                 calculated=True,
