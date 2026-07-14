@@ -35,10 +35,19 @@ def namespace_to_frc_options(ns: object) -> FRCOptions:
     Extracts only the fields that match FRCOptions field names.
     This bridges the old CLI layer (argparse flags) to the new dataclass API.
     """
-    kwargs = {}
-    for name, field in FRCOptions.__dataclass_fields__.items():
-        kwargs[name] = getattr(ns, name, field.default)
-    return FRCOptions(**kwargs)
+    return FRCOptions(
+        d_bin=getattr(ns, "d_bin", 1.0),
+        disable_hamming=getattr(ns, "disable_hamming", False),
+        d_angle=getattr(ns, "d_angle", 45.0),
+        d_extract_angle=getattr(ns, "d_extract_angle", 5.0),
+        frc_curve_fit_degree=getattr(ns, "frc_curve_fit_degree", 8),
+        frc_curve_fit_type=getattr(ns, "frc_curve_fit_type", "spline"),
+        resolution_threshold_criterion=getattr(
+            ns, "resolution_threshold_criterion", "fixed"
+        ),
+        resolution_threshold_value=getattr(ns, "resolution_threshold_value", 1.0 / 7),
+        resolution_snr_value=getattr(ns, "resolution_snr_value", 0.25),
+    )
 
 
 def create_fourier_iterator(
