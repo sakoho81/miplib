@@ -84,7 +84,7 @@ Conftest.py with shared Image fixtures and pattern generators lives at `tests/co
 ## Test Data Strategy
 
 - **Prefer built-in images**: `skimage.data.camera()`, `skimage.data.shepp_logan_phantom()`, `skimage.data.binary_blobs(n_dim=3)` for image processing tests.
-- **Shared fixtures** are in `tests/conftest.py`: `image_2d`, `image_3d`, `gaussian_2d`, `camera_image`, `shepp_logan`, `blobs_3d`, `psf_gaussian_2d`.
+- **Shared fixtures** are in `tests/conftest.py`: `image_2d`, `image_3d`, `gaussian_2d`, `camera_image`, `shepp_logan`, `blobs_3d`, `psf_gaussian_2d`, `frc_options`.
 - **Pattern generators** in `tests/conftest.py`: `gaussian_spot(shape, sigma)`, `sine_grating(shape, frequency)`, `impulse(shape)`, `step_edge(shape, axis)`, `bin_aligned_sine(shape, n_cycles, axis)`, `two_frequency_signal(shape, low, high, axis)`, `checkerboard_pattern(shape)`.
 - **When writing new tests**, prefer conftest fixtures and pattern generators over local duplicates. If a test creates a reusable deterministic pattern (e.g. a 0/1 checkerboard), add it to conftest as a pattern generator function so other test modules can share it. Keep fixtures and generators documented in the lists above.
 - When a new Image-based pattern is needed, import pattern generators from conftest via `from tests.conftest import <name>` and wrap with `Image(...)` inline.
@@ -117,12 +117,15 @@ The vast majority of modules have zero test coverage. Priority candidates (small
 | lower | `processing/deconvolution/*` | Now has Image + blobs_3d + psf_gaussian_2d |
 | lower | `processing/fusion/*` | Now has Image + blobs_3d fixtures |
 | lower | `analysis/*` | Depends on data containers |
+| ✓ done | `tests/analysis/resolution/` | FRCOptions, accumulate, curve builder, analysis, first_guess |
 
 ## Known Gaps / Future Work
 
-- **FRC analysis cleanup** — `miplib/analysis/resolution/analysis.py` has a `first_guess` that crashes with `IndexError` when the FRC curve never crosses the resolution threshold. The tracker FRC smoke test is marked `xfail` for this reason.
+- **CLI migration to dataclass + `--options` JSON pattern** — The `bin/pyimq.py`, `bin/power.py`, and `bin/resolution.py` now use a typed `@dataclass` options class + `options_from_dict()` bridge (via dacite). Remaining CLIs (`deconvolve`, `ism`, `registration`, `fuse`) still build bare `argparse.Namespace` objects and pass them as untyped bags of attributes. Migrating them to the same pattern would:
+  - Make library functions accept typed dataclasses (`RLOptions`, `RegistrationOptions`, `FusionOptions`)
+  - Give non-CLI callers a clean programmatic API without constructing `argparse.Namespace`
+  - Allow flexible CLI usage via `--options` JSON override (useful for automated/agent-driven workflows)
 - **FFT primitives consolidation** — `miplib/processing/deconvolution/backends.py` defines `_CPUFFT`/`_CUDAFFT`/`resolve_fft` for GPU-aware `fftn`/`ifftn` dispatch. These should move into `miplib/processing/fftutils.py` so the whole library has one CPU+CUDA FFT layer. `fftutils.fft()` and `ifft()` would gain an optional `backend` kwarg. Currently `backends.py` and `wiener.py` each do their own `cupy` import guard — this should become a single import in `fftutils`.
-- **FRCOptions dataclass** — The FRC tracker constructs an `argparse.Namespace` for `calculate_single_image_frc()`. Replace with a proper `FRCOptions` dataclass (TODO already in code at `tracker.py:_check_frc`).
 - **Estimate checkpoint support** — Saving/loading estimate state mid-deconvolution would allow resuming from checkpoints. Needs `EstimateIO.save(estimate, path)` / `load(path, shape, spacing)` plus metadata (iteration count, tracker state, PSF parameters).
 
 ## Code Style
