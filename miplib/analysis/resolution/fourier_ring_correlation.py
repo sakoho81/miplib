@@ -6,6 +6,7 @@ import numpy as np
 
 import miplib.data.iterators.fourier_ring_iterators as iterators
 import miplib.processing.image as imops
+import miplib.processing.ndarray as arrayutils
 from miplib.data.containers.fourier_correlation_data import (
     FourierCorrelationData,
     FourierCorrelationDataCollection,
@@ -114,12 +115,7 @@ def build_correlation_curve(
         (spatial_freq, correlation) arrays.
     """
     spatial_freq = radii.astype(np.float32) / nyquist
-
-    with np.errstate(divide="ignore", invalid="ignore"):
-        frc = np.abs(c1) / np.sqrt(c2 * c3)
-        frc[np.isinf(frc)] = 0.0
-        frc = np.nan_to_num(frc)
-
+    frc = arrayutils.safe_divide(np.abs(c1), np.sqrt(c2 * c3))
     return spatial_freq, frc
 
 
