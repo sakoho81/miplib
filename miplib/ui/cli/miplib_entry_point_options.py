@@ -329,14 +329,37 @@ def get_common_options(parser):
     group = parser.add_argument_group(
         "Filters common", "Common options for the quality filters"
     )
-    group.add_argument("--normalize-power", dest="normalize_power", action="store_true")
-    group.add_argument("--use-mask", dest="use_mask", action="store_true")
-    group.add_argument("--invert-mask", dest="invert_mask", action="store_true")
     group.add_argument(
-        "--power-threshold", dest="power_threshold", type=float, default=0.4
+        "--normalize-power",
+        dest="normalize_power",
+        action="store_true",
+        help="Normalize power spectrum by image dimensions and mean intensity",
     )
     group.add_argument(
-        "--spatial-threshold", dest="spatial_threshold", type=int, default=80
+        "--use-mask",
+        dest="use_mask",
+        action="store_true",
+        help="Restrict entropy calculation to high-detail regions (above spatial threshold)",
+    )
+    group.add_argument(
+        "--invert-mask",
+        dest="invert_mask",
+        action="store_true",
+        help="Invert the mask (analyze background instead of foreground)",
+    )
+    group.add_argument(
+        "--power-threshold",
+        dest="power_threshold",
+        type=float,
+        default=0.4,
+        help="Fraction of Nyquist frequency above which to analyze power spectrum tail (default: 0.4)",
+    )
+    group.add_argument(
+        "--spatial-threshold",
+        dest="spatial_threshold",
+        type=int,
+        default=80,
+        help="Percentile threshold for selecting high-detail regions in spatial domain (default: 80)",
     )
 
     return parser
@@ -357,7 +380,11 @@ def get_quality_script_options(arguments):
     """
 
     parser = argparse.ArgumentParser(
-        description="Command line arguments for the image quality ranking software"
+        description="Image quality ranking and analysis tool for microscopy datasets. "
+        "Computes multiple quality metrics (spatial entropy, Brenner gradient, spectral moments, "
+        "power spectrum statistics) to rank images by focus quality and detail content. "
+        "Useful for finding the best-focused images in large datasets or filtering out "
+        "out-of-focus images before quantitative analysis."
     )
 
     parser.add_argument(
@@ -439,9 +466,10 @@ def get_power_script_options(arguments):
     1D power spectra of images within a directory.
     """
     parser = argparse.ArgumentParser(
-        description="Command line options for the power.py script that can be"
-        "used to save the power spectra of images within a "
-        "directory"
+        description="Extract 1D radial power spectra from microscopy images. "
+        "Computes the rotationally averaged power spectrum for each image in a directory "
+        "and exports the results to a CSV file. Useful for analyzing frequency content "
+        "and comparing resolution characteristics across image datasets."
     )
     parser.add_argument(
         "--working-directory",
