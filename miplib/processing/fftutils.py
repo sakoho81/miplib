@@ -127,20 +127,23 @@ def radial_average(image: np.ndarray, bin_size: int = 2) -> np.ndarray:
     Dispatches to FourierRingIterator (2D) or FourierShellIterator (3D).
     """
     if image.ndim == 2:
-        iterator = FourierRingIterator(image.shape, d_bin=bin_size)
-        nbins = iterator.nbins
+        ring_iter = FourierRingIterator(image.shape, d_bin=bin_size)
+        nbins = ring_iter.nbins
+        averages = np.zeros(nbins)
+        for ring_indices, ring_idx in ring_iter:
+            subset = image[ring_indices]
+            averages[ring_idx] = float(subset.sum()) / subset.size
+        return averages
     elif image.ndim == 3:
-        iterator = FourierShellIterator(image.shape, d_bin=bin_size)
-        nbins = len(iterator.radii)
+        shell_iter = FourierShellIterator(image.shape, d_bin=bin_size)
+        nbins = len(shell_iter.radii)
+        averages = np.zeros(nbins)
+        for shell_indices, shell_idx in shell_iter:
+            subset = image[shell_indices]
+            averages[shell_idx] = float(subset.sum()) / subset.size
+        return averages
     else:
         raise ValueError(f"radial_average requires 2D or 3D array, got {image.ndim}D")
-
-    averages = np.zeros(nbins)
-    for ring_indices, ring_idx in iterator:
-        subset = image[ring_indices]
-        averages[ring_idx] = float(subset.sum()) / subset.size
-
-    return averages
 
 
 def power_spectrum_1d(
