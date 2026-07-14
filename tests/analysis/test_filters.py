@@ -66,6 +66,47 @@ def test_local_image_quality_masking_selects_intensity_regions(camera_image):
     assert entropy_masked < entropy_unmasked
 
 
+def test_local_image_quality_masking_focuses_on_object_detail():
+    """Masking excludes background and focuses on object texture/structure.
+
+    With images that have clear foreground objects (coins, blobs), the masked
+    histogram should better represent the object's internal variation, excluding
+    the dominant background signal.
+    """
+    from skimage import data
+
+    from miplib.analysis.image_quality.utils import calculate_entropy
+    from miplib.processing.segmentation import masking
+
+    # Load coins image - has clear coin objects on dark background
+    coins_data = data.coins().astype(np.float64)
+    coins = Image(coins_data, spacing=(1.0, 1.0))
+
+    # Get masked region
+    mask = masking.make_local_intensity_based_mask(
+        coins, threshold=80, kernel_size=15, invert=False
+    )
+
+    # Extract masked pixels (coin regions)
+    masked_pixels = coins_data[mask.astype(bool)]
+
+    # The masked histogram should capture coin texture variation
+    # Check that masked region has meaningful intensity variation
+    assert masked_pixels.std() > 10  # coins have texture/variation
+    assert len(masked_pixels) > 1000  # significant portion of image
+
+    # Unmasked histogram is dominated by background
+    unmasked_pixels = coins_data.flatten()
+
+    # Masked pixels should have different distribution than unmasked
+    # (background is dark, coins are bright with internal variation)
+    assert masked_pixels.mean() > unmasked_pixels.mean()
+
+    # The masked entropy represents the object's internal detail
+    masked_entropy = calculate_entropy(masked_pixels)
+    assert masked_entropy > 0  # coins have texture
+
+
 # --- frequency_quality ---
 
 
