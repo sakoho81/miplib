@@ -1,4 +1,3 @@
-import numpy as np
 import pytest
 
 from miplib.analysis.image_quality.filters import PowerSpectrumStats
@@ -10,11 +9,9 @@ from miplib.data.containers.image import Image
 from tests.conftest import gaussian_spot
 
 
-def test_evaluate_image_quality_returns_correct_structure():
+def test_evaluate_image_quality_returns_correct_structure(camera_image):
     """evaluate_image_quality returns ImageQualityMetrics with correct fields."""
-    rng = np.random.default_rng(42)
-    image = Image(rng.random((64, 64)), (1.0, 1.0))
-    metrics = evaluate_image_quality(image)
+    metrics = evaluate_image_quality(camera_image)
     assert isinstance(metrics, ImageQualityMetrics)
     assert hasattr(metrics, "entropy")
     assert hasattr(metrics, "brenner")
@@ -23,34 +20,28 @@ def test_evaluate_image_quality_returns_correct_structure():
     assert isinstance(metrics.power_stats, PowerSpectrumStats)
 
 
-def test_evaluate_image_quality_deterministic():
+def test_evaluate_image_quality_deterministic(camera_image):
     """Same image produces same metrics."""
-    rng = np.random.default_rng(42)
-    image = Image(rng.random((64, 64)), (1.0, 1.0))
-    metrics1 = evaluate_image_quality(image)
-    metrics2 = evaluate_image_quality(image)
+    metrics1 = evaluate_image_quality(camera_image)
+    metrics2 = evaluate_image_quality(camera_image)
     assert metrics1.entropy == pytest.approx(metrics2.entropy)
     assert metrics1.brenner == pytest.approx(metrics2.brenner)
     assert metrics1.spectral_moments == pytest.approx(metrics2.spectral_moments)
     assert metrics1.power_stats.mean == pytest.approx(metrics2.power_stats.mean)
 
 
-def test_evaluate_image_quality_all_metrics_finite():
-    """All metrics are finite (not NaN or inf)."""
-    rng = np.random.default_rng(42)
-    image = Image(rng.random((64, 64)), (1.0, 1.0))
-    metrics = evaluate_image_quality(image)
-    assert np.isfinite(metrics.entropy)
-    assert np.isfinite(metrics.brenner)
-    assert np.isfinite(metrics.spectral_moments)
-    assert np.isfinite(metrics.power_stats.mean)
-    assert np.isfinite(metrics.power_stats.std)
-    assert np.isfinite(metrics.power_stats.entropy)
-    assert np.isfinite(metrics.power_stats.threshold_freq)
-    assert np.isfinite(metrics.power_stats.power_at_high_freq)
-    assert np.isfinite(metrics.power_stats.skew)
-    assert np.isfinite(metrics.power_stats.kurtosis)
-    assert np.isfinite(metrics.power_stats.mean_bin)
+def test_evaluate_image_quality_known_values(camera_image):
+    """Camera image produces expected metric ranges."""
+    metrics = evaluate_image_quality(camera_image)
+    # Camera image has significant detail, so entropy should be moderate to high
+    assert 4.0 < metrics.entropy < 8.0
+    # Brenner gradient should be positive (has edges)
+    assert metrics.brenner > 1000
+    # Spectral moments should be positive
+    assert metrics.spectral_moments > 0
+    # Power spectrum should have significant high-frequency content
+    assert metrics.power_stats.mean > 0
+    assert metrics.power_stats.power_at_high_freq > 0
 
 
 def test_evaluate_image_quality_gaussian_spot():

@@ -21,27 +21,22 @@ def test_local_image_quality_constant_image_low_entropy():
     assert entropy == pytest.approx(0.0, abs=1e-10)
 
 
-def test_local_image_quality_high_detail_higher_entropy():
-    """High-detail image has higher entropy than smooth image."""
-    rng = np.random.default_rng(42)
-    smooth = Image(np.ones((64, 64)) * 50, (1.0, 1.0))
-    detailed = Image(rng.random((64, 64)), (1.0, 1.0))
-    entropy_smooth = local_image_quality(smooth)
-    entropy_detailed = local_image_quality(detailed)
-    assert entropy_detailed > entropy_smooth
+def test_local_image_quality_high_detail_higher_entropy(camera_image, gaussian_2d):
+    """High-detail image has higher entropy than smooth Gaussian."""
+    entropy_camera = local_image_quality(camera_image)
+    entropy_gaussian = local_image_quality(gaussian_2d)
+    # Camera image has more detail (edges, textures) than smooth Gaussian
+    assert entropy_camera > entropy_gaussian
 
 
-def test_local_image_quality_masked_vs_unmasked():
+def test_local_image_quality_masked_vs_unmasked(camera_image):
     """Masked entropy calculation differs from unmasked."""
-    rng = np.random.default_rng(42)
-    data = rng.random((64, 64))
-    image = Image(data, (1.0, 1.0))
     from miplib.analysis.image_quality.filters import QualityFilterOptions
 
     options_unmasked = QualityFilterOptions(use_mask=False)
     options_masked = QualityFilterOptions(use_mask=True, spatial_threshold=50)
-    entropy_unmasked = local_image_quality(image, options_unmasked)
-    entropy_masked = local_image_quality(image, options_masked)
+    entropy_unmasked = local_image_quality(camera_image, options_unmasked)
+    entropy_masked = local_image_quality(camera_image, options_masked)
     assert entropy_unmasked != entropy_masked
 
 
@@ -82,13 +77,24 @@ def test_frequency_quality_sine_grating_peak_at_known_frequency():
 # --- spectral_moments ---
 
 
-def test_spectral_moments_deterministic():
+def test_spectral_moments_deterministic(camera_image):
     """Spectral moments produces same result for same input."""
-    rng = np.random.default_rng(42)
-    image = Image(rng.random((64, 64)), (1.0, 1.0))
-    moments1 = spectral_moments(image)
-    moments2 = spectral_moments(image)
+    moments1 = spectral_moments(camera_image)
+    moments2 = spectral_moments(camera_image)
     assert moments1 == pytest.approx(moments2)
+
+
+def test_spectral_moments_sharp_vs_blurred(camera_image):
+    """Sharp image has higher spectral moments than blurred version."""
+    from scipy.ndimage import gaussian_filter
+
+    sharp_moments = spectral_moments(camera_image)
+    # Create blurred version
+    blurred_data = gaussian_filter(camera_image[:], sigma=3.0)
+    blurred = Image(blurred_data, camera_image.spacing)
+    blurred_moments = spectral_moments(blurred)
+    # Sharp image should have higher moments (more high-frequency content)
+    assert sharp_moments > blurred_moments
 
 
 def test_spectral_moments_returns_float():

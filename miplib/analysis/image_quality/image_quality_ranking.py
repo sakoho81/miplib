@@ -84,13 +84,13 @@ def batch_evaluate_image_quality(
         ]
     )
 
-    path = Path(path)
-    for idx, image_entry in enumerate(path.iterdir()):
-        if not image_entry.is_file():
-            continue
-        if image_entry.suffix not in (".jpg", ".tif", ".tiff"):
-            continue
+    path_obj = Path(path) if not isinstance(path, Path) else path
+    image_files = []
+    for ext in ("*.jpg", "*.tif", "*.tiff"):
+        image_files.extend(path_obj.glob(ext))
+    image_files.sort()
 
+    for idx, image_entry in enumerate(image_files):
         image = read.get_image(image_entry)
         metrics = evaluate_image_quality(image, options)
 

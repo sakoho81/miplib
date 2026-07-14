@@ -320,11 +320,21 @@ def test_power_spectrum_sine_grating_peaks_at_known_frequencies():
 
 
 def test_power_spectrum_3d():
-    """Power spectrum works for 3D arrays."""
-    arr = np.random.default_rng(42).random((8, 8, 8))
+    """Power spectrum of 3D pattern with known frequency."""
+    # Create 3D sine wave along z-axis
+    z = np.arange(16)
+    freq = 0.2  # cycles per pixel
+    sine_3d = np.sin(2 * np.pi * freq * z).reshape(-1, 1, 1)
+    arr = np.broadcast_to(sine_3d, (16, 16, 16)).astype(float)
     ps = power_spectrum(arr)
-    assert ps.shape == (8, 8, 8)
+    assert ps.shape == (16, 16, 16)
     assert np.all(ps >= 0)
+    # Check that peak is at expected frequency location
+    center = 8
+    freq_bin = int(freq * 16)
+    # Peaks should be at z=center±freq_bin
+    assert ps[center - freq_bin, center, center] > 0
+    assert ps[center + freq_bin, center, center] > 0
 
 
 def test_power_spectrum_accepts_image():

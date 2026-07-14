@@ -322,63 +322,18 @@ def get_transform_script_options(arguments):
 # region Image Quality Ranking
 
 
-def get_common_options(parser):
-    """
-    Common command-line options for the image-quality filters
-    """
-    group = parser.add_argument_group(
-        "Filters common", "Common options for the quality filters"
-    )
-    group.add_argument(
-        "--normalize-power",
-        dest="normalize_power",
-        action="store_true",
-        help="Normalize power spectrum by image dimensions and mean intensity",
-    )
-    group.add_argument(
-        "--use-mask",
-        dest="use_mask",
-        action="store_true",
-        help="Restrict entropy calculation to high-detail regions (above spatial threshold)",
-    )
-    group.add_argument(
-        "--invert-mask",
-        dest="invert_mask",
-        action="store_true",
-        help="Invert the mask (analyze background instead of foreground)",
-    )
-    group.add_argument(
-        "--power-threshold",
-        dest="power_threshold",
-        type=float,
-        default=0.4,
-        help="Fraction of Nyquist frequency above which to analyze power spectrum tail (default: 0.4)",
-    )
-    group.add_argument(
-        "--spatial-threshold",
-        dest="spatial_threshold",
-        type=int,
-        default=80,
-        help="Percentile threshold for selecting high-detail regions in spatial domain (default: 80)",
-    )
+def get_quality_options(arguments):
+    """Command line options for the image quality ranking script.
 
-    return parser
+    Minimal API: positional input (file or directory), optional output path,
+    and RGB channel selection. All other filter options use sensible defaults.
 
-
-def get_quality_script_options(arguments):
-    """Command line options for the image quality ranking script
-
-
-    Arguments:
-        arguments {tuple} -- Command line parameters as a tuple of strings,
-        typically obtained as sys.argv[1:]. But one can of course just use
-        string.split(" "), if using in a notebook for example.
+    Args:
+        arguments: Command line parameters as a list of strings
 
     Returns:
-        [Namespace object] -- Simple class used by default by parse_args()
-        to create an object holding attributes and return it.
+        Namespace object with parsed arguments
     """
-
     parser = argparse.ArgumentParser(
         description="Image quality ranking and analysis tool for microscopy datasets. "
         "Computes multiple quality metrics (spatial entropy, Brenner gradient, spectral moments, "
@@ -388,82 +343,40 @@ def get_quality_script_options(arguments):
     )
 
     parser.add_argument(
-        "--file", type=Path, help="Defines a path to the image files", default=None
+        "input",
+        type=Path,
+        help="Input image file or directory containing images",
     )
-    parser.add_argument("--debug", action="store_true")
     parser.add_argument(
-        "--file-filter",
-        dest="file_filter",
+        "-o",
+        "--output",
+        type=Path,
+        help="Output CSV file path (default: auto-generated in input directory)",
         default=None,
-        help="Define a common string in the files to be analysed",
     )
     parser.add_argument(
         "--rgb-channel",
-        help="Select which channel in an RGB image is to be used for quality analysis",
         dest="rgb_channel",
         type=int,
         choices=[0, 1, 2],
         default=1,
-    )
-    # File filtering for batch mode processing
-    parser.add_argument(
-        "--average-filter",
-        dest="average_filter",
-        type=int,
-        default=0,
-        help="Analyze only images with similar amount of detail, by selecting a "
-        "grayscale average pixel value threshold here",
-    )
-    parser.add_argument(
-        "--working-directory",
-        dest="working_directory",
-        type=Path,
-        help="Defines the location of the working directory",
-        default=Path("/home/sami/Pictures/Quality"),
-    )
-    parser.add_argument(
-        "--mode",
-        choices=["file", "directory", "analyze", "plot"],
-        action="append",
-        help="The argument containing the functionality of the main program"
-        "You can concatenate actions by defining multiple modes in a"
-        "single command, e.g. --mode=directory --mode=analyze",
-    )
-    # Parameters for controlling the way plot functionality works.
-    parser.add_argument(
-        "--result",
-        default="average",
-        choices=[
-            "average",
-            "fskew",
-            "ientropy",
-            "fentropy",
-            "fstd",
-            "fkurtosis",
-            "fpw",
-            "fmean",
-            "icv",
-            "meanbin",
-        ],
-        help="Tell how you want the results to be calculated.",
-    )
-    parser.add_argument(
-        "--npics",
-        type=int,
-        default=9,
-        help="Define how many images are shown in the plots",
+        help="RGB channel to use for analysis (0=R, 1=G, 2=B, default: 1)",
     )
 
-    parser = get_common_options(parser)
-    parser = get_common_options_group(parser)
-    parser = get_frc_options_group(parser)
     return parser.parse_args(arguments)
 
 
-def get_power_script_options(arguments):
-    """
-    Command line arguments for the power.py script that is used to calculate
-    1D power spectra of images within a directory.
+def get_power_options(arguments):
+    """Command line options for the power spectrum extraction script.
+
+    Minimal API: positional input directory, optional output path, image size,
+    and RGB channel selection.
+
+    Args:
+        arguments: Command line parameters as a list of strings
+
+    Returns:
+        Namespace object with parsed arguments
     """
     parser = argparse.ArgumentParser(
         description="Extract 1D radial power spectra from microscopy images. "
@@ -471,23 +384,35 @@ def get_power_script_options(arguments):
         "and exports the results to a CSV file. Useful for analyzing frequency content "
         "and comparing resolution characteristics across image datasets."
     )
+
     parser.add_argument(
-        "--working-directory",
-        dest="working_directory",
+        "input",
         type=Path,
-        help="Defines the location of the working directory",
-        default=Path("/home/sami/Pictures/Quality"),
+        help="Input directory containing images",
     )
-    parser.add_argument("--image-size", dest="image_size", type=int, default=512)
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        help="Output CSV file path (default: auto-generated in input directory)",
+        default=None,
+    )
+    parser.add_argument(
+        "--image-size",
+        dest="image_size",
+        type=int,
+        default=512,
+        help="Resize images to this size before analysis (default: 512)",
+    )
     parser.add_argument(
         "--rgb-channel",
-        help="Select which channel in an RGB image is to be used for quality analysis",
         dest="rgb_channel",
         type=int,
         choices=[0, 1, 2],
         default=1,
+        help="RGB channel to use for analysis (0=R, 1=G, 2=B, default: 1)",
     )
-    parser = get_common_options(parser)
+
     return parser.parse_args(arguments)
 
 

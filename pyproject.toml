@@ -64,9 +64,8 @@ notebooks = [
 "miplib-ism" = "miplib.bin.ism:main"
 "miplib-register" = "miplib.bin.register:main"
 "miplib-resolution" = "miplib.bin.resolution:main"
-"pyimq.main" = "miplib.bin.pyimq:main"
-"pyimq.subjective" = "miplib.bin.subjective:main"
-"pyimq.power" = "miplib.bin.power:main"
+"miplib-quality" = "miplib.bin.pyimq:main"
+"miplib-power" = "miplib.bin.power:main"
 
 [project.urls]
 Homepage = "https://github.com/sakoho81/miplib"
