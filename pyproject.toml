@@ -61,6 +61,7 @@ notebooks = [
 "miplib-correlate" = "miplib.bin.correlatem:main"
 "miplib-deconvolve" = "miplib.bin.deconvolve:main"
 "miplib-fuse" = "miplib.bin.fuse:main"
+"miplib-ism" = "miplib.bin.ism:main"
 "miplib-register" = "miplib.bin.register:main"
 "miplib-resolution" = "miplib.bin.resolution:main"
 "pyimq.main" = "miplib.bin.pyimq:main"
