@@ -275,7 +275,7 @@ class RotatingFourierShellIterator(FourierShellIterator):
         return np.where(points_on_plane * points_on_shell)
 
     def __next__(self) -> tuple[tuple[np.ndarray, ...], int, int]:  # type: ignore[override]
-        rotation_idx = self.current_rotation + 1
+        rotation_idx = self.current_rotation
         shell_idx = self.current_shell
 
         if shell_idx <= self.shell_stop:

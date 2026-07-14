@@ -54,9 +54,10 @@ class FourierCorrelationDataReader:
 
                 data_set.resolution["threshold"] = resolution_group["threshold"][:]
                 data_set.resolution["resolution"] = resolution_group.attrs["resolution"]
-                data_set.resolution["resolution-point"] = resolution_group.attrs[
-                    "resolution-point"
-                ].split()[:-1]
+                point_parts = resolution_group.attrs["resolution-point"].split()[:-1]
+                data_set.resolution["resolution-point"] = tuple(
+                    float(v) for v in point_parts
+                )
                 data_set.resolution["criterion"] = resolution_group.attrs["criterion"]
                 data_set.resolution["resolution-threshold-coefficients"] = (
                     resolution_group["resolution-threshold-coefficients"][:]

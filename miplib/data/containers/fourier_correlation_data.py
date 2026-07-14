@@ -118,7 +118,7 @@ class FourierCorrelationData:
                 self.resolution["resolution-point"][1],
                 dtype=np.float32,
             )
-            threshold = (self.resolution["threshold"],)
+            threshold = self.resolution["threshold"]
             to_df = {
                 "Correlation": self.correlation["correlation"],
                 "Frequency": self.correlation["frequency"],

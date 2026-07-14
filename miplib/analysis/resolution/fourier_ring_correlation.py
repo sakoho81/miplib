@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 
 import numpy as np
 
-import miplib.data.io.read as imread
 import miplib.data.iterators.fourier_ring_iterators as iterators
 import miplib.processing.image as imops
 from miplib.data.containers.fourier_correlation_data import (
@@ -181,21 +179,19 @@ def calculate_single_image_sectioned_frc(
     pair_1 = frc_helper(image1, image2, args, rotation)
     pair_2 = frc_helper(image1_r, image2_r, args, rotation)
 
-    pair_1.correlation["correlation"] * 0.5
+    pair_1.correlation["correlation"] *= 0.5
     pair_1.correlation["correlation"] += 0.5 * pair_2.correlation["correlation"]
 
     if orthogonal:
         pair_1_o = frc_helper(image1, image2, args, rotation + 90)
         pair_2_o = frc_helper(image1_r, image2_r, args, rotation + 90)
 
-        pair_1_o.correlation["correlation"] * 0.5
+        pair_1_o.correlation["correlation"] *= 0.5
         pair_1_o.correlation["correlation"] += 0.5 * pair_2_o.correlation["correlation"]
 
         pair_1.correlation["correlation"] += 0.5 * pair_1_o.correlation["correlation"]
 
     frc_data[0] = pair_1
-
-    frc_data[0].correlation["frequency"].copy()
 
     def func(x, a, b, c, d):
         return a * np.exp(c * (x - b)) + d
@@ -215,35 +211,6 @@ def calculate_single_image_sectioned_frc(
     result.resolution["resolution"] /= log_correction
 
     return result
-
-
-def batch_evaluate_frc(path, options):
-    """
-    Batch calculate FRC resolution for files placed in a directory
-    :param options: options for the FRC
-    :parame path:   directory that contains the images to be analyzed
-    """
-    assert Path(path).is_dir()
-
-    measures = FourierCorrelationDataCollection()
-    image_names = []
-
-    for idx, real_path in enumerate(sorted(Path(path).iterdir())):
-        # Only process images. The bioformats reader can actually do many more file formats
-        # but I was a little lazy here, as we usually have tiffs.
-        if not real_path.is_file() or real_path.suffix not in (".tiff", ".tif"):
-            continue
-        # ImageJ files have particular TIFF tags that can be processed correctly
-        # with the options.imagej switch
-        image = imread.get_image(real_path)
-
-        # Only grayscale images are processed. If the input is an RGB image,
-        # a channel can be chosen for processing.
-        measures[idx] = calculate_single_image_frc(image, options)
-
-        image_names.append(real_path.name)
-
-    return measures, image_names
 
 
 class FRC:
