@@ -40,27 +40,30 @@ def test_local_image_quality_masked_vs_unmasked(camera_image):
     assert entropy_unmasked != entropy_masked
 
 
-def test_local_image_quality_masking_selects_regions(blobs_3d):
-    """Masking restricts entropy calculation to selected regions.
+def test_local_image_quality_masking_selects_intensity_regions(camera_image):
+    """Masking restricts entropy calculation to high-intensity regions.
 
-    With blobs_3d (binary image), the mask selects high-intensity regions
-    (blob interiors). This test verifies that masking actually changes the
-    calculation by restricting to a subset of pixels.
+    The mask selects pixels above a spatial intensity threshold. This test
+    verifies that masking changes the entropy calculation by restricting to
+    a subset of pixels based on intensity, not spatial location.
     """
     from miplib.analysis.image_quality.filters import QualityFilterOptions
 
     # Unmasked: entropy over entire image
     options_unmasked = QualityFilterOptions(use_mask=False)
-    entropy_unmasked = local_image_quality(blobs_3d, options_unmasked, kernel_size=5)
+    entropy_unmasked = local_image_quality(
+        camera_image, options_unmasked, kernel_size=15
+    )
 
     # Masked: entropy only over high-intensity regions
     options_masked = QualityFilterOptions(use_mask=True, spatial_threshold=80)
-    entropy_masked = local_image_quality(blobs_3d, options_masked, kernel_size=5)
+    entropy_masked = local_image_quality(camera_image, options_masked, kernel_size=15)
 
-    # Masking should produce a different result (restricts to subset of pixels)
-    # For binary blobs, masked regions are uniform (blob interiors), so entropy is lower
+    # Masking should produce a different result (restricts to high-intensity subset)
     assert entropy_masked != entropy_unmasked
-    assert entropy_masked < entropy_unmasked  # blob interiors are uniform
+    # In camera image, bright regions (sky, highlights) are relatively uniform,
+    # so masked entropy is lower than unmasked
+    assert entropy_masked < entropy_unmasked
 
 
 # --- frequency_quality ---
