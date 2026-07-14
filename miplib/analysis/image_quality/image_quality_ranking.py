@@ -85,7 +85,7 @@ def batch_evaluate_image_quality(
     )
 
     path_obj = Path(path) if not isinstance(path, Path) else path
-    image_files = []
+    image_files: list[Path] = []
     for ext in ("*.jpg", "*.tif", "*.tiff"):
         image_files.extend(path_obj.glob(ext))
     image_files.sort()
