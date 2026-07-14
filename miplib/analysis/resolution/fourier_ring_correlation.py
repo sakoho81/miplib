@@ -27,7 +27,6 @@ class FRCOptions:
     resolution_threshold_criterion: str = "fixed"
     resolution_threshold_value: float = 1.0 / 7
     resolution_snr_value: float = 0.25
-    verbose: bool = False
 
 
 def namespace_to_frc_options(ns: object) -> FRCOptions:

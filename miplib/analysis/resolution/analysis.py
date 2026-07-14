@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import scipy.optimize as optimize
 from scipy.interpolate import UnivariateSpline, interp1d
@@ -8,6 +10,8 @@ from miplib.data.containers.fourier_correlation_data import (
     FourierCorrelationData,
     FourierCorrelationDataCollection,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def fit_frc_curve(data_set, degree, fit_type="spline"):
@@ -22,8 +26,6 @@ def fit_frc_curve(data_set, degree, fit_type="spline"):
     if fit_type == "smooth-spline":
         equation = UnivariateSpline(data_set.correlation["frequency"], data)
         equation.set_smoothing_factor(0.25)
-        # equation = interp1d(data_set.correlation["frequency"],
-        #                     data, kind='slinear')
 
     elif fit_type == "spline":
         equation = interp1d(data_set.correlation["frequency"], data, kind="slinear")
@@ -37,7 +39,7 @@ def fit_frc_curve(data_set, degree, fit_type="spline"):
         )
         equation = np.poly1d(coeff)
     else:
-        raise AttributeError(fit_type)
+        raise ValueError(f"Unknown fit_type: {fit_type!r}")
 
     data_set.correlation["curve-fit"] = equation(data_set.correlation["frequency"])
 
@@ -98,7 +100,7 @@ def calculate_resolution_threshold_curve(data_set, criterion, threshold, snr):
         points = calculate_snr_threshold_value(points_x_bin, snr)
 
     else:
-        raise AttributeError()
+        raise ValueError(f"Unknown criterion: {criterion!r}")
 
     if criterion != "fixed":
         # coeff = np.polyfit(data_set.correlation["frequency"], points, 3)
@@ -113,9 +115,26 @@ def calculate_resolution_threshold_curve(data_set, criterion, threshold, snr):
     return equation
 
 
+def _first_guess(x, y, threshold):
+    """Find the frequency index where the correlation curve crosses the threshold.
+
+    Returns the frequency value just before the crossing point, or the last
+    frequency if the curve never crosses the threshold.
+    """
+    difference = y - threshold
+    candidates = np.where(difference <= 0)[0]
+    if len(candidates) == 0:
+        return x[-1]
+    idx = max(0, candidates[0] - 1)
+    return x[idx]
+
+
 class FourierCorrelationAnalysis:
     def __init__(self, data, spacing, args):
-        assert isinstance(data, FourierCorrelationDataCollection)
+        if not isinstance(data, FourierCorrelationDataCollection):
+            raise TypeError(
+                f"Expected FourierCorrelationDataCollection, got {type(data).__name__}"
+            )
 
         self.data_collection = data
         self.args = args
@@ -134,50 +153,33 @@ class FourierCorrelationAnalysis:
         snr = self.args.resolution_snr_value
         degree = self.args.frc_curve_fit_degree
         fit_type = self.args.frc_curve_fit_type
-        verbose = self.args.verbose
 
-        def pdiff1(x):
+        def _pdiff1(x):
             return abs(frc_eq(x) - two_sigma_eq(x))
 
-        def pdiff2(x):
+        def _pdiff2(x):
             return abs(frc_eq(x) - threshold)
 
-        def first_guess(x, y, threshold):
-            # y_smooth = savgol_filter(y, 5, 2)
-            # return x[np.argmin(np.abs(y_smooth - threshold))]
-
-            difference = y - threshold
-
-            return x[np.where(difference <= 0)[0][0] - 1]
-            # return x[np.argmin(np.abs(y - threshold))]
-
         for key, data_set in self.data_collection:
-            if verbose:
-                print(f"Calculating resolution point for dataset {key}")
+            logger.debug("Calculating resolution point for dataset %s", key)
             frc_eq = fit_frc_curve(data_set, degree, fit_type)
             two_sigma_eq = calculate_resolution_threshold_curve(
                 data_set, criterion, threshold, snr
             )
 
-            """
-            Todo: Make the first quess adaptive. For example find the data point at which FRC
-            value is closest to the mean of the threshold
-            """
-
             # Find intersection
-            fit_start = first_guess(
+            fit_start = _first_guess(
                 data_set.correlation["frequency"],
                 data_set.correlation["correlation"],
                 np.mean(data_set.resolution["threshold"]),
             )
-            if self.args.verbose:
-                print(f"Fit starts at {fit_start}")
-                disp = 1
-            else:
-                disp = 0
-            root = optimize.fmin(
-                pdiff2 if criterion == "fixed" else pdiff1, fit_start, disp=disp
-            )[0]
+            logger.debug("Fit starts at %s", fit_start)
+
+            root = optimize.minimize_scalar(
+                _pdiff2 if criterion == "fixed" else _pdiff1,
+                bounds=(0, 1),
+                method="bounded",
+            ).x
             data_set.resolution["resolution-point"] = (frc_eq(root), root)
             data_set.resolution["criterion"] = criterion
 
