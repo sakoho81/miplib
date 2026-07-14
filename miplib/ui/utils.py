@@ -3,7 +3,7 @@ Various utilities that are used to convert command line parameters into
 data types that the progrma understands.
 """
 
-import os
+from pathlib import Path
 
 file_extensions = [".tif", ".lsm", "tiff", ".raw", ".data"]
 
@@ -35,18 +35,19 @@ def get_path_dir(path, suffix):
     """Return a directory name with suffix that will be used to save data
     related to given path.
     """
-    if os.path.isfile(path):
-        path_dir = path + "." + suffix
-    elif os.path.isdir(path):
-        path_dir = os.path.join(path, suffix)
-    elif os.path.exists(path):
+    p = Path(path)
+    if p.is_file():
+        path_dir = f"{path}.{suffix}"
+    elif p.is_dir():
+        path_dir = str(p / suffix)
+    elif p.exists():
         raise ValueError(f"Not a file or directory: {path!r}")
     else:
-        base, ext = os.path.splitext(path)
+        ext = p.suffix
         if ext in file_extensions:
-            path_dir = path + "." + suffix
+            path_dir = f"{path}.{suffix}"
         else:
-            path_dir = os.path.join(path, suffix)
+            path_dir = str(p / suffix)
     return path_dir
 
 
@@ -59,11 +60,12 @@ def get_full_path(path, prefix):
     :return:        Returns the absolute path, if the file is found,
                     None otherwise
     """
-    if not os.path.isfile(path):
-        path = os.path.join(prefix, path)
-        if not os.path.isfile(path):
-            raise ValueError(f"Not a valid file {path}")
-    return path
+    p = Path(path)
+    if not p.is_file():
+        p = Path(prefix) / path
+        if not p.is_file():
+            raise ValueError(f"Not a valid file {p}")
+    return str(p)
 
 
 def get_filename_and_extension(path):

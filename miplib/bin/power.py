@@ -12,8 +12,8 @@ file, each column denoting a single image.
 """
 
 import datetime
-import os
 import sys
+from pathlib import Path
 
 import numpy
 import pandas
@@ -26,31 +26,29 @@ from miplib.ui.cli import miplib_entry_point_options
 
 def main():
     options = miplib_entry_point_options.get_power_script_options(sys.argv[1:])
-    path = options.working_directory
+    path = Path(options.working_directory)
 
-    assert os.path.isdir(path)
+    assert path.is_dir()
 
     # Create output directory
     output_dir = datetime.datetime.now().strftime("%Y-%m-%d") + "_PyIQ_output"
-    output_dir = os.path.join(options.working_directory, output_dir)
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    output_dir = path / output_dir
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     # Create output file
     date_now = datetime.datetime.now().strftime("%H-%M-%S")
     file_name = date_now + "_PyIQ_power_spectra" + ".csv"
-    file_path = os.path.join(output_dir, file_name)
+    file_path = output_dir / file_name
 
     csv_data = pandas.DataFrame()
 
     # Scan through images
-    for image_in in os.listdir(path):
-        if not image_in.endswith((".jpg", ".tif", ".tiff", ".png")):
+    for image_in in path.iterdir():
+        if image_in.suffix not in (".jpg", ".tif", ".tiff", ".png"):
             continue
-        path_in = os.path.join(path, image_in)
 
         # Get image
-        image = read.get_image(path_in, channel=options.rgb_channel)
+        image = read.get_image(str(image_in), channel=options.rgb_channel)
         image = improc.crop_to_rectangle(image)
 
         for dim in image.shape:
@@ -64,7 +62,7 @@ def main():
 
         power_spectrum = task.get_power_spectrum()
 
-        csv_data[image_in] = power_spectrum[1]
+        csv_data[image_in.name] = power_spectrum[1]
 
     csv_data.insert(0, "Power", numpy.linspace(0, 1, num=len(csv_data)))
     csv_data.to_csv(file_path, index=False)

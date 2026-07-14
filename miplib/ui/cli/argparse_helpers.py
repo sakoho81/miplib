@@ -1,6 +1,6 @@
 import argparse
-import os
 from itertools import chain
+from pathlib import Path
 
 
 def parse_range_list(rngs):
@@ -102,8 +102,8 @@ def parse_is_dir(dirname):
     Returns:
         string -- Returns the directory, if it exists.
     """
-    if not os.path.isdir(dirname):
+    p = Path(dirname)
+    if not p.is_dir():
         msg = f"{dirname} is not a directory"
         raise argparse.ArgumentTypeError(msg)
-    else:
-        return dirname
+    return dirname

@@ -5,7 +5,7 @@ Image resolution measurement by Fourier Ring Correlation.
 
 """
 
-import os
+from pathlib import Path
 
 import numpy as np
 
@@ -204,16 +204,15 @@ def batch_evaluate_frc(path, options):
     :param options: options for the FRC
     :parame path:   directory that contains the images to be analyzed
     """
-    assert os.path.isdir(path)
+    assert Path(path).is_dir()
 
     measures = FourierCorrelationDataCollection()
     image_names = []
 
-    for idx, image_name in enumerate(sorted(os.listdir(path))):
-        real_path = os.path.join(path, image_name)
+    for idx, real_path in enumerate(sorted(Path(path).iterdir())):
         # Only process images. The bioformats reader can actually do many more file formats
         # but I was a little lazy here, as we usually have tiffs.
-        if not os.path.isfile(real_path) or not real_path.endswith((".tiff", ".tif")):
+        if not real_path.is_file() or real_path.suffix not in (".tiff", ".tif"):
             continue
         # ImageJ files have particular TIFF tags that can be processed correctly
         # with the options.imagej switch
@@ -223,7 +222,7 @@ def batch_evaluate_frc(path, options):
         # a channel can be chosen for processing.
         measures[idx] = calculate_single_image_frc(image, options)
 
-        image_names.append(image_name)
+        image_names.append(real_path.name)
 
     return measures, image_names
 

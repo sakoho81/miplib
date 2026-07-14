@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import argparse
 import logging
-import os
 import sys
 import time
+from pathlib import Path
 
 from miplib.data.adapters.image_data import ArrayDataSource
 from miplib.data.containers.image import Image
@@ -136,7 +136,7 @@ def main():
 
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
 
-    if not os.path.isfile(args.image):
+    if not Path(args.image).is_file():
         sys.exit(f"Image not found: {args.image}")
 
     image = _load_image(args.image)
@@ -168,7 +168,7 @@ def main():
     )
 
     print(
-        f"Deconvolving {os.path.basename(args.image)} "
+        f"Deconvolving {Path(args.image).name} "
         f"({image.shape}) with {args.iterations} iterations "
         f"({'CUDA' if args.enable_cuda else 'CPU'})"
     )

@@ -9,7 +9,6 @@ of the BSD license.  See the LICENSE file for details.
 This is the main program file for the miplib fusion calculation.
 """
 
-import os
 import sys
 import tempfile
 import time
@@ -95,11 +94,11 @@ def _create_view_data(data, views, options):
 
 def main():
     options = arguments.get_fusion_script_options(sys.argv[1:])
-    full_path = os.path.join(options.working_directory, options.data_file)
+    full_path = Path(options.working_directory) / options.data_file
 
-    if not os.path.isfile(full_path):
+    if not full_path.is_file():
         raise AttributeError(f"No such file: {full_path}")
-    elif not full_path.endswith(".hdf5"):
+    elif full_path.suffix != ".hdf5":
         raise AttributeError("Not a HDF5 file")
 
     data = image_data.ImageData(full_path)

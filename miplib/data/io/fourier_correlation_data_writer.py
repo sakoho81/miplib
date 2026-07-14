@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 import h5py
 
@@ -11,15 +11,16 @@ from miplib.data.containers.image import Image
 class FourierCorrelationDataWriter:
     """Write Fourier Correlation Data into an HDF5 file."""
 
-    def __init__(self, output_dir: str, filename: str, append: bool = False) -> None:
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-
-        output_path = os.path.join(output_dir, filename)
-        if not output_path.endswith(".hdf5"):
+    def __init__(
+        self, output_dir: str | Path, filename: str, append: bool = False
+    ) -> None:
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        output_path = output_path / filename
+        if output_path.suffix != ".hdf5":
             raise ValueError(f"Output path must end with .hdf5, got {output_path}")
 
-        mode = "r+" if (append and os.path.isfile(output_path)) else "w"
+        mode = "r+" if (append and output_path.is_file()) else "w"
         self.data = h5py.File(output_path, mode=mode)
 
     def __del__(self) -> None:

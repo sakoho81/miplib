@@ -54,8 +54,8 @@ psf_scale_<scale>_index_<index>_channel_<channel>_angle_<angle>.<suffix>
 
 """
 
-import os
 import sys
+from pathlib import Path
 
 import numpy
 
@@ -70,23 +70,23 @@ from ..ui.cli import miplib_entry_point_options
 
 def main():
     options = miplib_entry_point_options.get_import_script_options(sys.argv[1:])
-    directory = options.data_dir_path
+    directory = Path(options.data_dir_path)
 
     # Create a new HDF5 file. If a file exists, new data will be appended.
     file_name = input("Give a name for the HDF5 file: ")
     file_name += ".hdf5"
-    data_path = os.path.join(directory, file_name)
+    data_path = directory / file_name
     data = image_data.ImageData(data_path)
 
     # Add image files that have been named according to the correct format
-    for image_name in os.listdir(directory):
-        full_path = os.path.join(directory, image_name)
-
-        if full_path.endswith((".tiff", ".tif", ".mhd", ".mha")):
-            images = read.get_image(full_path)
-            spacing = images.spacing
-        else:
+    for full_path in directory.iterdir():
+        if not full_path.is_file():
             continue
+        image_name = full_path.name
+        if full_path.suffix not in (".tiff", ".tif", ".mhd", ".mha"):
+            continue
+        images = read.get_image(str(full_path))
+        spacing = images.spacing
 
         if options.normalize_inputs:
             images = (images * (255.0 / images.max())).astype(numpy.uint8)
@@ -121,9 +121,8 @@ def main():
             data.create_rescaled_images(ImageType.ORIGINAL, scale)
 
     # Add transforms for registered images.
-    for transform_name in os.listdir(directory):
-        if not transform_name.endswith(".txt"):
-            continue
+    for full_path in directory.glob("*.txt"):
+        transform_name = full_path.name
 
         if (
             not all(x in transform_name for x in params_c)
@@ -137,8 +136,6 @@ def main():
         channel = transform_name.split("channel_")[-1].split("_angle")[0]
         angle = transform_name.split("angle_")[-1].split(".")[0]
 
-        full_path = os.path.join(directory, transform_name)
-
         # First calculate registered image if not in the data structure
         if not data.check_if_exists(ImageType.REGISTERED, index, channel, scale):
             print("Resampling registered image for image nr. ", index)
@@ -147,7 +144,7 @@ def main():
             reference = data.get_itk_image(key_ref)
             moving = data.get_itk_image(key_moving)
 
-            transform = read.__itk_transform(full_path, return_itk=True)
+            transform = read.__itk_transform(str(full_path), return_itk=True)
 
             registered = itkutils.resample_image(moving, transform, reference=reference)
             registered = itkutils.convert_from_itk_image(registered)
@@ -156,7 +153,7 @@ def main():
             data.add_registered_image(registered, scale, index, channel, angle, spacing)
 
         # The add it's transform
-        transform_type, params, fixed_params = read.__itk_transform(full_path)
+        transform_type, params, fixed_params = read.__itk_transform(str(full_path))
         data.add_transform(scale, index, channel, params, fixed_params, transform_type)
 
     # Calculate missing PSFs

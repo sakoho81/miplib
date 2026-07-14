@@ -1,5 +1,5 @@
 import itertools
-import os
+from pathlib import Path
 
 import numpy as np
 import pims
@@ -103,14 +103,14 @@ def read_tiff_sequence(path, detectors=25, channels=1):
     :return: the ArrayDetectorData object that cotnains the imported data
     """
 
-    files = sorted(filter(lambda x: x.endswith(".tif"), os.listdir(path)))
+    files = sorted(Path(path).glob("*.tif"))
     if len(files) != detectors * channels:
         raise RuntimeError("The number of images does not match the data definition.")
 
     data = ArrayDetectorData(detectors, channels)
     steps = itertools.product(range(channels), range(detectors))
     for idx, (channel, detector) in enumerate(steps):
-        image = imread.get_image(os.path.join(path, files[idx]))
+        image = imread.get_image(files[idx])
         data[detector, channel] = image
 
     return data

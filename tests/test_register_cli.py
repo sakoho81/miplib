@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import argparse
-import os
 import tempfile
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -88,14 +88,14 @@ def tmp_image_dir() -> str:
         for i in range(3):
             img = np.random.default_rng(42 + i).random((32, 32)).astype(np.float32)
             sitk.WriteImage(
-                sitk.GetImageFromArray(img), os.path.join(tmpdir, f"img_{i:02d}.mha")
+                sitk.GetImageFromArray(img), str(Path(tmpdir) / f"img_{i:02d}.mha")
             )
         yield tmpdir
 
 
 def test_resolve_source_file_list(tmp_image_dir: str):
     """Multiple positional args → file mode."""
-    paths = [os.path.join(tmp_image_dir, f"img_{i:02d}.mha") for i in range(2)]
+    paths = sorted(str(p) for p in Path(tmp_image_dir).glob("*.mha"))[:2]
     args = argparse.Namespace(images=paths, fixed_idx=0)
     source = _resolve_source(args)
     assert isinstance(source, ArrayRegistrationDataSource)

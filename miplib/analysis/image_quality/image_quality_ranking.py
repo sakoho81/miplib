@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 import pandas as pd
 
@@ -61,30 +61,30 @@ def batch_evaluate_image_quality(path, options):
         ]
     )
 
-    for idx, image_name in enumerate(os.listdir(path)):
-        if options.file_filter is None or options.file_filter in image_name:
-            real_path = os.path.join(path, image_name)
-            # Only process images
-            if not os.path.isfile(real_path) or not real_path.endswith(
-                (".jpg", ".tif", ".tiff", ".tif")
-            ):
-                continue
-            # ImageJ files have particular TIFF tags that can be processed correctly
-            # with the options.imagej switch
-            image = read.get_image(real_path, channel=options.rgb_channel)
+    for idx, image_entry in enumerate(Path(path).iterdir()):
+        if not image_entry.is_file():
+            continue
+        image_name = image_entry.name
+        if options.file_filter is not None and options.file_filter not in image_name:
+            continue
+        if image_entry.suffix not in (".jpg", ".tif", ".tiff"):
+            continue
+        # ImageJ files have particular TIFF tags that can be processed correctly
+        # with the options.imagej switch
+        image = read.get_image(image_entry, channel=options.rgb_channel)
 
-            # Only grayscale images are processed. If the input is an RGB image,
-            # a channel can be chosen for processing.
-            results = evaluate_image_quality(image, options)
-            results.insert(0, real_path)
+        # Only grayscale images are processed. If the input is an RGB image,
+        # a channel can be chosen for processing.
+        results = evaluate_image_quality(image, options)
+        results.insert(0, str(image_entry))
 
-            # Add resolution value to the end
-            results.append(
-                frc.calculate_single_image_frc(image, options).resolution["resolution"]
-            )
+        # Add resolution value to the end
+        results.append(
+            frc.calculate_single_image_frc(image, options).resolution["resolution"]
+        )
 
-            df.loc[idx] = results
+        df.loc[idx] = results
 
-            print(f"Done analyzing {image_name}")
+        print(f"Done analyzing {image_name}")
 
     return df
