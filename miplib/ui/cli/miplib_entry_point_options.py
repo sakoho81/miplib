@@ -7,6 +7,7 @@ for the various *miplib* entry points, that can be found in the
 """
 
 import argparse
+from pathlib import Path
 
 import miplib.analysis.image_quality.filters as filters
 import miplib.ui.cli.argparse_helpers as helpers
@@ -127,7 +128,7 @@ def get_import_script_options(arguments):
     parser = argparse.ArgumentParser(
         description="Command line arguments for themiplib data import script."
     )
-    parser.add_argument("data_dir_path")
+    parser.add_argument("data_dir_path", type=Path)
     parser.add_argument("--scales", type=helpers.parse_int_tuple, action="store")
     parser.add_argument("--calculate-psfs", dest="calculate_psfs", action="store_true")
 

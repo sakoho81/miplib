@@ -55,7 +55,6 @@ psf_scale_<scale>_index_<index>_channel_<channel>_angle_<angle>.<suffix>
 """
 
 import sys
-from pathlib import Path
 
 import numpy
 
@@ -70,7 +69,7 @@ from ..ui.cli import miplib_entry_point_options
 
 def main():
     options = miplib_entry_point_options.get_import_script_options(sys.argv[1:])
-    directory = Path(options.data_dir_path)
+    directory = options.data_dir_path
 
     # Create a new HDF5 file. If a file exists, new data will be appended.
     file_name = input("Give a name for the HDF5 file: ")
