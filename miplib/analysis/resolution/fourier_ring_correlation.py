@@ -20,6 +20,8 @@ from . import analysis as fsc_analysis
 class FRCOptions:
     d_bin: float = 1.0
     disable_hamming: bool = False
+    d_angle: float = 45.0
+    d_extract_angle: float = 5.0
     frc_curve_fit_degree: int = 8
     frc_curve_fit_type: str = "spline"
     resolution_threshold_criterion: str = "fixed"
@@ -112,40 +114,33 @@ def build_correlation_curve(
     return spatial_freq, frc
 
 
-def calculate_single_image_frc(image, args, average=True, trim=True, z_correction=1):
-    """
-    A simple utility to calculate a regular FRC with a single image input
-
-    :param image: the image as an Image object
-    :param args:  the parameters for the FRC calculation. See *miplib.ui.frc_options*
-                  for details
-    :return:      returns the FRC result as a FourierCorrelationData object
-
-    """
-    assert isinstance(image, Image)
+def calculate_single_image_frc(
+    image: Image,
+    options: FRCOptions | None = None,
+    *,
+    average: bool = True,
+    z_correction: float = 1.0,
+) -> FourierCorrelationData:
+    if options is None:
+        options = FRCOptions()
 
     frc_data = FourierCorrelationDataCollection()
 
-    # Hamming Windowing
-    if not args.disable_hamming:
+    if not options.disable_hamming:
         spacing = image.spacing
         image = Image(windowing.apply_hamming_window(image), spacing)
 
-    # Split and make sure that the images are the same siz
     image1, image2 = imops.checkerboard_split(image)
-    # image1, image2 = imops.reverse_checkerboard_split(image)
     image1, image2 = imops.zero_pad_to_matching_shape(image1, image2)
 
-    # Run FRC
-    iterator = iterators.FourierRingIterator(image1.shape, args.d_bin)
+    iterator = iterators.FourierRingIterator(image1.shape, options.d_bin)
     frc_task = FRC(image1, image2, iterator)
     frc_data[0] = frc_task.execute()
 
     if average:
-        # Split and make sure that the images are the same size
         image1, image2 = imops.reverse_checkerboard_split(image)
         image1, image2 = imops.zero_pad_to_matching_shape(image1, image2)
-        iterator = iterators.FourierRingIterator(image1.shape, args.d_bin)
+        iterator = iterators.FourierRingIterator(image1.shape, options.d_bin)
         frc_task = FRC(image1, image2, iterator)
 
         frc_data[0].correlation["correlation"] *= 0.5
@@ -153,16 +148,13 @@ def calculate_single_image_frc(image, args, average=True, trim=True, z_correctio
             0.5 * frc_task.execute().correlation["correlation"]
         )
 
-    frc_data[0].correlation["frequency"].copy()
-
     def func(x, a, b, c, d):
         return a * np.exp(c * (x - b)) + d
 
     params = [0.95988146, 0.97979108, 13.90441896, 0.55146136]
 
-    # Analyze results
     analyzer = fsc_analysis.FourierCorrelationAnalysis(
-        frc_data, image1.spacing[0], args
+        frc_data, image1.spacing[0], options
     )
 
     result = analyzer.execute(z_correction=z_correction)[0]
@@ -175,69 +167,53 @@ def calculate_single_image_frc(image, args, average=True, trim=True, z_correctio
     return result
 
 
-def calculate_two_image_frc(image1, image2, args, z_correction=1):
-    """
-    A simple utility to calculate a regular FRC with a two image input
-
-    :param image: the image as an Image object
-    :param args:  the parameters for the FRC calculation. See *miplib.ui.frc_options*
-                  for details
-    :return:      returns the FRC result as a FourierCorrelationData object
-    """
-    assert isinstance(image1, Image)
-    assert isinstance(image2, Image)
-
-    assert image1.shape == image2.shape
+def calculate_two_image_frc(
+    image1: Image,
+    image2: Image,
+    options: FRCOptions | None = None,
+    *,
+    z_correction: float = 1.0,
+) -> FourierCorrelationData:
+    if options is None:
+        options = FRCOptions()
 
     frc_data = FourierCorrelationDataCollection()
-
     spacing = image1.spacing
 
-    if not args.disable_hamming:
+    if not options.disable_hamming:
         image1 = Image(windowing.apply_hamming_window(image1), spacing)
         image2 = Image(windowing.apply_hamming_window(image2), spacing)
 
-    # Run FRC
-    iterator = iterators.FourierRingIterator(image1.shape, args.d_bin)
+    iterator = iterators.FourierRingIterator(image1.shape, options.d_bin)
     frc_task = FRC(image1, image2, iterator)
     frc_data[0] = frc_task.execute()
 
-    # Analyze results
     analyzer = fsc_analysis.FourierCorrelationAnalysis(
-        frc_data, image1.spacing[0], args
+        frc_data, image1.spacing[0], options
     )
 
     return analyzer.execute(z_correction=z_correction)[0]
 
 
 def calculate_single_image_sectioned_frc(
-    image, args, rotation=45, orthogonal=True, trim=True
+    image: Image,
+    rotation: float = 45,
+    *,
+    options: FRCOptions | None = None,
+    orthogonal: bool = True,
 ):
-    """
-    A function utility to calculate a single image FRC on a Fourier ring section. The section
-    is defined by the section size d_angle (in args) and the section rotation.
-    :param image: the image as an Image object
-    :param args:  the parameters for the FRC calculation. See *miplib.ui.frc_options*
-                  for details
-    :param rotation: defines the orientation of the fourier ring section
-    :param orthogonal: if True, FRC is calculated from two sections, oriented at rotation
-    and rotation + 90 degrees
-    :return:      returns the FRC result as a FourierCorrelationData object
-
-    """
-    assert isinstance(image, Image)
+    if options is None:
+        options = FRCOptions()
 
     frc_data = FourierCorrelationDataCollection()
 
-    # Hamming Windowing
-    if not args.disable_hamming:
+    if not options.disable_hamming:
         spacing = image.spacing
         image = Image(windowing.apply_hamming_window(image), spacing)
 
-    # Run FRC
-    def frc_helper(image1, image2, args, rotation):
+    def frc_helper(image1, image2, rotation):
         iterator = iterators.SectionedFourierRingIterator(
-            image1.shape, args.d_bin, args.d_angle
+            image1.shape, options.d_bin, options.d_angle
         )
         iterator.angle = rotation
         frc_task = FRC(image1, image2, iterator)
@@ -249,15 +225,15 @@ def calculate_single_image_sectioned_frc(
     image1_r, image2_r = imops.reverse_checkerboard_split(image)
     image1_r, image2_r = imops.zero_pad_to_matching_shape(image1_r, image2_r)
 
-    pair_1 = frc_helper(image1, image2, args, rotation)
-    pair_2 = frc_helper(image1_r, image2_r, args, rotation)
+    pair_1 = frc_helper(image1, image2, rotation)
+    pair_2 = frc_helper(image1_r, image2_r, rotation)
 
     pair_1.correlation["correlation"] *= 0.5
     pair_1.correlation["correlation"] += 0.5 * pair_2.correlation["correlation"]
 
     if orthogonal:
-        pair_1_o = frc_helper(image1, image2, args, rotation + 90)
-        pair_2_o = frc_helper(image1_r, image2_r, args, rotation + 90)
+        pair_1_o = frc_helper(image1, image2, rotation + 90)
+        pair_2_o = frc_helper(image1_r, image2_r, rotation + 90)
 
         pair_1_o.correlation["correlation"] *= 0.5
         pair_1_o.correlation["correlation"] += 0.5 * pair_2_o.correlation["correlation"]
@@ -271,9 +247,8 @@ def calculate_single_image_sectioned_frc(
 
     params = [0.95988146, 0.97979108, 13.90441896, 0.55146136]
 
-    # Analyze results
     analyzer = fsc_analysis.FourierCorrelationAnalysis(
-        frc_data, image1.spacing[0], args
+        frc_data, image1.spacing[0], options
     )
 
     result = analyzer.execute()[0]

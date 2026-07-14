@@ -130,14 +130,14 @@ def _first_guess(x, y, threshold):
 
 
 class FourierCorrelationAnalysis:
-    def __init__(self, data, spacing, args):
+    def __init__(self, data, spacing, options):
         if not isinstance(data, FourierCorrelationDataCollection):
             raise TypeError(
                 f"Expected FourierCorrelationDataCollection, got {type(data).__name__}"
             )
 
         self.data_collection = data
-        self.args = args
+        self.options = options
         self.spacing = spacing
 
     def execute(self, z_correction=1):
@@ -148,11 +148,11 @@ class FourierCorrelationAnalysis:
                  The return value is just for convenience.
         """
 
-        criterion = self.args.resolution_threshold_criterion
-        threshold = self.args.resolution_threshold_value
-        snr = self.args.resolution_snr_value
-        degree = self.args.frc_curve_fit_degree
-        fit_type = self.args.frc_curve_fit_type
+        criterion = self.options.resolution_threshold_criterion
+        threshold = self.options.resolution_threshold_value
+        snr = self.options.resolution_snr_value
+        degree = self.options.frc_curve_fit_degree
+        fit_type = self.options.frc_curve_fit_type
 
         def _pdiff1(x):
             return abs(frc_eq(x) - two_sigma_eq(x))
