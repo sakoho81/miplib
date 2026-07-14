@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import argparse
 import logging
-import os
 import sys
 import time
+from pathlib import Path
 
 from miplib.data.containers.image import Image
 from miplib.data.io import array_detector_data as detio
@@ -44,7 +44,7 @@ def _get_psf(image: Image, args: argparse.Namespace) -> Image:
     if args.psf:
         import SimpleITK as sitk
 
-        sitk_psf = sitk.ReadImage(args.psf)
+        sitk_psf = sitk.ReadImage(str(args.psf))
         data = sitk.GetArrayFromImage(sitk_psf)
         return Image(data, spacing=image.spacing)
 
@@ -98,7 +98,9 @@ def _build_parser() -> argparse.ArgumentParser:
             "  miplib-ism ./data/ --ism-mode rl --fwhm 2.0 --max-iterations 50\n"
         ),
     )
-    parser.add_argument("directory", help="Directory containing .mat or .czi files")
+    parser.add_argument(
+        "directory", type=Path, help="Directory containing .mat or .czi files"
+    )
     parser.add_argument(
         "--ism-mode",
         choices=["reassign", "wiener", "rl", "all"],
@@ -120,7 +122,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     # PSF options
     psf_group = parser.add_argument_group("PSF generation")
-    psf_group.add_argument("--psf", help="Path to a PSF image file")
+    psf_group.add_argument("--psf", type=Path, help="Path to a PSF image file")
     psf_group.add_argument(
         "--fwhm",
         type=float,
@@ -156,10 +158,10 @@ def main():
     logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING)
 
     root = args.directory
-    if not os.path.isdir(root):
-        sys.exit(f"Not a directory: {root}")
+    if not root.is_dir():
+        sys.exit(f"Not a directory: {args.directory}")
 
-    files = sorted(f for f in os.listdir(root) if f.endswith((".mat", ".czi")))
+    files = sorted(f for f in root.iterdir() if f.suffix in (".mat", ".czi"))
     if not files:
         sys.exit(f"No .mat or .czi files found in {root}")
 
@@ -169,18 +171,17 @@ def main():
     }
     method = method_map[args.method]
 
-    for filename in files:
-        full_path = os.path.join(root, filename)
-        prefix, data = _get_data(full_path)
-        prefix = os.path.join(root, os.path.basename(prefix))
+    for full_path in files:
+        prefix, data = _get_data(str(full_path))
+        prefix = root / Path(prefix).name
 
         # Default fixed_idx based on detector type
         fixed_idx = args.fixed_idx
         if fixed_idx is None:
-            fixed_idx = 0 if full_path.endswith(".czi") else 12
+            fixed_idx = 0 if str(full_path).endswith(".czi") else 12
 
         print(
-            f"\n{filename}: {data.ndetectors} detectors, "
+            f"\n{full_path.name}: {data.ndetectors} detectors, "
             f"{data.ngates} gates, shape={data[0, 0].shape}, "
             f"spacing={data[0, 0].spacing}"
         )

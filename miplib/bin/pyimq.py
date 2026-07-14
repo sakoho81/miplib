@@ -63,7 +63,6 @@ of packages in scientific articles by citing the corresponding papers:
 
 import csv
 import datetime
-import os
 import sys
 
 import pandas
@@ -92,9 +91,9 @@ def main():
         assert options.file is not None, (
             "You have to specify a file with a --file option"
         )
-        path = os.path.join(path, options.file)
-        assert os.path.isfile(path)
-        image = read.get_image(path, channel=options.rgb_channel)
+        full_path = path / options.file
+        assert full_path.is_file()
+        image = read.get_image(str(full_path), channel=options.rgb_channel)
 
         print(f"The shape is {str(image.shape)}")
 
@@ -119,17 +118,16 @@ def main():
         # In directory mode every image in a given directory is analyzed in a
         # single run. The analysis results are saved into a csv file.
 
-        assert os.path.isdir(path), path
+        assert path.is_dir(), str(path)
 
         # Create output directory
         output_dir = datetime.datetime.now().strftime("%Y-%m-%d") + "_PyIQ_output"
-        output_dir = os.path.join(options.working_directory, output_dir)
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        output_dir = path / output_dir
+        output_dir.mkdir(parents=True, exist_ok=True)
         # Create output file
         date_now = datetime.datetime.now().strftime("%H-%M-%S")
         file_name = date_now + "_PyIQ_out" + ".csv"
-        file_path = os.path.join(output_dir, file_name)
+        file_path = output_dir / file_name
         output_file = open(file_path, "w")
         output_writer = csv.writer(
             output_file, quoting=csv.QUOTE_NONNUMERIC, delimiter=","
@@ -151,17 +149,20 @@ def main():
             )
         )
 
-        for image_name in os.listdir(path):
-            if options.file_filter is None or options.file_filter in image_name:
-                real_path = os.path.join(path, image_name)
-                # Only process images
-                if not os.path.isfile(real_path) or not real_path.endswith(
-                    (".jpg", ".tif", ".tiff", ".png")
-                ):
-                    continue
+        for image_entry in path.iterdir():
+            if not image_entry.is_file():
+                continue
+            image_name = image_entry.name
+            if (
+                options.file_filter is not None
+                and options.file_filter not in image_name
+            ):
+                continue
+            if image_entry.suffix not in (".jpg", ".tif", ".tiff", ".png"):
+                continue
                 # ImageJ files have particular TIFF tags that can be processed correctly
                 # with the options.imagej switch
-                image = read.get_image(real_path, channel=options.rgb_channel)
+                image = read.get_image(str(image_entry), channel=options.rgb_channel)
 
                 # Only grayscale images are processed. If the input is an RGB image,
                 # a channel can be chosen for processing.
@@ -196,7 +197,7 @@ def main():
                 results.insert(0, moments)
                 results.insert(0, brenner)
                 results.insert(0, entropy)
-                results.insert(0, os.path.join(path, image_name))
+                results.insert(0, str(image_entry))
                 output_writer.writerow(results)
 
                 print(f"Done analyzing {image_name}")
@@ -213,12 +214,11 @@ def main():
             assert options.file is not None, (
                 "You have to specify a data filewith the --file option"
             )
-            path = os.path.join(options.working_directory, options.file)
-            print(path)
-            file_path = path
-            assert os.path.isfile(path), f"Not a valid file {path}"
-            assert path.endswith(".csv"), "Unknown suffix {}".format(
-                path.split(".")[-1]
+            file_path = path / options.file
+            print(file_path)
+            assert file_path.is_file(), f"Not a valid file {file_path}"
+            assert str(file_path).endswith(".csv"), "Unknown suffix {}".format(
+                str(file_path).split(".")[-1]
             )
 
         csv_data = pandas.read_csv(file_path)
@@ -237,12 +237,11 @@ def main():
 
         # Create output directory
         output_dir = datetime.datetime.now().strftime("%Y-%m-%d") + "_PyIQ_output"
-        output_dir = os.path.join(options.working_directory, output_dir)
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        output_dir = path / output_dir
+        output_dir.mkdir(parents=True, exist_ok=True)
         date_now = datetime.datetime.now().strftime("%H-%M-%S")
         file_name = date_now + "_PyIQ_analyze_out" + ".csv"
-        file_path = os.path.join(output_dir, file_name)
+        file_path = output_dir / file_name
 
         csv_data.to_csv(file_path)
         print(f"The results were saved to {file_path}")
@@ -253,10 +252,10 @@ def main():
         # a subset of highest and lowest ranked images (the amount of images to show is
         # controlled by the options.npics parameter
         if csv_data is None:
-            file_path = os.path.join(options.working_directory, options.file)
-            assert os.path.isfile(file_path), f"Not a valid file {path}"
-            assert path.endswith(".csv"), "Unknown suffix {}".format(
-                path.split(".")[-1]
+            file_path = path / options.file
+            assert file_path.is_file(), f"Not a valid file {file_path}"
+            assert str(file_path).endswith(".csv"), "Unknown suffix {}".format(
+                str(file_path).split(".")[-1]
             )
             csv_data = pandas.read_csv(file_path)
         if options.result == "average":

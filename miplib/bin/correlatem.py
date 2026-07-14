@@ -3,8 +3,8 @@
 """Correlative light-electron microscopy registration CLI."""
 
 import datetime
-import os
 import sys
+from pathlib import Path
 
 import SimpleITK as sitk
 
@@ -16,17 +16,14 @@ from miplib.ui.cli import miplib_entry_point_options
 
 def main():
     options = miplib_entry_point_options.get_correlate_tem_script_options(sys.argv[1:])
+    wd = options.working_directory
 
-    options.sted_image_path = os.path.join(
-        options.working_directory, options.sted_image_path
-    )
-    if not os.path.isfile(options.sted_image_path):
+    options.sted_image_path = str(wd / options.sted_image_path)
+    if not Path(options.sted_image_path).is_file():
         sys.exit(f"No such file: {options.sted_image_path}")
 
-    options.em_image_path = os.path.join(
-        options.working_directory, options.em_image_path
-    )
-    if not os.path.isfile(options.em_image_path):
+    options.em_image_path = str(wd / options.em_image_path)
+    if not Path(options.em_image_path).is_file():
         sys.exit(f"No such file: {options.em_image_path}")
 
     sted_image = sitk.ReadImage(options.sted_image_path)
@@ -73,19 +70,18 @@ def main():
     )
 
     output_dir = datetime.datetime.now().strftime("%Y-%m-%d") + "_clem_output"
-    output_dir = os.path.join(options.working_directory, output_dir)
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    output_dir = wd / output_dir
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     date_now = datetime.datetime.now().strftime("%H-%M-%S")
     file_name = f"{date_now}-clem_registration-{options.registration_method}.tiff"
-    file_path = os.path.join(output_dir, file_name)
+    file_path = output_dir / file_name
     tfm_name = f"{date_now}_transform.txt"
-    tfm_path = os.path.join(output_dir, tfm_name)
-    sitk.WriteTransform(transform, tfm_path)
+    tfm_path = output_dir / tfm_name
+    sitk.WriteTransform(transform, str(tfm_path))
 
     rgb = itkutils.make_composite_rgb_image(sted_original, em_registered)
-    sitk.WriteImage(rgb, file_path)
+    sitk.WriteImage(rgb, str(file_path))
     print(f"Saved {file_name} and {tfm_name} to {output_dir}")
 
 

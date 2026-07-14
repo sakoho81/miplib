@@ -4,7 +4,6 @@ I have a nicer version in a notebook -- will be updated.
 """
 
 import datetime
-import os
 import sys
 
 import numpy as np
@@ -26,13 +25,12 @@ def main():
     date_now = datetime.datetime.now().strftime("%H-%M-%S")
 
     filename = f"{date_now}_miplib_{args.frc_mode}_frc_results.csv"
-    filename = os.path.join(output_dir, filename)
+    filename = output_dir / filename
 
     # Get image file names, sort in alphabetic order and complete.
-    files_list = [
-        i for i in os.listdir(path) if i.endswith((".jpg", ".tif", ".tiff", ".png"))
-    ]
-    files_list.sort()
+    files_list = sorted(
+        str(p) for p in path.iterdir() if p.suffix in (".jpg", ".tif", ".tiff", ".png")
+    )
     print(f"Number of images to analyze: {len(files_list)}")
 
     # df_main = pandas.DataFrame(0, index=np.arange(len(files_list)), columns=["Image", "Depth", "Kind", "Resolution"])
@@ -48,8 +46,8 @@ def main():
 
         for idx, im1, im2 in enumerate(pairwise(files_list)):
             # Read images
-            image1 = imread.get_image(os.path.join(path, im1))
-            image2 = imread.get_image(os.path.join(path, im2))
+            image1 = imread.get_image(im1)
+            image2 = imread.get_image(im2)
 
             result = frc.calculate_two_image_frc(image1, image2, args)
             title = strutils.common_start(im1, im2)
@@ -59,7 +57,7 @@ def main():
 
     elif args.frc_mode == "one-image":
         for idx, im in enumerate(files_list):
-            image = imread.get_image(os.path.join(path, im))
+            image = imread.get_image(im)
 
             print(f"Analyzing image {im}")
 

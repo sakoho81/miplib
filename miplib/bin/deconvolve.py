@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import argparse
 import logging
-import os
 import sys
 import time
+from pathlib import Path
 
 from miplib.data.adapters.image_data import ArrayDataSource
 from miplib.data.containers.image import Image
@@ -76,9 +76,11 @@ def _build_parser() -> argparse.ArgumentParser:
             "  miplib-deconvolve image.tif --fwhm 1.5 --tv-lambda 0.01 --enable-cuda\n"
         ),
     )
-    parser.add_argument("image", help="Path to the input image (TIFF).")
+    parser.add_argument("image", type=Path, help="Path to the input image (TIFF).")
     parser.add_argument(
-        "--psf", help="Path to a PSF image. If omitted, a Gaussian PSF is generated."
+        "--psf",
+        type=Path,
+        help="Path to a PSF image. If omitted, a Gaussian PSF is generated.",
     )
     parser.add_argument(
         "--fwhm",
@@ -107,7 +109,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Stop when tau1 drops below this threshold.",
     )
     parser.add_argument(
-        "--output", "-o", default="deconv_result.tif", help="Output file path."
+        "--output",
+        "-o",
+        type=Path,
+        default=Path("deconv_result.tif"),
+        help="Output file path.",
     )
     parser.add_argument("--enable-cuda", action="store_true", help="Use CUDA backend.")
     parser.add_argument(
@@ -136,12 +142,15 @@ def main():
 
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
 
-    if not os.path.isfile(args.image):
+    if not args.image.is_file():
         sys.exit(f"Image not found: {args.image}")
 
-    image = _load_image(args.image)
+    image = _load_image(str(args.image))
     psf = _get_psf(
-        image, args.psf, list(args.fwhm), list(args.fov) if args.fov else None
+        image,
+        str(args.psf) if args.psf else None,
+        list(args.fwhm),
+        list(args.fov) if args.fov else None,
     )
 
     psf_arr, adj_psf_arr = prepare_psf(psf, image.spacing)
@@ -168,7 +177,7 @@ def main():
     )
 
     print(
-        f"Deconvolving {os.path.basename(args.image)} "
+        f"Deconvolving {args.image.name} "
         f"({image.shape}) with {args.iterations} iterations "
         f"({'CUDA' if args.enable_cuda else 'CPU'})"
     )

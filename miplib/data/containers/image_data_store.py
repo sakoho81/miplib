@@ -1,8 +1,8 @@
 import logging
-import os
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import Path
 from typing import Any, Protocol
 
 import h5py
@@ -155,15 +155,15 @@ class ImageDataStore(Protocol):
 class HDF5ImageStore:
     """HDF5-backed implementation of ImageDataStore."""
 
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str | Path) -> None:
         """Open an HDF5 file at *path*, creating it if necessary.
 
         The parent directory is created automatically.
         """
-        directory = os.path.dirname(path) or "."
-        os.makedirs(directory, exist_ok=True)
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
 
-        if os.path.exists(path):
+        if path.exists():
             self._file = h5py.File(path, mode="r+")
             self._series_count = int(self._file.attrs["series_count"])
             self._channel_count = int(self._file.attrs["channel_count"])

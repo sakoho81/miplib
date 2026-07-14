@@ -46,7 +46,7 @@ def _resolve_source(args: argparse.Namespace) -> RegistrationDataSource:
     output_dir: str = getattr(args, "output_dir", ".")
 
     if len(args.images) == 1:
-        p = Path(args.images[0])
+        p = args.images[0]
 
         if p.suffix == ".hdf5":
             from miplib.data.containers.image_data import ImageData, ImageType
@@ -131,7 +131,10 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "images", nargs="+", help="Input images, a directory, or an HDF5 file"
+        "images",
+        nargs="+",
+        type=Path,
+        help="Input images, a directory, or an HDF5 file",
     )
     parser.add_argument(
         "--method",
@@ -144,11 +147,16 @@ def _build_parser() -> argparse.ArgumentParser:
         "--fixed-idx", type=int, default=0, help="Reference image index (default: 0)"
     )
     parser.add_argument(
-        "--output", "-o", nargs="*", help="Output paths for registered images"
+        "--output",
+        "-o",
+        nargs="*",
+        type=Path,
+        help="Output paths for registered images",
     )
     parser.add_argument(
         "--output-dir",
-        default=".",
+        default=Path("."),
+        type=Path,
         help="Output directory (default: current directory)",
     )
 

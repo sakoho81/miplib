@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -209,8 +209,9 @@ class FourierDataPlotter:
             self._rows = int(len(self.data) / self._columns + 1)
 
         if path is not None:
-            assert os.path.isdir(path)
-            self.path = path
+            p = Path(path)
+            assert p.is_dir()
+            self.path = p
 
     def plot_all(self, save_fig=False, custom_titles=None, show=True):
         """
@@ -252,7 +253,7 @@ class FourierDataPlotter:
             self.__make_frc_subplot(plot, dataset, title)
 
         if save_fig:
-            file_name = os.path.join(self.path, "all_frc_curves.eps")
+            file_name = self.path / "all_frc_curves.eps"
             plt.savefig(file_name, dpi=1200)
 
         if show:
@@ -287,7 +288,7 @@ class FourierDataPlotter:
             self.__make_printable_frc_subplot(
                 plot, dataset, title=(title if header else None)
             )
-            file_name = os.path.join(self.path, f"{title}.eps")
+            file_name = self.path / f"{title}.eps"
             plt.savefig(file_name, dpi=1200)
             plt.cla()
 
@@ -307,7 +308,7 @@ class FourierDataPlotter:
         self.__make_printable_frc_subplot(
             ax, self.data[int(angle)], title, coerce_ticks=coerce_ticks
         )
-        file_name = os.path.join(self.path, f"{filename}.eps")
+        file_name = self.path / f"{filename}.eps"
         if legend:
             fig.legend(
                 ("FRC", "curve-fit", "threshold", "resolution-point"),
@@ -408,7 +409,7 @@ class FourierDataPlotter:
         # ax.set_xlabel("XY")
         # ax.set_ylabel("Z")
 
-        file_name = os.path.join(self.path, f"{filename}.eps")
+        file_name = self.path / f"{filename}.eps"
 
         plt.savefig(
             file_name, dpi=1200, bbox_inches="tight", pad_inches=0, transparent=True

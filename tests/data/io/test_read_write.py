@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 import numpy as np
 import numpy.testing as npt
@@ -43,7 +43,7 @@ def test_tiff_roundtrip_2d(tmp_path, shape, spacing):
     path = str(tmp_path / "test.tif")
 
     write.image(path, img)
-    assert os.path.isfile(path)
+    assert Path(path).is_file()
 
     result = read.get_image(path)
     arr = np.asarray(result)

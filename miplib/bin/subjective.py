@@ -14,7 +14,6 @@ several ranking results in a single csv file. At every run the data
 is shuffled in order to not repeat the same image sequence twice.
 """
 
-import os
 import sys
 
 import matplotlib.pyplot as plt
@@ -27,14 +26,14 @@ def main():
     options = script_options.get_subjective_ranking_options(sys.argv[1:])
     path = options.working_directory
     index = 0
-    assert os.path.isdir(path), path
+    assert path.is_dir(), str(path)
 
     # Create or open a csv file
     output_dir = path
     file_name = "subjective_ranking_scores.csv"
-    file_path = os.path.join(output_dir, file_name)
+    file_path = output_dir / file_name
 
-    if os.path.exists(file_path):
+    if file_path.exists():
         csv_data = pandas.read_csv(file_path)
         # Append a new result column
         for column in csv_data:
@@ -44,13 +43,15 @@ def main():
         csv_data = pandas.DataFrame()
         file_names = []
         # Get valid file names
-        for image_name in os.listdir(path):
-            real_path = os.path.join(path, image_name)
-            if not os.path.isfile(real_path) or not real_path.endswith(
-                (".jpg", ".tif", ".tiff", ".png")
+        for image_entry in path.iterdir():
+            if not image_entry.is_file() or image_entry.suffix not in (
+                ".jpg",
+                ".tif",
+                ".tiff",
+                ".png",
             ):
                 continue
-            file_names.append(image_name)
+            file_names.append(image_entry.name)
         csv_data["Filename"] = file_names
 
     result_name = "Result_" + str(index)
@@ -68,7 +69,7 @@ def main():
     )
 
     for image_name in csv_data["Filename"]:
-        real_path = os.path.join(path, image_name)
+        real_path = path / image_name
         image = plt.imread(real_path)
 
         plt.imshow(image, cmap="hot", vmax=image.max(), vmin=image.min())

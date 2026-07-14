@@ -1,5 +1,5 @@
 import logging
-import os
+from pathlib import Path
 
 import pims
 import SimpleITK as sitk
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_image(
-    filename: str,
+    filename: str | Path,
     series: int = 0,
     channel: int = 0,
     return_type: str = "image",
@@ -22,25 +22,29 @@ def get_image(
             f"Unsupported return_type {return_type!r}; use 'itk' or 'image'"
         )
 
-    if filename.endswith(".mha"):
-        return __itk_image(filename, return_type == "itk")
+    path = Path(filename)
+    if path.suffix == ".mha":
+        return __itk_image(path, return_type == "itk")
 
-    return __bioformats(filename, series, channel, return_type == "itk")
+    return __bioformats(path, series, channel, return_type == "itk")
 
 
-def __itk_image(filename: str, return_itk: bool = True) -> sitk.Image | Image:
+def __itk_image(filename: str | Path, return_itk: bool = True) -> sitk.Image | Image:
     """Read an ITK-supported image (.mha/.mhd)."""
-    if not filename.endswith((".mha", ".mhd")):
+    path = Path(filename)
+    if path.suffix not in (".mha", ".mhd"):
         raise ValueError(f"Expected .mha or .mhd extension, got {filename}")
-    image = sitk.ReadImage(filename)
+    image = sitk.ReadImage(str(path))
     if return_itk:
         return image
     return itkutils.convert_from_itk_image(image)
 
 
-def __itk_transform(path: str, return_itk: bool = False) -> tuple | sitk.Transform:
+def __itk_transform(
+    path: str | Path, return_itk: bool = False
+) -> tuple | sitk.Transform:
     """Read an ITK spatial transform from disk."""
-    if not os.path.isfile(path):
+    if not Path(path).is_file():
         raise ValueError(f"Not a valid path: {path}")
 
     transform = sitk.ReadTransform(path)
@@ -55,7 +59,7 @@ def __itk_transform(path: str, return_itk: bool = False) -> tuple | sitk.Transfo
 
 
 def __bioformats(
-    filename: str,
+    filename: str | Path,
     series: int = 0,
     channel: int = 0,
     return_itk: bool = False,
@@ -66,7 +70,7 @@ def __bioformats(
             "jpype is required for the bioformats reader. "
             "Install with: uv sync --group dev"
         )
-    reader = pims.bioformats.BioformatsReader(filename, series=series)
+    reader = pims.bioformats.BioformatsReader(str(filename), series=series)
 
     # Bioformats may interpret z-slices as channels if the file lacks OME-XML
     # metadata (common with plain tifffile-written z-stacks). Bundle 'c' as 'z'.

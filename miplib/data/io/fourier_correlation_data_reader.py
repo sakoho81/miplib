@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 import h5py
 
@@ -12,11 +12,12 @@ from miplib.data.containers.image import Image
 class FourierCorrelationDataReader:
     """Read Fourier Correlation Data from an HDF5 file."""
 
-    def __init__(self, file_path: str) -> None:
-        if not os.path.isfile(file_path) or not file_path.endswith(".hdf5"):
-            raise ValueError(f"Not a valid filename: {file_path}")
+    def __init__(self, file_path: str | Path) -> None:
+        p = Path(file_path)
+        if not p.is_file() or p.suffix != ".hdf5":
+            raise ValueError(f"Not a valid filename: {p}")
 
-        self.data = h5py.File(file_path, mode="r")
+        self.data = h5py.File(p, mode="r")
 
     def __del__(self) -> None:
         self.close()
