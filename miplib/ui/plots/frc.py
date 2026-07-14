@@ -393,12 +393,7 @@ class FourierDataPlotter:
         r_ticks = np.linspace(0.1, 1.0, 5)
         r_ticks_scale = r_ticks * max(radii)
 
-        print(r_ticks_scale)
-        print(max(radii))
-
         x_labels = [f"{n:.2f}" for n in r_ticks_scale]
-
-        print(x_labels)
         ax.set_rticks(r_ticks)
         ax.set_yticklabels(x_labels)
         ax.set_rlabel_position(-80)  # get radial labels away from plotted line
