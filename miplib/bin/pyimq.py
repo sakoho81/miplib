@@ -68,6 +68,7 @@ import sys
 import pandas
 
 from miplib.analysis.image_quality import filters
+from miplib.analysis.image_quality.image_quality_ranking import evaluate_image_quality
 from miplib.data.io import read
 from miplib.ui.cli import miplib_entry_point_options
 from miplib.ui.plots.image import show_pics_from_disk
@@ -97,25 +98,29 @@ def main():
 
         print(f"The shape is {str(image.shape)}")
 
-        task = filters.LocalImageQuality(image, options)
-        task.set_smoothing_kernel_size(100)
-        entropy = task.calculate_image_quality()
-        task2 = filters.FrequencyQuality(image, options)
-        finfo = task2.analyze_power_spectrum()
+        filter_options = filters.QualityFilterOptions(
+            normalize_power=options.normalize_power,
+            use_mask=options.use_mask,
+            invert_mask=options.invert_mask,
+            power_threshold=options.power_threshold,
+            spatial_threshold=options.spatial_threshold,
+        )
+
+        metrics = evaluate_image_quality(image, filter_options)
 
         print("SPATIAL MEASURES:")
-        print(f"The entropy value of {path} is {entropy:f}")
+        print(f"The entropy value of {path} is {metrics.entropy:f}")
         print("ANALYSIS OF THE POWER SPECTRUM TAIL")
-        print(f"The mean is: {finfo[0]:e}")
-        print(f"The std is: {finfo[1]:e}")
-        print(f"The entropy is {finfo[2]:e}")
-        print(f"The threshold frequency is {finfo[3]:f} Hz")
-        print(f"Power at high frequencies {finfo[4]:e}")
-        print(f"The skewness is {finfo[5]:f}")
-        print(f"The kurtosis is {finfo[6]:f}")
+        print(f"The mean is: {metrics.power_stats.mean:e}")
+        print(f"The std is: {metrics.power_stats.std:e}")
+        print(f"The entropy is {metrics.power_stats.entropy:e}")
+        print(f"The threshold frequency is {metrics.power_stats.threshold_freq:f} Hz")
+        print(f"Power at high frequencies {metrics.power_stats.power_at_high_freq:e}")
+        print(f"The skewness is {metrics.power_stats.skew:f}")
+        print(f"The kurtosis is {metrics.power_stats.kurtosis:f}")
 
     if "directory" in options.mode:
-        # In directory mode every image in a given directory is analyzed in a
+        # In directory mode every image in a directory is analyzed in a
         # single run. The analysis results are saved into a csv file.
 
         assert path.is_dir(), str(path)
@@ -149,6 +154,14 @@ def main():
             )
         )
 
+        filter_options = filters.QualityFilterOptions(
+            normalize_power=options.normalize_power,
+            use_mask=options.use_mask,
+            invert_mask=options.invert_mask,
+            power_threshold=options.power_threshold,
+            spatial_threshold=options.spatial_threshold,
+        )
+
         for image_entry in path.iterdir():
             if not image_entry.is_file():
                 continue
@@ -179,26 +192,25 @@ def main():
                 ):
                     continue
 
-                # Run spatial domain analysis
-                task = filters.LocalImageQuality(image, options)
-                task.set_smoothing_kernel_size(100)
-                entropy = task.calculate_image_quality()
-                # Run frequency domain analysis
-                task2 = filters.FrequencyQuality(image, options)
-                results = task2.analyze_power_spectrum()
-
-                task3 = filters.SpectralMoments(image, options)
-                moments = task3.calculate_spectral_moments()
-
-                task4 = filters.BrennerImageQuality(image, options)
-                brenner = task4.calculate_brenner_quality()
+                metrics = evaluate_image_quality(image, filter_options)
 
                 # Save results
-                results.insert(0, moments)
-                results.insert(0, brenner)
-                results.insert(0, entropy)
-                results.insert(0, str(image_entry))
-                output_writer.writerow(results)
+                output_writer.writerow(
+                    [
+                        str(image_entry),
+                        metrics.entropy,
+                        metrics.brenner,
+                        metrics.spectral_moments,
+                        metrics.power_stats.mean,
+                        metrics.power_stats.std,
+                        metrics.power_stats.entropy,
+                        metrics.power_stats.threshold_freq,
+                        metrics.power_stats.power_at_high_freq,
+                        metrics.power_stats.skew,
+                        metrics.power_stats.kurtosis,
+                        metrics.power_stats.mean_bin,
+                    ]
+                )
 
                 print(f"Done analyzing {image_name}")
 

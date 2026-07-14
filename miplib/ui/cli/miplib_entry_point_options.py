@@ -9,7 +9,6 @@ for the various *miplib* entry points, that can be found in the
 import argparse
 from pathlib import Path
 
-import miplib.analysis.image_quality.filters as filters
 import miplib.ui.cli.argparse_helpers as helpers
 from miplib.ui.cli.deconvolution_options import get_deconvolution_options_group
 from miplib.ui.cli.frc_options import get_frc_options_group
@@ -323,6 +322,26 @@ def get_transform_script_options(arguments):
 # region Image Quality Ranking
 
 
+def get_common_options(parser):
+    """
+    Common command-line options for the image-quality filters
+    """
+    group = parser.add_argument_group(
+        "Filters common", "Common options for the quality filters"
+    )
+    group.add_argument("--normalize-power", dest="normalize_power", action="store_true")
+    group.add_argument("--use-mask", dest="use_mask", action="store_true")
+    group.add_argument("--invert-mask", dest="invert_mask", action="store_true")
+    group.add_argument(
+        "--power-threshold", dest="power_threshold", type=float, default=0.4
+    )
+    group.add_argument(
+        "--spatial-threshold", dest="spatial_threshold", type=int, default=80
+    )
+
+    return parser
+
+
 def get_quality_script_options(arguments):
     """Command line options for the image quality ranking script
 
@@ -408,7 +427,7 @@ def get_quality_script_options(arguments):
         help="Define how many images are shown in the plots",
     )
 
-    parser = filters.get_common_options(parser)
+    parser = get_common_options(parser)
     parser = get_common_options_group(parser)
     parser = get_frc_options_group(parser)
     return parser.parse_args(arguments)
@@ -432,7 +451,15 @@ def get_power_script_options(arguments):
         default=Path("/home/sami/Pictures/Quality"),
     )
     parser.add_argument("--image-size", dest="image_size", type=int, default=512)
-    parser = filters.get_common_options(parser)
+    parser.add_argument(
+        "--rgb-channel",
+        help="Select which channel in an RGB image is to be used for quality analysis",
+        dest="rgb_channel",
+        type=int,
+        choices=[0, 1, 2],
+        default=1,
+    )
+    parser = get_common_options(parser)
     return parser.parse_args(arguments)
 
 

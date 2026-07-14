@@ -17,8 +17,8 @@ import sys
 import numpy
 import pandas
 
-from miplib.analysis.image_quality import filters
 from miplib.data.io import read
+from miplib.processing import fftutils
 from miplib.processing import image as improc
 from miplib.ui.cli import miplib_entry_point_options
 
@@ -55,13 +55,9 @@ def main():
                 image = improc.resize(image, options.image_size)
                 break
 
-        task = filters.FrequencyQuality(image, options)
-        task.calculate_power_spectrum()
-        task.calculate_summed_power()
+        freq, power = fftutils.power_spectrum_1d(image)
 
-        power_spectrum = task.get_power_spectrum()
-
-        csv_data[image_in.name] = power_spectrum[1]
+        csv_data[image_in.name] = power
 
     csv_data.insert(0, "Power", numpy.linspace(0, 1, num=len(csv_data)))
     csv_data.to_csv(file_path, index=False)

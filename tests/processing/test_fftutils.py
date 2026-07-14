@@ -7,9 +7,13 @@ from miplib.processing import windowing
 from miplib.processing.fftutils import (
     butterworth_fft_filter,
     fft,
+    frequency_axis,
     gaussian_fft_filter,
     ideal_fft_filter,
     ifft,
+    power_spectrum,
+    power_spectrum_1d,
+    radial_average,
 )
 from tests.conftest import sine_grating, step_edge
 
@@ -290,3 +294,102 @@ def test_butterworth_fft_filter_invalid_n(camera_image):
 def test_gaussian_fft_filter_invalid_threshold(camera_image):
     with pytest.raises(ValueError, match="between 0 and 1"):
         gaussian_fft_filter(camera_image, threshold=1.5)
+
+
+# --- Power spectrum ---
+
+
+def test_power_spectrum_constant_image_single_dc_peak():
+    """Power spectrum of constant image has single peak at center (DC)."""
+    ones = np.ones((16, 16))
+    ps = power_spectrum(ones)
+    center = (8, 8)
+    assert ps[center] > 0
+    assert ps[center] > ps.sum() * 0.99  # >99% of energy at DC
+
+
+def test_power_spectrum_sine_grating_peaks_at_known_frequencies():
+    """Power spectrum of sine grating has peaks at expected locations."""
+    grating = sine_grating((64, 64), frequency=0.1)
+    ps = power_spectrum(grating)
+    center = 32
+    freq_bin = int(0.1 * 64)
+    # Sine grating along axis=0 produces peaks at (center-freq_bin, center) and (center+freq_bin, center)
+    assert ps[center - freq_bin, center] > 0
+    assert ps[center + freq_bin, center] > 0
+
+
+def test_power_spectrum_3d():
+    """Power spectrum works for 3D arrays."""
+    arr = np.random.default_rng(42).random((8, 8, 8))
+    ps = power_spectrum(arr)
+    assert ps.shape == (8, 8, 8)
+    assert np.all(ps >= 0)
+
+
+def test_power_spectrum_accepts_image():
+    """Power spectrum accepts Image objects."""
+    img = Image(np.ones((16, 16)), (0.1, 0.1))
+    ps = power_spectrum(img)
+    assert ps.shape == (16, 16)
+
+
+# --- Radial average ---
+
+
+def test_radial_average_2d_gaussian_monotonically_decreasing():
+    """Radial average of 2D Gaussian is monotonically decreasing."""
+    from tests.conftest import gaussian_spot
+
+    g = gaussian_spot((64, 64), sigma=3.0)
+    ps = power_spectrum(g)
+    profile = radial_average(ps, bin_size=2)
+    assert len(profile) > 0
+    assert profile[0] > profile[-1]
+
+
+def test_radial_average_3d():
+    """Radial average works for 3D arrays."""
+    arr = np.random.default_rng(42).random((16, 16, 16))
+    profile = radial_average(arr, bin_size=2)
+    assert len(profile) > 0
+    assert np.all(profile >= 0)
+
+
+def test_radial_average_rejects_1d():
+    """Radial average rejects 1D arrays."""
+    arr = np.ones(16)
+    with pytest.raises(ValueError, match="2D or 3D"):
+        radial_average(arr)
+
+
+# --- Frequency axis ---
+
+
+def test_frequency_axis_physical_units():
+    """Frequency axis produces correct physical units."""
+    n = 64
+    spacing = 0.1
+    freq = frequency_axis(n, spacing)
+    assert len(freq) == n
+    assert freq[0] == 0.0
+    npt.assert_allclose(freq[1], 1.0 / (n * spacing))
+
+
+def test_frequency_axis_normalized():
+    """Frequency axis with spacing=1 produces normalized [0, 1] range."""
+    n = 32
+    freq = frequency_axis(n, 1.0)
+    assert freq[0] == 0.0
+    npt.assert_allclose(freq[-1], (n - 1) / n)
+
+
+# --- Power spectrum 1D ---
+
+
+def test_power_spectrum_1d_returns_frequencies_and_power():
+    """Power spectrum 1D returns (frequencies, power) tuple."""
+    img = Image(np.ones((32, 32)), (0.1, 0.1))
+    freq, power = power_spectrum_1d(img)
+    assert len(freq) == len(power)
+    assert np.all(power >= 0)

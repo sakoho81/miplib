@@ -1,47 +1,70 @@
+from dataclasses import dataclass
 from pathlib import Path
 
-import pandas as pd
-
-import miplib.analysis.resolution.fourier_ring_correlation as frc
+from miplib.analysis.resolution import fourier_ring_correlation as frc
+from miplib.data.containers.image import Image
 from miplib.data.io import read
 
 from . import filters
 
 
-def evaluate_image_quality(image, options):
+@dataclass
+class ImageQualityMetrics:
+    """Complete set of image quality metrics."""
+
+    entropy: float
+    brenner: float
+    spectral_moments: float
+    power_stats: filters.PowerSpectrumStats
+
+
+def evaluate_image_quality(
+    image: Image, options: filters.QualityFilterOptions | None = None
+) -> ImageQualityMetrics:
+    """Calculate quality features of a single image.
+
+    Args:
+        image: Input image
+        options: Quality filter options
+
+    Returns:
+        ImageQualityMetrics with entropy, brenner, spectral moments, and power spectrum stats
     """
-    Calculate quality features sof a single image
+    if options is None:
+        options = filters.QualityFilterOptions()
+
+    entropy = filters.local_image_quality(image, options)
+    power_stats = filters.frequency_quality(image, options)
+    moments = filters.spectral_moments(image, options)
+    brenner = filters.brenner_quality(image)
+
+    return ImageQualityMetrics(
+        entropy=entropy,
+        brenner=brenner,
+        spectral_moments=moments,
+        power_stats=power_stats,
+    )
+
+
+def batch_evaluate_image_quality(
+    path: str | Path,
+    options: filters.QualityFilterOptions | None = None,
+    frc_options=None,
+):
+    """Batch calculate quality features for images in a directory.
+
+    Args:
+        path: Directory containing images to analyze
+        options: Quality filter options
+        frc_options: Options for FRC resolution calculation (optional)
+
+    Returns:
+        pandas DataFrame with quality metrics for each image
     """
+    import pandas as pd
 
-    # Run spatial domain analysis
-    task = filters.LocalImageQuality(image, options)
-    task.set_smoothing_kernel_size(100)
-    entropy = task.calculate_image_quality()
-
-    # Run frequency domain analysis
-    task2 = filters.FrequencyQuality(image, options)
-    results = task2.analyze_power_spectrum()
-
-    task3 = filters.SpectralMoments(image, options)
-    moments = task3.calculate_spectral_moments()
-
-    task4 = filters.BrennerImageQuality(image, options)
-    brenner = task4.calculate_brenner_quality()
-
-    # Save results
-    results.insert(0, moments)
-    results.insert(0, brenner)
-    results.insert(0, entropy)
-
-    return results
-
-
-def batch_evaluate_image_quality(path, options):
-    """
-    Batch calculate quality features for images in a directory
-    :param options: options for the quality ranking scripts, as in miplib/ui/image_quality_options.py
-    :parame path:   directory that contains the images to be analyzed
-    """
+    if options is None:
+        options = filters.QualityFilterOptions()
 
     df = pd.DataFrame(
         columns=[
@@ -61,30 +84,36 @@ def batch_evaluate_image_quality(path, options):
         ]
     )
 
-    for idx, image_entry in enumerate(Path(path).iterdir()):
+    path = Path(path)
+    for idx, image_entry in enumerate(path.iterdir()):
         if not image_entry.is_file():
-            continue
-        image_name = image_entry.name
-        if options.file_filter is not None and options.file_filter not in image_name:
             continue
         if image_entry.suffix not in (".jpg", ".tif", ".tiff"):
             continue
-        # ImageJ files have particular TIFF tags that can be processed correctly
-        # with the options.imagej switch
-        image = read.get_image(image_entry, channel=options.rgb_channel)
 
-        # Only grayscale images are processed. If the input is an RGB image,
-        # a channel can be chosen for processing.
-        results = evaluate_image_quality(image, options)
-        results.insert(0, str(image_entry))
+        image = read.get_image(image_entry)
+        metrics = evaluate_image_quality(image, options)
 
-        # Add resolution value to the end
-        results.append(
-            frc.calculate_single_image_frc(image, options).resolution["resolution"]
-        )
+        resolution = None
+        if frc_options is not None:
+            resolution = frc.calculate_single_image_frc(image, frc_options).resolution[
+                "resolution"
+            ]
 
-        df.loc[idx] = results
-
-        print(f"Done analyzing {image_name}")
+        df.loc[idx] = [
+            str(image_entry),
+            metrics.entropy,
+            metrics.brenner,
+            metrics.spectral_moments,
+            metrics.power_stats.mean,
+            metrics.power_stats.std,
+            metrics.power_stats.entropy,
+            metrics.power_stats.threshold_freq,
+            metrics.power_stats.power_at_high_freq,
+            metrics.power_stats.skew,
+            metrics.power_stats.kurtosis,
+            metrics.power_stats.mean_bin,
+            resolution,
+        ]
 
     return df
