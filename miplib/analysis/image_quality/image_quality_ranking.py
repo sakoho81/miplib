@@ -1,7 +1,10 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from miplib.analysis.resolution import fourier_ring_correlation as frc
+from miplib.analysis.resolution.fourier_ring_correlation import (
+    FRCOptions,
+    calculate_single_image_frc,
+)
 from miplib.data.containers.image import Image
 from miplib.data.io import read
 
@@ -49,7 +52,7 @@ def evaluate_image_quality(
 def batch_evaluate_image_quality(
     path: str | Path,
     options: filters.QualityFilterOptions | None = None,
-    frc_options=None,
+    frc_options: FRCOptions | None = None,
 ):
     """Batch calculate quality features for images in a directory.
 
@@ -96,7 +99,7 @@ def batch_evaluate_image_quality(
 
         resolution = None
         if frc_options is not None:
-            resolution = frc.calculate_single_image_frc(image, frc_options).resolution[
+            resolution = calculate_single_image_frc(image, frc_options).resolution[
                 "resolution"
             ]
 

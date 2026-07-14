@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import argparse
 import logging
 
 import pandas as pd
@@ -73,22 +72,12 @@ class ConvergenceTracker:
             return False
 
         from miplib.analysis.resolution.fourier_ring_correlation import (
+            FRCOptions,
             calculate_single_image_frc,
         )
 
-        # TODO: replace argparse.Namespace with a proper FRCOptions dataclass.
-        args = argparse.Namespace(
-            d_bin=1,
-            disable_hamming=False,
-            frc_curve_fit_degree=8,
-            frc_curve_fit_type="spline",
-            resolution_threshold_criterion="fixed",
-            resolution_threshold_value=1.0 / 7,
-            resolution_point_sigma=0.01,
-            resolution_snr_value=0.25,
-            verbose=False,
-        )
-        result = calculate_single_image_frc(estimate, args)
+        options = FRCOptions()
+        result = calculate_single_image_frc(estimate, options)
         resolution = result.resolution["resolution"]
         diff = abs(self._prev_resolution - resolution)
         logger.debug(

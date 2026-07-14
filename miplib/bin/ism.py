@@ -49,7 +49,7 @@ def _get_psf(image: Image, args: argparse.Namespace) -> Image:
         return Image(data, spacing=image.spacing)
 
     if args.frc_psf:
-        return generate_frc_based_psf(image, args)
+        return generate_frc_based_psf(image)
 
     fwhm = args.fwhm
     if image.ndim == 2:
