@@ -39,6 +39,79 @@ def namespace_to_frc_options(ns: object) -> FRCOptions:
     return FRCOptions(**kwargs)
 
 
+def create_fourier_iterator(
+    shape: tuple[int, ...], d_bin: float = 1.0
+) -> iterators.FourierRingIterator:
+    """Create a Fourier iterator appropriate for the given image dimensionality.
+
+    For 2D shapes returns a FourierRingIterator, for 3D returns a FourierShellIterator.
+    """
+    if len(shape) == 2:
+        return iterators.FourierRingIterator(shape, d_bin)
+    raise ValueError(f"Unsupported dimensionality: {len(shape)}D")
+
+
+def accumulate_fourier_correlation(
+    fft1: np.ndarray,
+    fft2: np.ndarray,
+    iterator: iterators.FourierRingIterator,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Iterate over Fourier rings/shells and accumulate c1, c2, c3, n_points.
+
+    Args:
+        fft1: FFT of first image.
+        fft2: FFT of second image.
+        iterator: A Fourier ring/shell iterator yielding (indices, bin_idx) tuples.
+
+    Returns:
+        (c1, c2, c3, n_points) arrays, one per radial bin.
+    """
+    radii = iterator.radii
+    c1 = np.zeros(radii.shape, dtype=np.float32)
+    c2 = np.zeros(radii.shape, dtype=np.float32)
+    c3 = np.zeros(radii.shape, dtype=np.float32)
+    n_points = np.zeros(radii.shape, dtype=np.float32)
+
+    for indices, idx in iterator:
+        subset1 = fft1[indices]
+        subset2 = fft2[indices]
+        c1[idx] = np.sum(subset1 * np.conjugate(subset2)).real
+        c2[idx] = np.sum(np.abs(subset1) ** 2)
+        c3[idx] = np.sum(np.abs(subset2) ** 2)
+        n_points[idx] = len(subset1)
+
+    return c1, c2, c3, n_points
+
+
+def build_correlation_curve(
+    c1: np.ndarray,
+    c2: np.ndarray,
+    c3: np.ndarray,
+    radii: np.ndarray,
+    nyquist: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Compute the FRC curve from accumulated correlation values.
+
+    Args:
+        c1: Sum of F1 * conj(F2) per bin.
+        c2: Sum of |F1|^2 per bin.
+        c3: Sum of |F2|^2 per bin.
+        radii: Radial distances for each bin.
+        nyquist: Nyquist frequency for normalization.
+
+    Returns:
+        (spatial_freq, correlation) arrays.
+    """
+    spatial_freq = radii.astype(np.float32) / nyquist
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        frc = np.abs(c1) / np.sqrt(c2 * c3)
+        frc[np.isinf(frc)] = 0.0
+        frc = np.nan_to_num(frc)
+
+    return spatial_freq, frc
+
+
 def calculate_single_image_frc(image, args, average=True, trim=True, z_correction=1):
     """
     A simple utility to calculate a regular FRC with a single image input
@@ -250,29 +323,13 @@ class FRC:
         :return: Returns the FRC results.
 
         """
-        radii = self.iterator.radii
-        c1 = np.zeros(radii.shape, dtype=np.float32)
-        c2 = np.zeros(radii.shape, dtype=np.float32)
-        c3 = np.zeros(radii.shape, dtype=np.float32)
-        points = np.zeros(radii.shape, dtype=np.float32)
+        c1, c2, c3, n_points = accumulate_fourier_correlation(
+            self.fft_image1, self.fft_image2, self.iterator
+        )
 
-        for ind_ring, idx in self.iterator:
-            subset1 = self.fft_image1[ind_ring]
-            subset2 = self.fft_image2[ind_ring]
-            c1[idx] = np.sum(subset1 * np.conjugate(subset2)).real
-            c2[idx] = np.sum(np.abs(subset1) ** 2)
-            c3[idx] = np.sum(np.abs(subset2) ** 2)
-
-            points[idx] = len(subset1)
-
-        # Calculate FRC
-        spatial_freq = radii.astype(np.float32) / self.freq_nyq
-        n_points = np.array(points)
-
-        with np.errstate(divide="ignore", invalid="ignore"):
-            frc = np.abs(c1) / np.sqrt(c2 * c3)
-            frc[frc == np.inf] = 0.0
-            frc = np.nan_to_num(frc)
+        spatial_freq, frc = build_correlation_curve(
+            c1, c2, c3, self.iterator.radii, self.freq_nyq
+        )
 
         data_set = FourierCorrelationData()
         data_set.correlation["correlation"] = frc
