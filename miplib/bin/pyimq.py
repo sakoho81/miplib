@@ -12,13 +12,16 @@ statistics) to rank images by focus quality and detail content.
 """
 
 import datetime
+import json
 import sys
 
 import pandas as pd
 
+from miplib.analysis.image_quality.filters import QualityFilterOptions
 from miplib.analysis.image_quality.image_quality_ranking import evaluate_image_quality
 from miplib.data.io import read
 from miplib.ui.cli import miplib_entry_point_options
+from miplib.utils.dataclasses import options_from_dict
 
 
 def main():
@@ -28,11 +31,16 @@ def main():
     options = miplib_entry_point_options.get_quality_options(sys.argv[1:])
     input_path = options.input
 
+    filter_options = options_from_dict(
+        QualityFilterOptions,
+        json.loads(options.options) if options.options else None,
+    )
+
     # Auto-detect file vs directory
     if input_path.is_file():
         # Single file mode: print to stdout
         image = read.get_image(str(input_path), channel=options.rgb_channel)
-        metrics = evaluate_image_quality(image)
+        metrics = evaluate_image_quality(image, filter_options)
 
         print(f"Image: {input_path.name}")
         print(f"Shape: {image.shape}")
@@ -75,7 +83,7 @@ def main():
         for image_path in image_files:
             try:
                 image = read.get_image(str(image_path), channel=options.rgb_channel)
-                metrics = evaluate_image_quality(image)
+                metrics = evaluate_image_quality(image, filter_options)
                 results.append(
                     {
                         "Filename": image_path.name,

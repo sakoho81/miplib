@@ -362,6 +362,13 @@ def get_quality_options(arguments):
         default=1,
         help="RGB channel to use for analysis (0=R, 1=G, 2=B, default: 1)",
     )
+    parser.add_argument(
+        "--options",
+        type=str,
+        default=None,
+        help='Advanced filter options as JSON dict, e.g. \'{"use_mask": false, "power_threshold": 0.5}\' '
+        "(overrides library defaults)",
+    )
 
     return parser.parse_args(arguments)
 
