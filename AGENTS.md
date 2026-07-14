@@ -14,8 +14,9 @@ miplib/
 │   ├── image_quality/ # Filters, quality ranking, utils
 │   └── resolution/    # FRC, FSC, analysis
 ├── bin/               # CLI entry points (wired via pyproject.toml [project.scripts])
-├── data/              # Containers, HDF5 I/O, iterators, converters, coordinates
+├── data/              # Containers, HDF5 I/O, iterators, converters, coordinates, adapters
 │   ├── containers/    # Image, ArrayDetectorData, FourierCorrelationData, etc.
+│   ├── adapters/      # DataSource protocols and adapters (registration, deconvolution, array detector)
 │   ├── io/            # HDF5 readers/writers for array and FRC data
 │   ├── iterators/     # Fourier ring/shell iterators
 │   ├── coordinates/   # Polar coordinate grid generators
@@ -23,8 +24,7 @@ miplib/
 ├── processing/        # Core algorithms
 │   ├── ops_ext.pyx    # Cython extension (compiled to .so)
 │   ├── deconvolution/ # Deconvolution (Wiener, RL), CPU + CUDA variants
-│   ├── fusion/        # Multi-view fusion, CPU + CUDA variants
-│   ├── registration/  # Image registration (ITK-based)
+│   ├── registration/  # Registration (ITK, phase correlation), MultiViewRegistration
 │   ├── ism/           # Image Scanning Microscopy reconstruction
 │   ├── segmentation/  # Masking
 │   ├── fftutils.py    # FFT/IFFT wrappers, FFT filters
@@ -109,14 +109,14 @@ The vast majority of modules have zero test coverage. Priority candidates (small
 | ✓ done | `tests/data/core/test_dictionary.py` | FixedDictionary (immutable-key dict) |
 | ✓ done | `tests/data/containers/test_fourier_correlation_data.py` | FRC/FSC data containers |
 | ✓ done | `tests/processing/test_image.py` | Image operations, translation, checkerboards, noise, contrast (63 tests) |
+| ✓ done | `tests/processing/test_registration.py` | Registration: phase correlation, ITK convergence, multi-view, data sources (34 tests) |
+| ✓ done | `tests/test_register_cli.py` | Register CLI: parsing, source resolution, options (11 tests) |
 | lower | `processing/deconvolution/*` | Now has Image + blobs_3d + psf_gaussian_2d |
 | lower | `processing/fusion/*` | Now has Image + blobs_3d fixtures |
-| lower | `processing/registration/*` | Needs SimpleITK |
 | lower | `analysis/*` | Depends on data containers |
 
 ## Known Gaps / Future Work
 
-- **ISM reconstruction CLI** — `miplib/bin/ism.py` existed in older revisions (last in `56a7ea1`) but was deleted. It processed Carma `.mat` / AiryScan `.czi` detector data with `ismrec.find_image_shifts` / `shift_and_sum`, plus optional Wiener/RL deconvolution. Needs a ground-up rewrite to work with the refactored `RLDeconvolver` pipeline and current module structure.
 - **FRC analysis cleanup** — `miplib/analysis/resolution/analysis.py` has a `first_guess` that crashes with `IndexError` when the FRC curve never crosses the resolution threshold. The tracker FRC smoke test is marked `xfail` for this reason.
 - **FFT primitives consolidation** — `miplib/processing/deconvolution/backends.py` defines `_CPUFFT`/`_CUDAFFT`/`resolve_fft` for GPU-aware `fftn`/`ifftn` dispatch. These should move into `miplib/processing/fftutils.py` so the whole library has one CPU+CUDA FFT layer. `fftutils.fft()` and `ifft()` would gain an optional `backend` kwarg. Currently `backends.py` and `wiener.py` each do their own `cupy` import guard — this should become a single import in `fftutils`.
 - **FRCOptions dataclass** — The FRC tracker constructs an `argparse.Namespace` for `calculate_single_image_frc()`. Replace with a proper `FRCOptions` dataclass (TODO already in code at `tracker.py:_check_frc`).
