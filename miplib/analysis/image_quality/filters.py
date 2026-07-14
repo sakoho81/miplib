@@ -16,7 +16,7 @@ class QualityFilterOptions:
     """Options for image quality filter functions."""
 
     normalize_power: bool = False
-    use_mask: bool = False
+    use_mask: bool = True
     invert_mask: bool = False
     power_threshold: float = 0.4
     spatial_threshold: int = 80
