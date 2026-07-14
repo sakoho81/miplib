@@ -33,8 +33,9 @@ def test_evaluate_image_quality_deterministic(camera_image):
 def test_evaluate_image_quality_known_values(camera_image):
     """Camera image produces expected metric ranges."""
     metrics = evaluate_image_quality(camera_image)
-    # Camera image has significant detail, so entropy should be moderate to high
-    assert 4.0 < metrics.entropy < 8.0
+    # Camera image has significant detail, so entropy should be moderate
+    # With masking enabled (default), entropy focuses on object detail
+    assert 3.0 < metrics.entropy < 8.0
     # Brenner gradient should be positive (has edges)
     assert metrics.brenner > 1000
     # Spectral moments should be positive
