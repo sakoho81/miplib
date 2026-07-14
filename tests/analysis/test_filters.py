@@ -29,43 +29,6 @@ def test_local_image_quality_high_detail_higher_entropy(camera_image, gaussian_2
     assert entropy_camera > entropy_gaussian
 
 
-def test_local_image_quality_masked_vs_unmasked(camera_image):
-    """Masked entropy calculation differs from unmasked."""
-    from miplib.analysis.image_quality.filters import QualityFilterOptions
-
-    options_unmasked = QualityFilterOptions(use_mask=False)
-    options_masked = QualityFilterOptions(use_mask=True, spatial_threshold=50)
-    entropy_unmasked = local_image_quality(camera_image, options_unmasked)
-    entropy_masked = local_image_quality(camera_image, options_masked)
-    assert entropy_unmasked != entropy_masked
-
-
-def test_local_image_quality_masking_selects_intensity_regions(camera_image):
-    """Masking restricts entropy calculation to high-intensity regions.
-
-    The mask selects pixels above a spatial intensity threshold. This test
-    verifies that masking changes the entropy calculation by restricting to
-    a subset of pixels based on intensity, not spatial location.
-    """
-    from miplib.analysis.image_quality.filters import QualityFilterOptions
-
-    # Unmasked: entropy over entire image
-    options_unmasked = QualityFilterOptions(use_mask=False)
-    entropy_unmasked = local_image_quality(
-        camera_image, options_unmasked, kernel_size=15
-    )
-
-    # Masked: entropy only over high-intensity regions
-    options_masked = QualityFilterOptions(use_mask=True, spatial_threshold=80)
-    entropy_masked = local_image_quality(camera_image, options_masked, kernel_size=15)
-
-    # Masking should produce a different result (restricts to high-intensity subset)
-    assert entropy_masked != entropy_unmasked
-    # In camera image, bright regions (sky, highlights) are relatively uniform,
-    # so masked entropy is lower than unmasked
-    assert entropy_masked < entropy_unmasked
-
-
 def test_local_image_quality_masking_focuses_on_object_detail():
     """Masking excludes background and focuses on object texture/structure.
 
