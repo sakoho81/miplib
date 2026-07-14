@@ -1,10 +1,6 @@
-"""
-Sami Koho 01/2017
+from __future__ import annotations
 
-Image resolution measurement by Fourier Ring Correlation.
-
-"""
-
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -20,6 +16,30 @@ from miplib.data.containers.image import Image
 from miplib.processing import fftutils, windowing
 
 from . import analysis as fsc_analysis
+
+
+@dataclass
+class FRCOptions:
+    d_bin: float = 1.0
+    disable_hamming: bool = False
+    frc_curve_fit_degree: int = 8
+    frc_curve_fit_type: str = "spline"
+    resolution_threshold_criterion: str = "fixed"
+    resolution_threshold_value: float = 1.0 / 7
+    resolution_snr_value: float = 0.25
+    verbose: bool = False
+
+
+def namespace_to_frc_options(ns: object) -> FRCOptions:
+    """Convert an argparse.Namespace or any object to FRCOptions.
+
+    Extracts only the fields that match FRCOptions field names.
+    This bridges the old CLI layer (argparse flags) to the new dataclass API.
+    """
+    kwargs = {}
+    for name, field in FRCOptions.__dataclass_fields__.items():
+        kwargs[name] = getattr(ns, name, field.default)
+    return FRCOptions(**kwargs)
 
 
 def calculate_single_image_frc(image, args, average=True, trim=True, z_correction=1):
