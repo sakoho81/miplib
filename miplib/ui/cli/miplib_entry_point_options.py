@@ -38,7 +38,7 @@ def get_frc_script_options(arguments):
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    parser.add_argument("directory")
+    parser.add_argument("directory", type=Path)
     parser.add_argument("--debug", action="store_true")
     parser.add_argument(
         "--frc-mode", choices=["two-image", "one-image"], default="one-image"
@@ -46,6 +46,7 @@ def get_frc_script_options(arguments):
     parser.add_argument(
         "--outdir",
         dest="pathout",
+        type=Path,
         help="Select output folder where to save the log file" + " and the plots",
     )
     parser = get_common_options_group(parser)
@@ -61,8 +62,8 @@ def get_deconvolve_script_options(arguments):
     parser = argparse.ArgumentParser(
         description="Command line arguments for theimage Deconvolution script"
     )
-    parser.add_argument("image")
-    parser.add_argument("psf")
+    parser.add_argument("image", type=Path)
+    parser.add_argument("psf", type=Path)
     parser = get_common_options_group(parser)
     parser = get_deconvolution_options_group(parser)
     parser = get_psf_estimation_options_group(parser)
@@ -90,7 +91,7 @@ def get_ism_script_options(arguments):
     parser = argparse.ArgumentParser(
         description="Command line arguments for theISM image reconstruction script"
     )
-    parser.add_argument("directory", type=helpers.parse_is_dir)
+    parser.add_argument("directory", type=Path)
     parser.add_argument(
         "ism_mode",
         choices=["adaptive", "static", "wiener", "rl", "all"],
@@ -160,7 +161,9 @@ def get_register_script_options(arguments):
         description="Command line arguments for the miplib image registration script"
     )
     parser.add_argument(
-        "data_file", help="Give a path to a HDF5 file that contains the images"
+        "data_file",
+        type=Path,
+        help="Give a path to a HDF5 file that contains the images",
     )
 
     parser = get_common_options_group(parser)
@@ -199,7 +202,9 @@ def get_fusion_script_options(arguments):
         ),
     )
     parser.add_argument(
-        "data_file", help="Give a path to a HDF5 file that contains the images"
+        "data_file",
+        type=Path,
+        help="Give a path to a HDF5 file that contains the images",
     )
     parser = get_common_options_group(parser)
     parser = get_fusion_options_group(parser)
@@ -226,6 +231,7 @@ def get_tem_correlation_options(parser):
         "--em",
         dest="em_image_path",
         metavar="PATH",
+        type=Path,
         default=None,
         help="Specify PATH to Electro microscope Image",
     )
@@ -235,6 +241,7 @@ def get_tem_correlation_options(parser):
         "--st",
         dest="sted_image_path",
         metavar="PATH",
+        type=Path,
         default=None,
         help="Specify PATH to STED Image",
     )
@@ -245,6 +252,7 @@ def get_tem_correlation_options(parser):
         "-t",
         dest="transform_path",
         metavar="PATH",
+        type=Path,
         help="Specify PATH to transform file",
     )
     group.add_argument(
@@ -334,7 +342,7 @@ def get_quality_script_options(arguments):
     )
 
     parser.add_argument(
-        "--file", help="Defines a path to the image files", default=None
+        "--file", type=Path, help="Defines a path to the image files", default=None
     )
     parser.add_argument("--debug", action="store_true")
     parser.add_argument(
@@ -363,8 +371,9 @@ def get_quality_script_options(arguments):
     parser.add_argument(
         "--working-directory",
         dest="working_directory",
+        type=Path,
         help="Defines the location of the working directory",
-        default="/home/sami/Pictures/Quality",
+        default=Path("/home/sami/Pictures/Quality"),
     )
     parser.add_argument(
         "--mode",
@@ -418,8 +427,9 @@ def get_power_script_options(arguments):
     parser.add_argument(
         "--working-directory",
         dest="working_directory",
+        type=Path,
         help="Defines the location of the working directory",
-        default="/home/sami/Pictures/Quality",
+        default=Path("/home/sami/Pictures/Quality"),
     )
     parser.add_argument("--image-size", dest="image_size", type=int, default=512)
     parser = filters.get_common_options(parser)
@@ -439,8 +449,9 @@ def get_subjective_ranking_options(arguments):
     parser.add_argument(
         "--working-directory",
         dest="working_directory",
+        type=Path,
         help="Defines the location of the working directory",
-        default="/home/sami/Pictures/Quality",
+        default=Path("/home/sami/Pictures/Quality"),
     )
 
     return parser.parse_args(arguments)
@@ -467,7 +478,8 @@ def get_common_options_group(parser):
     group.add_argument(
         "--dir",
         dest="working_directory",
-        default="/home/sami/Data",
+        type=Path,
+        default=Path("/home/sami/Data"),
         help="Path to image files",
     )
     group.add_argument(
@@ -521,6 +533,7 @@ def get_common_options_group(parser):
 
     group.add_argument(
         "--temp-dir",
+        type=Path,
         help="Specify a custom directory for Temp data. By default it will"
         "be saved into an automatically generated directory in the "
         "system's temp file directory (/temp on *nix)",

@@ -5,7 +5,6 @@ I have a nicer version in a notebook -- will be updated.
 
 import datetime
 import sys
-from pathlib import Path
 
 import numpy as np
 import pandas
@@ -19,14 +18,14 @@ from miplib.data.io import read as imread
 def main():
     # Get input arguments
     args = options.get_frc_script_options(sys.argv[1:])
-    path = Path(args.directory)
+    path = args.directory
 
     # Create output directory
     output_dir = args.directory
     date_now = datetime.datetime.now().strftime("%H-%M-%S")
 
     filename = f"{date_now}_miplib_{args.frc_mode}_frc_results.csv"
-    filename = Path(output_dir) / filename
+    filename = output_dir / filename
 
     # Get image file names, sort in alphabetic order and complete.
     files_list = sorted(

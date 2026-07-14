@@ -64,7 +64,6 @@ of packages in scientific articles by citing the corresponding papers:
 import csv
 import datetime
 import sys
-from pathlib import Path
 
 import pandas
 
@@ -79,7 +78,7 @@ def main():
     The Main program of the PyImageQualityRanking software.
     """
     options = miplib_entry_point_options.get_quality_script_options(sys.argv[1:])
-    path = Path(options.working_directory)
+    path = options.working_directory
     file_path = None
     csv_data = None
 

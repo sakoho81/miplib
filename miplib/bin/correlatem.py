@@ -16,7 +16,7 @@ from miplib.ui.cli import miplib_entry_point_options
 
 def main():
     options = miplib_entry_point_options.get_correlate_tem_script_options(sys.argv[1:])
-    wd = Path(options.working_directory)
+    wd = options.working_directory
 
     options.sted_image_path = str(wd / options.sted_image_path)
     if not Path(options.sted_image_path).is_file():

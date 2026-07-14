@@ -23,7 +23,7 @@ from miplib.processing.registration.options import Metric
 def test_parser_defaults():
     parser = _build_parser()
     args = parser.parse_args(["a.tif", "b.tif"])
-    assert args.images == ["a.tif", "b.tif"]
+    assert args.images == [Path("a.tif"), Path("b.tif")]
     assert args.method == RegistrationMethod.ITERATIVE_RIGID
     assert args.fixed_idx == 0
     assert args.learning_rate == 0.7
@@ -72,8 +72,8 @@ def test_parser_output_options():
     args = parser.parse_args(
         ["a.tif", "b.tif", "--output", "out1.tif", "out2.tif", "--output-dir", "/tmp"]
     )
-    assert args.output == ["out1.tif", "out2.tif"]
-    assert args.output_dir == "/tmp"
+    assert args.output == [Path("out1.tif"), Path("out2.tif")]
+    assert args.output_dir == Path("/tmp")
 
 
 # ---------------------------------------------------------------------------
@@ -95,7 +95,7 @@ def tmp_image_dir() -> str:
 
 def test_resolve_source_file_list(tmp_image_dir: str):
     """Multiple positional args → file mode."""
-    paths = sorted(str(p) for p in Path(tmp_image_dir).glob("*.mha"))[:2]
+    paths = sorted(Path(tmp_image_dir).glob("*.mha"))[:2]
     args = argparse.Namespace(images=paths, fixed_idx=0)
     source = _resolve_source(args)
     assert isinstance(source, ArrayRegistrationDataSource)
@@ -104,7 +104,7 @@ def test_resolve_source_file_list(tmp_image_dir: str):
 
 def test_resolve_source_directory(tmp_image_dir: str):
     """Single directory arg → dir mode (glob .mha files)."""
-    args = argparse.Namespace(images=[tmp_image_dir], fixed_idx=0)
+    args = argparse.Namespace(images=[Path(tmp_image_dir)], fixed_idx=0)
     source = _resolve_source(args)
     assert isinstance(source, ArrayRegistrationDataSource)
     assert source.n_views == 3
@@ -113,7 +113,7 @@ def test_resolve_source_directory(tmp_image_dir: str):
 def test_resolve_source_directory_no_images():
     """Empty directory → exits with error."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        args = argparse.Namespace(images=[tmpdir], fixed_idx=0)
+        args = argparse.Namespace(images=[Path(tmpdir)], fixed_idx=0)
         with pytest.raises(SystemExit):
             _resolve_source(args)
 

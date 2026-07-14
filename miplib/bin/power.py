@@ -13,7 +13,6 @@ file, each column denoting a single image.
 
 import datetime
 import sys
-from pathlib import Path
 
 import numpy
 import pandas
@@ -26,7 +25,7 @@ from miplib.ui.cli import miplib_entry_point_options
 
 def main():
     options = miplib_entry_point_options.get_power_script_options(sys.argv[1:])
-    path = Path(options.working_directory)
+    path = options.working_directory
 
     assert path.is_dir()
 

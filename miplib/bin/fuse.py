@@ -94,7 +94,7 @@ def _create_view_data(data, views, options):
 
 def main():
     options = arguments.get_fusion_script_options(sys.argv[1:])
-    full_path = Path(options.working_directory) / options.data_file
+    full_path = options.working_directory / options.data_file
 
     if not full_path.is_file():
         raise AttributeError(f"No such file: {full_path}")

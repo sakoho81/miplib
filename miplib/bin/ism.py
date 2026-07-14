@@ -44,7 +44,7 @@ def _get_psf(image: Image, args: argparse.Namespace) -> Image:
     if args.psf:
         import SimpleITK as sitk
 
-        sitk_psf = sitk.ReadImage(args.psf)
+        sitk_psf = sitk.ReadImage(str(args.psf))
         data = sitk.GetArrayFromImage(sitk_psf)
         return Image(data, spacing=image.spacing)
 
@@ -98,7 +98,9 @@ def _build_parser() -> argparse.ArgumentParser:
             "  miplib-ism ./data/ --ism-mode rl --fwhm 2.0 --max-iterations 50\n"
         ),
     )
-    parser.add_argument("directory", help="Directory containing .mat or .czi files")
+    parser.add_argument(
+        "directory", type=Path, help="Directory containing .mat or .czi files"
+    )
     parser.add_argument(
         "--ism-mode",
         choices=["reassign", "wiener", "rl", "all"],
@@ -120,7 +122,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     # PSF options
     psf_group = parser.add_argument_group("PSF generation")
-    psf_group.add_argument("--psf", help="Path to a PSF image file")
+    psf_group.add_argument("--psf", type=Path, help="Path to a PSF image file")
     psf_group.add_argument(
         "--fwhm",
         type=float,
@@ -155,7 +157,7 @@ def main():
 
     logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING)
 
-    root = Path(args.directory)
+    root = args.directory
     if not root.is_dir():
         sys.exit(f"Not a directory: {args.directory}")
 

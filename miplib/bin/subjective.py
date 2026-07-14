@@ -15,7 +15,6 @@ is shuffled in order to not repeat the same image sequence twice.
 """
 
 import sys
-from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas
@@ -25,7 +24,7 @@ import miplib.ui.cli.miplib_entry_point_options as script_options
 
 def main():
     options = script_options.get_subjective_ranking_options(sys.argv[1:])
-    path = Path(options.working_directory)
+    path = options.working_directory
     index = 0
     assert path.is_dir(), str(path)
 
