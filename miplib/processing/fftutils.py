@@ -8,6 +8,8 @@ from miplib.data.coordinates.polar import (
     PolarLowPassIndexer,
     SimplePolarIndexer,
 )
+from miplib.data.iterators.fourier_ring_iterators import FourierRingIterator
+from miplib.data.iterators.fourier_shell_iterators import FourierShellIterator
 from miplib.processing import ndarray, windowing
 
 _WINDOW_FUNCS: dict[str, Callable[..., np.ndarray]] = {
@@ -106,3 +108,62 @@ def gaussian_fft_filter(image: Image, threshold: float) -> Image:
     fft_image *= gauss
 
     return Image(np.abs(np.fft.ifftn(fft_image).real), spacing)
+
+
+def power_spectrum(image: Image | np.ndarray) -> np.ndarray:
+    """Centered N-dimensional power spectrum (|FFT|²)."""
+    data = image[:] if isinstance(image, Image) else image
+    return np.abs(fft(data, window=None)) ** 2
+
+
+def frequency_axis(n: int, spacing: float) -> np.ndarray:
+    """Physical frequency axis for FFT output: f = k / (n * spacing)."""
+    return np.arange(n) / (n * spacing)
+
+
+def radial_average(image: np.ndarray, bin_size: int = 2) -> np.ndarray:
+    """Radial profile of 2D or 3D array.
+
+    Dispatches to FourierRingIterator (2D) or FourierShellIterator (3D).
+    """
+    if image.ndim == 2:
+        ring_iter = FourierRingIterator(image.shape, d_bin=bin_size)
+        nbins = ring_iter.nbins
+        averages = np.zeros(nbins)
+        for ring_indices, ring_idx in ring_iter:
+            subset = image[ring_indices]
+            averages[ring_idx] = float(subset.sum()) / subset.size
+        return averages
+    elif image.ndim == 3:
+        shell_iter = FourierShellIterator(image.shape, d_bin=bin_size)
+        nbins = len(shell_iter.radii)
+        averages = np.zeros(nbins)
+        for shell_indices, shell_idx in shell_iter:
+            subset = image[shell_indices]
+            averages[shell_idx] = float(subset.sum()) / subset.size
+        return averages
+    else:
+        raise ValueError(f"radial_average requires 2D or 3D array, got {image.ndim}D")
+
+
+def power_spectrum_1d(
+    image: Image | np.ndarray,
+    bin_size: int = 2,
+) -> tuple[np.ndarray, np.ndarray]:
+    """1D radial profile of power spectrum.
+
+    Args:
+        image: Input image (2D or 3D)
+        bin_size: Bin size for radial averaging
+
+    Returns:
+        (frequencies, power) tuple where frequencies are in physical units if Image,
+        otherwise normalized [0, 1]
+    """
+    data = image[:] if isinstance(image, Image) else image
+    spacing = image.spacing[0] if isinstance(image, Image) else 1.0
+
+    ps = power_spectrum(data)
+    profile = radial_average(ps, bin_size)
+    freq = frequency_axis(len(profile), spacing)
+    return freq, profile

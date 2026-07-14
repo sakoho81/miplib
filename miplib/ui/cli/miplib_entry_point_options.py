@@ -9,7 +9,6 @@ for the various *miplib* entry points, that can be found in the
 import argparse
 from pathlib import Path
 
-import miplib.analysis.image_quality.filters as filters
 import miplib.ui.cli.argparse_helpers as helpers
 from miplib.ui.cli.deconvolution_options import get_deconvolution_options_group
 from miplib.ui.cli.frc_options import get_frc_options_group
@@ -323,116 +322,104 @@ def get_transform_script_options(arguments):
 # region Image Quality Ranking
 
 
-def get_quality_script_options(arguments):
-    """Command line options for the image quality ranking script
+def get_quality_options(arguments):
+    """Command line options for the image quality ranking script.
 
+    Minimal API: positional input (file or directory), optional output path,
+    and RGB channel selection. All other filter options use sensible defaults.
 
-    Arguments:
-        arguments {tuple} -- Command line parameters as a tuple of strings,
-        typically obtained as sys.argv[1:]. But one can of course just use
-        string.split(" "), if using in a notebook for example.
+    Args:
+        arguments: Command line parameters as a list of strings
 
     Returns:
-        [Namespace object] -- Simple class used by default by parse_args()
-        to create an object holding attributes and return it.
+        Namespace object with parsed arguments
     """
-
     parser = argparse.ArgumentParser(
-        description="Command line arguments for the image quality ranking software"
+        description="Image quality ranking and analysis tool for microscopy datasets. "
+        "Computes multiple quality metrics (spatial entropy, Brenner gradient, spectral moments, "
+        "power spectrum statistics) to rank images by focus quality and detail content. "
+        "Useful for finding the best-focused images in large datasets or filtering out "
+        "out-of-focus images before quantitative analysis."
     )
 
     parser.add_argument(
-        "--file", type=Path, help="Defines a path to the image files", default=None
+        "input",
+        type=Path,
+        help="Input image file or directory containing images",
     )
-    parser.add_argument("--debug", action="store_true")
     parser.add_argument(
-        "--file-filter",
-        dest="file_filter",
+        "-o",
+        "--output",
+        type=Path,
+        help="Output CSV file path (default: auto-generated in input directory)",
         default=None,
-        help="Define a common string in the files to be analysed",
     )
     parser.add_argument(
         "--rgb-channel",
-        help="Select which channel in an RGB image is to be used for quality analysis",
         dest="rgb_channel",
         type=int,
         choices=[0, 1, 2],
         default=1,
-    )
-    # File filtering for batch mode processing
-    parser.add_argument(
-        "--average-filter",
-        dest="average_filter",
-        type=int,
-        default=0,
-        help="Analyze only images with similar amount of detail, by selecting a "
-        "grayscale average pixel value threshold here",
+        help="RGB channel to use for analysis (0=R, 1=G, 2=B, default: 1)",
     )
     parser.add_argument(
-        "--working-directory",
-        dest="working_directory",
-        type=Path,
-        help="Defines the location of the working directory",
-        default=Path("/home/sami/Pictures/Quality"),
-    )
-    parser.add_argument(
-        "--mode",
-        choices=["file", "directory", "analyze", "plot"],
-        action="append",
-        help="The argument containing the functionality of the main program"
-        "You can concatenate actions by defining multiple modes in a"
-        "single command, e.g. --mode=directory --mode=analyze",
-    )
-    # Parameters for controlling the way plot functionality works.
-    parser.add_argument(
-        "--result",
-        default="average",
-        choices=[
-            "average",
-            "fskew",
-            "ientropy",
-            "fentropy",
-            "fstd",
-            "fkurtosis",
-            "fpw",
-            "fmean",
-            "icv",
-            "meanbin",
-        ],
-        help="Tell how you want the results to be calculated.",
-    )
-    parser.add_argument(
-        "--npics",
-        type=int,
-        default=9,
-        help="Define how many images are shown in the plots",
+        "--options",
+        type=str,
+        default=None,
+        help='Advanced filter options as JSON dict, e.g. \'{"use_mask": false, "power_threshold": 0.5}\' '
+        "(overrides library defaults)",
     )
 
-    parser = filters.get_common_options(parser)
-    parser = get_common_options_group(parser)
-    parser = get_frc_options_group(parser)
     return parser.parse_args(arguments)
 
 
-def get_power_script_options(arguments):
-    """
-    Command line arguments for the power.py script that is used to calculate
-    1D power spectra of images within a directory.
+def get_power_options(arguments):
+    """Command line options for the power spectrum extraction script.
+
+    Minimal API: positional input directory, optional output path, image size,
+    and RGB channel selection.
+
+    Args:
+        arguments: Command line parameters as a list of strings
+
+    Returns:
+        Namespace object with parsed arguments
     """
     parser = argparse.ArgumentParser(
-        description="Command line options for the power.py script that can be"
-        "used to save the power spectra of images within a "
-        "directory"
+        description="Extract 1D radial power spectra from microscopy images. "
+        "Computes the rotationally averaged power spectrum for each image in a directory "
+        "and exports the results to a CSV file. Useful for analyzing frequency content "
+        "and comparing resolution characteristics across image datasets."
+    )
+
+    parser.add_argument(
+        "input",
+        type=Path,
+        help="Input directory containing images",
     )
     parser.add_argument(
-        "--working-directory",
-        dest="working_directory",
+        "-o",
+        "--output",
         type=Path,
-        help="Defines the location of the working directory",
-        default=Path("/home/sami/Pictures/Quality"),
+        help="Output CSV file path (default: auto-generated in input directory)",
+        default=None,
     )
-    parser.add_argument("--image-size", dest="image_size", type=int, default=512)
-    parser = filters.get_common_options(parser)
+    parser.add_argument(
+        "--image-size",
+        dest="image_size",
+        type=int,
+        default=512,
+        help="Resize images to this size before analysis (default: 512)",
+    )
+    parser.add_argument(
+        "--rgb-channel",
+        dest="rgb_channel",
+        type=int,
+        choices=[0, 1, 2],
+        default=1,
+        help="RGB channel to use for analysis (0=R, 1=G, 2=B, default: 1)",
+    )
+
     return parser.parse_args(arguments)
 
 

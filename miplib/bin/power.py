@@ -1,70 +1,83 @@
 #!/usr/bin/env python
 # -*- python -*-
+
 """
-File: power.py
-Author: Sami Koho (sami.koho@gmail.com)
+File:        power.py
+Author:      Sami Koho (sami.koho@gmail.com)
 
 Description:
-
-A utility script for extracting 1D power spectra of all images within
-a defined input directory. The spectra are saved in a single csv
-file, each column denoting a single image.
+Extract 1D radial power spectra from microscopy images. Computes the
+rotationally averaged power spectrum for each image in a directory and
+exports the results to a CSV file.
 """
 
 import datetime
 import sys
 
-import numpy
-import pandas
+import numpy as np
+import pandas as pd
 
-from miplib.analysis.image_quality import filters
 from miplib.data.io import read
+from miplib.processing import fftutils
 from miplib.processing import image as improc
 from miplib.ui.cli import miplib_entry_point_options
 
 
 def main():
-    options = miplib_entry_point_options.get_power_script_options(sys.argv[1:])
-    path = options.working_directory
+    """
+    Power spectrum extraction tool.
+    """
+    options = miplib_entry_point_options.get_power_options(sys.argv[1:])
+    input_path = options.input
 
-    assert path.is_dir()
+    if not input_path.is_dir():
+        print(f"Error: {input_path} is not a directory")
+        sys.exit(1)
 
-    # Create output directory
-    output_dir = datetime.datetime.now().strftime("%Y-%m-%d") + "_PyIQ_output"
-    output_dir = path / output_dir
-    output_dir.mkdir(parents=True, exist_ok=True)
+    # Determine output path
+    if options.output:
+        output_path = options.output
+    else:
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        output_path = input_path / f"{timestamp}_power_spectra.csv"
 
-    # Create output file
-    date_now = datetime.datetime.now().strftime("%H-%M-%S")
-    file_name = date_now + "_PyIQ_power_spectra" + ".csv"
-    file_path = output_dir / file_name
+    # Collect all image files
+    image_files = []
+    for ext in ("*.jpg", "*.tif", "*.tiff", "*.png"):
+        image_files.extend(input_path.glob(ext))
+    image_files.sort()
 
-    csv_data = pandas.DataFrame()
+    if not image_files:
+        print(f"No images found in {input_path}")
+        sys.exit(1)
 
-    # Scan through images
-    for image_in in path.iterdir():
-        if image_in.suffix not in (".jpg", ".tif", ".tiff", ".png"):
-            continue
+    print(f"Extracting power spectra from {len(image_files)} images...")
 
-        # Get image
-        image = read.get_image(str(image_in), channel=options.rgb_channel)
-        image = improc.crop_to_rectangle(image)
+    # Process each image
+    csv_data = pd.DataFrame()
+    for image_path in image_files:
+        try:
+            # Get image
+            image = read.get_image(str(image_path), channel=options.rgb_channel)
+            image = improc.crop_to_rectangle(image)
 
-        for dim in image.shape:
-            if dim != options.image_size:
-                image = improc.resize(image, options.image_size)
-                break
+            # Resize if needed
+            for dim in image.shape:
+                if dim != options.image_size:
+                    image = improc.resize(image, options.image_size)
+                    break
 
-        task = filters.FrequencyQuality(image, options)
-        task.calculate_power_spectrum()
-        task.calculate_summed_power()
+            # Extract power spectrum
+            freq, power = fftutils.power_spectrum_1d(image)
+            csv_data[image_path.name] = power
+            print(f"  ✓ {image_path.name}")
+        except Exception as e:
+            print(f"  ✗ {image_path.name}: {e}")
 
-        power_spectrum = task.get_power_spectrum()
-
-        csv_data[image_in.name] = power_spectrum[1]
-
-    csv_data.insert(0, "Power", numpy.linspace(0, 1, num=len(csv_data)))
-    csv_data.to_csv(file_path, index=False)
+    # Add frequency axis and save
+    csv_data.insert(0, "Frequency", np.linspace(0, 1, num=len(csv_data)))
+    csv_data.to_csv(output_path, index=False)
+    print(f"\nResults saved to: {output_path}")
 
 
 if __name__ == "__main__":
