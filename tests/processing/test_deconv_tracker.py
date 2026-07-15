@@ -76,3 +76,24 @@ def test_frc_tracker_does_not_crash():
     img = Image(coins, spacing=(1.0, 1.0))
     result = tracker.has_converged(tau_threshold=1e-8, estimate=img)
     assert result is False  # Clean image FRC never crosses threshold
+
+
+@pytest.mark.integration
+def test_frc_tracker_on_real_ism_image():
+    """FRC tracker finds a resolution on a real ISM dendrite image."""
+    from pathlib import Path
+
+    from skimage import io
+
+    from miplib.data.containers.image import Image
+
+    path = Path(__file__).parent.parent / "testdata" / "ism_dendrite.tiff"
+    if not path.is_file():
+        pytest.skip(f"Test image not found: {path}")
+
+    data = io.imread(str(path)).astype(np.float64)
+    img = Image(data, spacing=(0.1, 0.1))
+
+    tracker = ConvergenceTracker(tracker_type="frc", frc_check_frequency=1)
+    result = tracker.has_converged(tau_threshold=1e-8, estimate=img)
+    assert not result  # First check, prev_resolution=inf, diff > threshold
