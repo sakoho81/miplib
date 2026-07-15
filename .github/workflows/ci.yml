@@ -7,8 +7,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          lfs: true
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --frozen --group dev
       - run: uv run pre-commit run --all-files
@@ -17,8 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          lfs: true
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --frozen --group dev
       - run: uv run pre-commit run --all-files --hook-stage pre-push
