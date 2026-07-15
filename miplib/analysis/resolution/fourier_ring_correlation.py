@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import numpy as np
 
 import miplib.data.iterators.fourier_ring_iterators as iterators
 import miplib.processing.image as imops
-import miplib.processing.ndarray as arrayutils
 from miplib.data.containers.fourier_correlation_data import (
     FourierCorrelationData,
     FourierCorrelationDataCollection,
@@ -15,128 +12,13 @@ from miplib.data.containers.image import Image
 from miplib.processing import fftutils, windowing
 
 from . import analysis as fsc_analysis
-
-
-def _cutoff_correction(x: float) -> float:
-    """Exponential cutoff correction from Koho et al. (2019).
-
-    Koho, S. et al. Fourier ring correlation simplifies image restoration
-    in fluorescence microscopy. Nat. Commun. 10, 3103 (2019).
-    """
-    return 0.95988146 * np.exp(13.90441896 * (x - 0.97979108)) + 0.55146136
-
-
-@dataclass
-class FRCOptions:
-    d_bin: float = 1.0
-    use_hamming: bool = True
-    d_angle: float = 45.0
-    d_extract_angle: float = 5.0
-    frc_curve_fit_degree: int = 8
-    frc_curve_fit_type: fsc_analysis.FitType = fsc_analysis.FitType.SPLINE
-    resolution_threshold_criterion: fsc_analysis.ResolutionCriterion = (
-        fsc_analysis.ResolutionCriterion.FIXED
-    )
-    resolution_threshold_value: float = 1.0 / 7
-    resolution_snr_value: float = 0.25
-
-
-def namespace_to_frc_options(ns: object) -> FRCOptions:
-    """Convert an argparse.Namespace or any object to FRCOptions.
-
-    Extracts only the fields that match FRCOptions field names.
-    """
-    fit_type_raw = getattr(ns, "frc_curve_fit_type", "spline")
-    if isinstance(fit_type_raw, fsc_analysis.FitType):
-        fit_type = fit_type_raw
-    else:
-        fit_type = fsc_analysis.FitType(fit_type_raw)
-
-    criterion_raw = getattr(ns, "resolution_threshold_criterion", "fixed")
-    if isinstance(criterion_raw, fsc_analysis.ResolutionCriterion):
-        criterion = criterion_raw
-    else:
-        criterion = fsc_analysis.ResolutionCriterion(criterion_raw)
-
-    return FRCOptions(
-        d_bin=getattr(ns, "d_bin", 1.0),
-        use_hamming=getattr(ns, "use_hamming", True),
-        d_angle=getattr(ns, "d_angle", 45.0),
-        d_extract_angle=getattr(ns, "d_extract_angle", 5.0),
-        frc_curve_fit_degree=getattr(ns, "frc_curve_fit_degree", 8),
-        frc_curve_fit_type=fit_type,
-        resolution_threshold_criterion=criterion,
-        resolution_threshold_value=getattr(ns, "resolution_threshold_value", 1.0 / 7),
-        resolution_snr_value=getattr(ns, "resolution_snr_value", 0.25),
-    )
-
-
-def create_fourier_iterator(
-    shape: tuple[int, ...], d_bin: float = 1.0
-) -> iterators.FourierRingIterator:
-    """Create a Fourier iterator for the given image shape.
-
-    Currently supports 2D only. 3D (FourierShellIterator) is the next step.
-    """
-    if len(shape) == 2:
-        return iterators.FourierRingIterator(shape, d_bin)
-    raise ValueError(f"Unsupported dimensionality: {len(shape)}D")
-
-
-def accumulate_fourier_correlation(
-    fft1: np.ndarray,
-    fft2: np.ndarray,
-    iterator: iterators.FourierRingIterator,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Iterate over Fourier rings/shells and accumulate c1, c2, c3, n_points.
-
-    Args:
-        fft1: FFT of first image.
-        fft2: FFT of second image.
-        iterator: A Fourier ring/shell iterator yielding (indices, bin_idx) tuples.
-
-    Returns:
-        (c1, c2, c3, n_points) arrays, one per radial bin.
-    """
-    radii = iterator.radii
-    c1 = np.zeros(radii.shape, dtype=np.float32)
-    c2 = np.zeros(radii.shape, dtype=np.float32)
-    c3 = np.zeros(radii.shape, dtype=np.float32)
-    n_points = np.zeros(radii.shape, dtype=np.float32)
-
-    for indices, idx in iterator:
-        subset1 = fft1[indices]
-        subset2 = fft2[indices]
-        c1[idx] = np.sum(subset1 * np.conjugate(subset2)).real
-        c2[idx] = np.sum(np.abs(subset1) ** 2)
-        c3[idx] = np.sum(np.abs(subset2) ** 2)
-        n_points[idx] = len(subset1)
-
-    return c1, c2, c3, n_points
-
-
-def build_correlation_curve(
-    c1: np.ndarray,
-    c2: np.ndarray,
-    c3: np.ndarray,
-    radii: np.ndarray,
-    nyquist: float,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Compute the FRC curve from accumulated correlation values.
-
-    Args:
-        c1: Sum of F1 * conj(F2) per bin.
-        c2: Sum of |F1|^2 per bin.
-        c3: Sum of |F2|^2 per bin.
-        radii: Radial distances for each bin.
-        nyquist: Nyquist frequency for normalization.
-
-    Returns:
-        (spatial_freq, correlation) arrays.
-    """
-    spatial_freq = radii.astype(np.float32) / nyquist
-    frc = arrayutils.safe_divide(np.abs(c1), np.sqrt(c2 * c3))
-    return spatial_freq, frc
+from .common import (
+    FRCOptions,
+    _cutoff_correction,
+    accumulate_fourier_correlation,
+    build_correlation_curve,
+    make_correlation_data,
+)
 
 
 def calculate_single_image_frc(
@@ -283,15 +165,12 @@ def calculate_single_image_sectioned_frc(
 
 
 class FRC:
-    """
-    A class for calcuating 2D Fourier ring correlation. Contains
-    methods to calculate the FRC as well as to plot the results.
-    """
-
-    def __init__(self, image1, image2, iterator):
-        assert isinstance(image1, Image)
-        assert isinstance(image2, Image)
-
+    def __init__(
+        self,
+        image1: Image,
+        image2: Image,
+        iterator: iterators.FourierRingIterator,
+    ) -> None:
         if image1.shape != image2.shape or tuple(image1.spacing) != tuple(
             image2.spacing
         ):
@@ -314,11 +193,6 @@ class FRC:
         self.freq_nyq = int(np.floor(image1.shape[0] / 2.0))
 
     def execute(self):
-        """
-        Calculate the FRC
-        :return: Returns the FRC results.
-
-        """
         c1, c2, c3, n_points = accumulate_fourier_correlation(
             self.fft_image1, self.fft_image2, self.iterator
         )
@@ -327,9 +201,4 @@ class FRC:
             c1, c2, c3, self.iterator.radii, self.freq_nyq
         )
 
-        data_set = FourierCorrelationData()
-        data_set.correlation["correlation"] = frc
-        data_set.correlation["frequency"] = spatial_freq
-        data_set.correlation["points-x-bin"] = n_points
-
-        return data_set
+        return make_correlation_data(frc, spatial_freq, n_points)

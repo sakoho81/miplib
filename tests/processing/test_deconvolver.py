@@ -319,8 +319,8 @@ def test_deconvolution_pipeline_on_real_ism_image():
 
     from skimage import io
 
+    from miplib.analysis.resolution.common import FRCOptions
     from miplib.analysis.resolution.fourier_ring_correlation import (
-        FRCOptions,
         calculate_single_image_frc,
     )
     from miplib.data.adapters.image_data import ArrayDataSource

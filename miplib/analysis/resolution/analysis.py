@@ -184,12 +184,18 @@ class FourierCorrelationAnalysis:
 
             logger.debug("Fit starts at %s", fit_start)
 
-            root = optimize.minimize_scalar(
-                _pdiff2 if criterion == ResolutionCriterion.FIXED else _pdiff1,
-                bounds=(0, 1),
-                method="bounded",
-            ).x
-            data_set.resolution["resolution-point"] = (frc_eq(root), root)
+            try:
+                root = optimize.minimize_scalar(
+                    _pdiff2 if criterion == ResolutionCriterion.FIXED else _pdiff1,
+                    bounds=(0, 1),
+                    method="bounded",
+                ).x
+                data_set.resolution["resolution-point"] = (frc_eq(root), root)
+            except ValueError:
+                logger.debug(
+                    "Minimization failed for dataset %s (curve outside data range)", key
+                )
+                continue
             data_set.resolution["criterion"] = criterion.value
 
             angle = converters.degrees_to_radians(int(key))

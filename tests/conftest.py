@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from skimage import data as skdata
 
-from miplib.analysis.resolution.fourier_ring_correlation import FRCOptions
+from miplib.analysis.resolution.common import FRCOptions
 from miplib.data.containers.image import Image
 from miplib.psf.psfgen import PsfFromFwhm
 
@@ -105,6 +105,35 @@ def blobs_3d():
         length=64, n_dim=3, volume_fraction=0.5, rng=rng
     ).astype(np.float64)
     return Image(blobs, spacing=(0.2, 0.1, 0.1))
+
+
+@pytest.fixture
+def noisy_blobs_3d(blobs_3d):
+    """blobs_3d with additive Gaussian noise via 'noisy' — ensures FSC curve decays."""
+    from miplib.processing.image import noisy
+
+    return noisy(blobs_3d, "gauss")
+
+
+@pytest.fixture
+def gaussian_field_pair_3d():
+    """Two 64x64x64 images of the same Gaussian-smoothed random field with
+    independent additive Gaussian noise — simulates two acquisitions of the
+    same object for two-image FSC.
+    """
+    from scipy.ndimage import gaussian_filter
+
+    rng = np.random.default_rng(42)
+    smooth = gaussian_filter(rng.standard_normal((64, 64, 64)), sigma=4.0).astype(
+        np.float64
+    )
+    im1 = Image(
+        smooth + 0.3 * rng.standard_normal((64, 64, 64)), spacing=(0.2, 0.1, 0.1)
+    )
+    im2 = Image(
+        smooth + 0.3 * rng.standard_normal((64, 64, 64)), spacing=(0.2, 0.1, 0.1)
+    )
+    return im1, im2
 
 
 @pytest.fixture

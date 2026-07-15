@@ -5,10 +5,11 @@ import numpy.testing as npt
 import pytest
 
 from miplib.analysis.resolution.analysis import FitType, ResolutionCriterion
-from miplib.analysis.resolution.fourier_ring_correlation import (
+from miplib.analysis.resolution.common import (
     FRCOptions,
     _cutoff_correction,
     accumulate_fourier_correlation,
+    accumulate_sectioned_fourier_correlation,
     build_correlation_curve,
     create_fourier_iterator,
     namespace_to_frc_options,
@@ -123,8 +124,15 @@ def test_create_fourier_iterator_2d():
     assert isinstance(it, FourierRingIterator)
 
 
-@pytest.mark.parametrize("bad_shape", [(32,), (32, 32, 32), (16, 16, 16, 16)])
-def test_create_fourier_iterator_rejects_non_2d(bad_shape):
+def test_create_fourier_iterator_3d():
+    it = create_fourier_iterator((32, 32, 32), d_bin=2.0)
+    from miplib.data.iterators.fourier_shell_iterators import FourierShellIterator
+
+    assert isinstance(it, FourierShellIterator)
+
+
+@pytest.mark.parametrize("bad_shape", [(32,), (16, 16, 16, 16)])
+def test_create_fourier_iterator_rejects_invalid_shapes(bad_shape):
     with pytest.raises(ValueError, match="Unsupported dimensionality"):
         create_fourier_iterator(bad_shape)
 
@@ -171,6 +179,53 @@ def test_accumulate_output_length():
     assert len(c2) == n_bins
     assert len(c3) == n_bins
     assert len(n_points) == n_bins
+
+
+def test_accumulate_fourier_correlation_3d():
+    shape = (16, 16, 16)
+    it = create_fourier_iterator(shape, d_bin=2.0)
+    fft = np.ones(shape, dtype=np.complex64)
+    c1, c2, c3, n_points = accumulate_fourier_correlation(fft, fft, it)
+    n_bins = len(it.radii)
+    assert len(c1) == n_bins
+    assert len(c2) == n_bins
+    assert len(c3) == n_bins
+    assert len(n_points) == n_bins
+    npt.assert_allclose(c1, c2, atol=1e-6)
+    npt.assert_allclose(c1, c3, atol=1e-6)
+
+
+def test_accumulate_sectioned_output_shape():
+    shape = (16, 16, 16)
+    d_bin = 4.0
+    d_angle = 90.0
+    from miplib.data.iterators.fourier_shell_iterators import (
+        SectionedFourierShellIterator,
+    )
+
+    it = SectionedFourierShellIterator(shape, d_bin, d_angle)
+    fft = np.ones(shape, dtype=np.complex64)
+    c1, c2, c3, n_points = accumulate_sectioned_fourier_correlation(fft, fft, it)
+    radii, angles = it.steps
+    assert c1.shape == (angles.shape[0], radii.shape[0])
+    assert c2.shape == (angles.shape[0], radii.shape[0])
+    assert c3.shape == (angles.shape[0], radii.shape[0])
+    assert n_points.shape == (angles.shape[0], radii.shape[0])
+
+
+def test_accumulate_sectioned_identical_ffts():
+    shape = (16, 16, 16)
+    d_bin = 4.0
+    d_angle = 90.0
+    from miplib.data.iterators.fourier_shell_iterators import (
+        SectionedFourierShellIterator,
+    )
+
+    it = SectionedFourierShellIterator(shape, d_bin, d_angle)
+    fft = np.ones(shape, dtype=np.complex64)
+    c1, c2, c3, _ = accumulate_sectioned_fourier_correlation(fft, fft, it)
+    npt.assert_allclose(c1, c2, atol=1e-6)
+    npt.assert_allclose(c1, c3, atol=1e-6)
 
 
 # ---------------------------------------------------------------------------
@@ -267,3 +322,55 @@ def test_real_ism_image_frc_resolution(frc_options):
     resolution = result.resolution["resolution"]
     assert np.isfinite(resolution)
     assert 0.534 < resolution < 0.590, f"Expected ~0.56 µm, got {resolution:.3f} µm"
+
+
+# ---------------------------------------------------------------------------
+# calculate_one_image_sectioned_fsc / calculate_two_image_sectioned_fsc
+# ---------------------------------------------------------------------------
+
+
+def test_one_image_sectioned_fsc_returns_data_collection(gaussian_field_pair_3d):
+    from miplib.analysis.resolution.fourier_shell_correlation import (
+        calculate_one_image_sectioned_fsc,
+    )
+    from miplib.data.containers.fourier_correlation_data import (
+        FourierCorrelationDataCollection,
+    )
+
+    im = gaussian_field_pair_3d[0]
+    result = calculate_one_image_sectioned_fsc(im)
+    assert isinstance(result, FourierCorrelationDataCollection)
+    assert len(result) > 0
+    for _angle, dataset in result:
+        if dataset.resolution["resolution-point"] is not None:
+            assert np.isfinite(dataset.resolution["resolution"])
+
+
+def test_one_image_sectioned_fsc_disabling_hamming_still_works(gaussian_field_pair_3d):
+    from miplib.analysis.resolution.fourier_shell_correlation import (
+        calculate_one_image_sectioned_fsc,
+    )
+
+    opts = FRCOptions(use_hamming=False)
+    im = gaussian_field_pair_3d[0]
+    result = calculate_one_image_sectioned_fsc(im, opts)
+    for _angle, dataset in result:
+        if dataset.resolution["resolution-point"] is not None:
+            assert np.isfinite(dataset.resolution["resolution"])
+
+
+def test_two_image_sectioned_fsc_returns_data_collection(gaussian_field_pair_3d):
+    from miplib.analysis.resolution.fourier_shell_correlation import (
+        calculate_two_image_sectioned_fsc,
+    )
+    from miplib.data.containers.fourier_correlation_data import (
+        FourierCorrelationDataCollection,
+    )
+
+    im1, im2 = gaussian_field_pair_3d
+    result = calculate_two_image_sectioned_fsc(im1, im2)
+    assert isinstance(result, FourierCorrelationDataCollection)
+    assert len(result) > 0
+    for _angle, dataset in result:
+        assert dataset.resolution["resolution-point"] is not None
+        assert np.isfinite(dataset.resolution["resolution"])

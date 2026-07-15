@@ -53,7 +53,7 @@ def test_first_guess_at_threshold(threshold, expected_idx):
 
 
 def _make_analysis_options():
-    from miplib.analysis.resolution.fourier_ring_correlation import FRCOptions
+    from miplib.analysis.resolution.common import FRCOptions
 
     return FRCOptions(frc_curve_fit_type=FitType.POLYNOMIAL)
 
