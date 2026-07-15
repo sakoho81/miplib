@@ -101,10 +101,10 @@ def test_frc_tracker_on_real_ism_image():
     )
 
     # First call: resolution found, but prev_resolution=inf so not converged
-    result = tracker.has_converged(tau_threshold=1e-8, estimate=img)
-    assert not result
+    converged = tracker.has_converged(tau_threshold=1e-8, estimate=img)
+    assert not converged
     assert tracker._prev_resolution == pytest.approx(0.56, abs=0.1)
 
     # Second call with same image: resolution unchanged → converged
-    result = tracker.has_converged(tau_threshold=1e-8, estimate=img)
-    assert result
+    converged = tracker.has_converged(tau_threshold=1e-8, estimate=img)
+    assert converged
