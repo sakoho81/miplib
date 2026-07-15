@@ -26,6 +26,13 @@ def calculate_fourier_plane_correlation(
     *,
     z_correction: float = 1.0,
 ):
+    """3D resolution via rotating Fourier plane correlation.
+
+    Reference implementation of the method from Nieuwenhuizen et al. (2013):
+    "Measuring image resolution in optical nanoscopy." Nat. Methods 10, 557–562.
+    Rotates a 2D plane through the 3D volume and computes FRC along the
+    rotation axis.
+    """
     if options is None:
         options = FRCOptions()
     steps = np.arange(0, 360, options.d_angle)

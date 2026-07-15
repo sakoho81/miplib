@@ -74,9 +74,9 @@ def namespace_to_frc_options(ns: object) -> FRCOptions:
 def create_fourier_iterator(
     shape: tuple[int, ...], d_bin: float = 1.0
 ) -> iterators.FourierRingIterator:
-    """Create a Fourier iterator appropriate for the given image dimensionality.
+    """Create a Fourier iterator for the given image shape.
 
-    For 2D shapes returns a FourierRingIterator, for 3D returns a FourierShellIterator.
+    Currently supports 2D only. 3D (FourierShellIterator) is the next step.
     """
     if len(shape) == 2:
         return iterators.FourierRingIterator(shape, d_bin)

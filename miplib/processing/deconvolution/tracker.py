@@ -4,6 +4,10 @@ import logging
 
 import pandas as pd
 
+from miplib.analysis.resolution.fourier_ring_correlation import (
+    FRCOptions,
+    calculate_single_image_frc,
+)
 from miplib.data.containers.image import Image
 
 logger = logging.getLogger(__name__)
@@ -29,6 +33,7 @@ class ConvergenceTracker:
         tracker_type: str = "tau1",
         frc_check_frequency: int = 10,
         frc_stagnation_threshold: float = 0.001,
+        frc_options: FRCOptions | None = None,
     ) -> None:
         self._rows: list[tuple[float, ...]] = []
         self._current_tau1: float = float("inf")
@@ -37,6 +42,7 @@ class ConvergenceTracker:
         self._threshold = frc_stagnation_threshold
         self._prev_resolution: float = float("inf")
         self._frct_iteration: int = 0
+        self._frc_options = frc_options
 
     def add(
         self,
@@ -71,17 +77,11 @@ class ConvergenceTracker:
         if self._frct_iteration % self._freq != 0:
             return False
 
-        from miplib.analysis.resolution.fourier_ring_correlation import (
-            FRCOptions,
-            calculate_single_image_frc,
-        )
-
-        options = FRCOptions()
+        options = self._frc_options if self._frc_options is not None else FRCOptions()
         result = calculate_single_image_frc(estimate, options)
         resolution = result.resolution["resolution"]
         if resolution is None:
             return False
-        diff = abs(self._prev_resolution - resolution)
         diff = abs(self._prev_resolution - resolution)
         logger.debug(
             "FRC check: resolution=%.4f  prev=%.4f  diff=%.4f",
