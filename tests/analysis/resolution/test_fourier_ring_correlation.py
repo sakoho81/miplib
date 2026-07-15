@@ -241,3 +241,29 @@ def test_single_image_frc_returns_valid_result(frc_options):
     resolution = result.resolution["resolution"]
     assert np.isfinite(resolution)
     assert resolution > 0
+
+
+@pytest.mark.integration
+def test_real_ism_image_frc_resolution(frc_options):
+    """FRC on a real 2PE-ISM dendrite image — expect ~0.5 µm resolution."""
+    from pathlib import Path
+
+    from skimage import io
+
+    from miplib.analysis.resolution.fourier_ring_correlation import (
+        calculate_single_image_frc,
+    )
+    from miplib.data.containers.image import Image
+
+    path = Path(__file__).parent.parent.parent / "testdata" / "ism_dendrite.tiff"
+    if not path.is_file():
+        pytest.skip(f"Test image not found: {path}")
+
+    data = io.imread(str(path)).astype(np.float64)
+    spacing = (0.1, 0.1)  # PhysicalSizeX/Y from OME-XML metadata
+    im = Image(data, spacing=spacing)
+
+    result = calculate_single_image_frc(im, frc_options)
+    resolution = result.resolution["resolution"]
+    assert np.isfinite(resolution)
+    assert 0.3 < resolution < 0.8, f"Expected ~0.5 µm, got {resolution:.3f} µm"
