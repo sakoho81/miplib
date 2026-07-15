@@ -322,3 +322,52 @@ def test_real_ism_image_frc_resolution(frc_options):
     resolution = result.resolution["resolution"]
     assert np.isfinite(resolution)
     assert 0.534 < resolution < 0.590, f"Expected ~0.56 µm, got {resolution:.3f} µm"
+
+
+# ---------------------------------------------------------------------------
+# calculate_one_image_sectioned_fsc / calculate_two_image_sectioned_fsc
+# ---------------------------------------------------------------------------
+
+
+def test_one_image_sectioned_fsc_returns_data_collection(noisy_blobs_3d):
+    from miplib.analysis.resolution.fourier_shell_correlation import (
+        calculate_one_image_sectioned_fsc,
+    )
+    from miplib.data.containers.fourier_correlation_data import (
+        FourierCorrelationDataCollection,
+    )
+
+    result = calculate_one_image_sectioned_fsc(noisy_blobs_3d)
+    assert isinstance(result, FourierCorrelationDataCollection)
+    assert len(result) > 0
+    for _angle, dataset in result:
+        if dataset.resolution["resolution-point"] is not None:
+            assert np.isfinite(dataset.resolution["resolution"])
+
+
+def test_one_image_sectioned_fsc_disabling_hamming_still_works(noisy_blobs_3d):
+    from miplib.analysis.resolution.fourier_shell_correlation import (
+        calculate_one_image_sectioned_fsc,
+    )
+
+    opts = FRCOptions(use_hamming=False)
+    result = calculate_one_image_sectioned_fsc(noisy_blobs_3d, opts)
+    for _angle, dataset in result:
+        if dataset.resolution["resolution-point"] is not None:
+            assert np.isfinite(dataset.resolution["resolution"])
+
+
+def test_two_image_sectioned_fsc_returns_data_collection(blobs_3d, noisy_blobs_3d):
+    from miplib.analysis.resolution.fourier_shell_correlation import (
+        calculate_two_image_sectioned_fsc,
+    )
+    from miplib.data.containers.fourier_correlation_data import (
+        FourierCorrelationDataCollection,
+    )
+
+    result = calculate_two_image_sectioned_fsc(blobs_3d, noisy_blobs_3d)
+    assert isinstance(result, FourierCorrelationDataCollection)
+    assert len(result) > 0
+    for _angle, dataset in result:
+        if dataset.resolution["resolution-point"] is not None:
+            assert np.isfinite(dataset.resolution["resolution"])

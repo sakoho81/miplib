@@ -108,6 +108,14 @@ def blobs_3d():
 
 
 @pytest.fixture
+def noisy_blobs_3d(blobs_3d):
+    """blobs_3d with additive Gaussian noise via 'noisy' — ensures FSC curve decays."""
+    from miplib.processing.image import noisy
+
+    return noisy(blobs_3d, "gauss")
+
+
+@pytest.fixture
 def psf_gaussian_2d():
     """2D Gaussian PSF from FWHM (2 µm, 128×128, 4 µm FOV).
 
