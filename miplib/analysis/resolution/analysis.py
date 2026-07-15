@@ -154,11 +154,11 @@ class FourierCorrelationAnalysis:
         self.spacing = spacing
 
     def execute(self, z_correction: float = 1) -> FourierCorrelationDataCollection:
-        criterion = self.options.resolution_threshold_criterion  # type: ignore[union-attr]
-        threshold = self.options.resolution_threshold_value  # type: ignore[union-attr]
-        snr = self.options.resolution_snr_value  # type: ignore[union-attr]
-        degree = self.options.frc_curve_fit_degree  # type: ignore[union-attr]
-        fit_type = self.options.frc_curve_fit_type  # type: ignore[union-attr]
+        criterion = self.options.resolution_threshold_criterion  # type: ignore[attr-defined]
+        threshold = self.options.resolution_threshold_value  # type: ignore[attr-defined]
+        snr = self.options.resolution_snr_value  # type: ignore[attr-defined]
+        degree = self.options.frc_curve_fit_degree  # type: ignore[attr-defined]
+        fit_type = self.options.frc_curve_fit_type  # type: ignore[attr-defined]
 
         def _pdiff1(x: float) -> float:
             return abs(frc_eq(x) - two_sigma_eq(x))
