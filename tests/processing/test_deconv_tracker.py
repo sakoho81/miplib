@@ -80,7 +80,7 @@ def test_frc_tracker_does_not_crash():
 
 @pytest.mark.integration
 def test_frc_tracker_on_real_ism_image():
-    """FRC tracker finds a resolution on a real ISM dendrite image."""
+    """FRC tracker resolves and converges on the same image."""
     from pathlib import Path
 
     from skimage import io
@@ -94,6 +94,17 @@ def test_frc_tracker_on_real_ism_image():
     data = io.imread(str(path)).astype(np.float64)
     img = Image(data, spacing=(0.1, 0.1))
 
-    tracker = ConvergenceTracker(tracker_type="frc", frc_check_frequency=1)
+    tracker = ConvergenceTracker(
+        tracker_type="frc",
+        frc_check_frequency=1,
+        frc_stagnation_threshold=0.001,
+    )
+
+    # First call: resolution found, but prev_resolution=inf so not converged
     result = tracker.has_converged(tau_threshold=1e-8, estimate=img)
-    assert not result  # First check, prev_resolution=inf, diff > threshold
+    assert not result
+    assert tracker._prev_resolution == pytest.approx(0.56, abs=0.1)
+
+    # Second call with same image: resolution unchanged → converged
+    result = tracker.has_converged(tau_threshold=1e-8, estimate=img)
+    assert result
