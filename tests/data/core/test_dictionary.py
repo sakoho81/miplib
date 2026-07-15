@@ -21,6 +21,12 @@ def test_get_unset_key_returns_none():
     assert fd["key1"] is None
 
 
+@pytest.mark.parametrize("key", ["resolution", "resolution-point", "criterion"])
+def test_all_defined_keys_start_as_none(key):
+    fd = FixedDictionary(("resolution", "resolution-point", "criterion"))
+    assert fd[key] is None
+
+
 def test_keys_returns_all_defined_keys():
     fd = FixedDictionary(("a", "b", "c"))
     assert sorted(fd.keys) == ["a", "b", "c"]
