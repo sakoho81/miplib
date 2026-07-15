@@ -116,15 +116,19 @@ The vast majority of modules have zero test coverage. Priority candidates (small
 | ✓ done | `tests/test_register_cli.py` | Register CLI: parsing, source resolution, options (11 tests) |
 | lower | `processing/deconvolution/*` | Now has Image + blobs_3d + psf_gaussian_2d |
 | lower | `processing/fusion/*` | Now has Image + blobs_3d fixtures |
-| lower | `analysis/*` | Depends on data containers |
 | ✓ done | `tests/analysis/resolution/` | FRCOptions, accumulate, curve builder, analysis, first_guess |
+| ✓ done | `tests/psf/test_psfgen.py` | FRC-based PSF generation (real ISM image) |
+| ✓ done | `tests/processing/test_deconvolver.py` | RL deconv pipeline with FRC tracker (real ISM image) |
+| ✓ done | `tests/data/core/test_dictionary.py` | FixedDictionary — __contains__, __iter__, unset-keys-return-None |
 
 ## Known Gaps / Future Work
 
-- **CLI migration to dataclass + `--options` JSON pattern** — The `bin/pyimq.py`, `bin/power.py`, and `bin/resolution.py` now use a typed `@dataclass` options class + `options_from_dict()` bridge (via dacite). Remaining CLIs (`deconvolve`, `ism`, `registration`, `fuse`) still build bare `argparse.Namespace` objects and pass them as untyped bags of attributes. Migrating them to the same pattern would:
+- **CLI migration to dataclass + `--options` JSON pattern** — The `bin/pyimq.py`, `bin/power.py`, and `bin/resolution.py` now use a typed `@dataclass` options class + `options_from_dict()` bridge (via dacite). The deconvolution CLI (`bin/deconvolve.py`) has partial support via `--frc-options` and `--tracker-type`. Remaining CLIs (`ism`, `registration`, `fuse`) still build bare `argparse.Namespace` objects and pass them as untyped bags of attributes. Migrating them to the same pattern would:
   - Make library functions accept typed dataclasses (`RLOptions`, `RegistrationOptions`, `FusionOptions`)
   - Give non-CLI callers a clean programmatic API without constructing `argparse.Namespace`
   - Allow flexible CLI usage via `--options` JSON override (useful for automated/agent-driven workflows)
+- **3D Fourier Shell iterator factory** — `create_fourier_iterator()` currently only dispatches to 2D `FourierRingIterator`. The `FourierShellIterator` (3D) path should be added, enabling `accumulate_fourier_correlation()` to work with 3D data through the same API.
+- **Unify sectioned/directional FRC/FSC** — 2D sectioned and 3D directional correlation share ~80% of the accumulation logic but live in separate functions (`calculate_single_image_sectioned_frc` vs `calculate_one_image_sectioned_fsc`). A unified `sectioned.py` module could handle both.
 - **FFT primitives consolidation** — `miplib/processing/deconvolution/backends.py` defines `_CPUFFT`/`_CUDAFFT`/`resolve_fft` for GPU-aware `fftn`/`ifftn` dispatch. These should move into `miplib/processing/fftutils.py` so the whole library has one CPU+CUDA FFT layer. `fftutils.fft()` and `ifft()` would gain an optional `backend` kwarg. Currently `backends.py` and `wiener.py` each do their own `cupy` import guard — this should become a single import in `fftutils`.
 - **Estimate checkpoint support** — Saving/loading estimate state mid-deconvolution would allow resuming from checkpoints. Needs `EstimateIO.save(estimate, path)` / `load(path, shape, spacing)` plus metadata (iteration count, tracker state, PSF parameters).
 
