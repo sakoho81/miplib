@@ -7,6 +7,9 @@ import numpy as np
 import miplib.data.iterators.fourier_ring_iterators as iterators
 import miplib.data.iterators.fourier_shell_iterators as shell_iterators
 import miplib.processing.ndarray as arrayutils
+from miplib.data.containers.fourier_correlation_data import (
+    FourierCorrelationData,
+)
 
 from . import analysis as fsc_analysis
 
@@ -118,6 +121,22 @@ def build_correlation_curve(
     radii: np.ndarray,
     nyquist: float,
 ) -> tuple[np.ndarray, np.ndarray]:
-    spatial_freq = radii.astype(np.float32) / nyquist
+    spatial_freq = _radii_to_spatial_freq(radii, nyquist)
     frc = arrayutils.safe_divide(np.abs(c1), np.sqrt(c2 * c3))
     return spatial_freq, frc
+
+
+def make_correlation_data(
+    correlation: np.ndarray,
+    frequency: np.ndarray,
+    points_per_bin: np.ndarray,
+) -> FourierCorrelationData:
+    data = FourierCorrelationData()
+    data.correlation["correlation"] = correlation
+    data.correlation["frequency"] = frequency
+    data.correlation["points-x-bin"] = points_per_bin
+    return data
+
+
+def _radii_to_spatial_freq(radii: np.ndarray, nyquist: float) -> np.ndarray:
+    return radii.astype(np.float32) / nyquist

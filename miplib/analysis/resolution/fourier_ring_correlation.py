@@ -17,6 +17,7 @@ from .common import (
     _cutoff_correction,
     accumulate_fourier_correlation,
     build_correlation_curve,
+    make_correlation_data,
 )
 
 
@@ -164,10 +165,12 @@ def calculate_single_image_sectioned_frc(
 
 
 class FRC:
-    def __init__(self, image1, image2, iterator):
-        assert isinstance(image1, Image)
-        assert isinstance(image2, Image)
-
+    def __init__(
+        self,
+        image1: Image,
+        image2: Image,
+        iterator: iterators.FourierRingIterator,
+    ) -> None:
         if image1.shape != image2.shape or tuple(image1.spacing) != tuple(
             image2.spacing
         ):
@@ -198,9 +201,4 @@ class FRC:
             c1, c2, c3, self.iterator.radii, self.freq_nyq
         )
 
-        data_set = FourierCorrelationData()
-        data_set.correlation["correlation"] = frc
-        data_set.correlation["frequency"] = spatial_freq
-        data_set.correlation["points-x-bin"] = n_points
-
-        return data_set
+        return make_correlation_data(frc, spatial_freq, n_points)

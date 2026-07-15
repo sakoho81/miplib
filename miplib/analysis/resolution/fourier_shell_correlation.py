@@ -19,7 +19,9 @@ from . import analysis as fsc_analysis
 from .common import (
     FRCOptions,
     _cutoff_correction,
+    _radii_to_spatial_freq,
     accumulate_sectioned_fourier_correlation,
+    make_correlation_data,
 )
 
 
@@ -131,13 +133,15 @@ def calculate_two_image_sectioned_fsc(
 
 
 class DirectionalFSC:
-    def __init__(self, image1, image2, iterator, normalize_power=False):
-        assert isinstance(image1, Image)
-        assert isinstance(image2, Image)
-
+    def __init__(
+        self,
+        image1: Image,
+        image2: Image,
+        iterator: iterators.SectionedFourierShellIterator,
+        normalize_power: bool = False,
+    ) -> None:
         if image1.ndim != 3 or image1.shape[0] <= 1:
             raise ValueError("You should provide a stack for FSC analysis")
-
         if image1.shape != image2.shape:
             raise ValueError("Image dimensions do not match")
 
@@ -180,18 +184,10 @@ class DirectionalFSC:
         freq_nyq = self.iterator.nyquist
 
         for i in range(angles.size):
-            # Calculate FSC for every orientation
-            spatial_freq = radii.astype(np.float32) / freq_nyq
-            n_points = np.array(points[i])
-            frc = ndarray.safe_divide(c1[i], np.sqrt(c2[i] * c3[i]))
-
-            result = containers.FourierCorrelationData()
-            result.correlation["correlation"] = frc
-            result.correlation["frequency"] = spatial_freq
-            result.correlation["points-x-bin"] = n_points
-
-            # Save result to the structure and move to next
-            # angle
-            data_structure[angles[i]] = result
+            spatial_freq = _radii_to_spatial_freq(radii, freq_nyq)
+            fsc = ndarray.safe_divide(c1[i], np.sqrt(c2[i] * c3[i]))
+            data_structure[angles[i]] = make_correlation_data(
+                fsc, spatial_freq, np.array(points[i])
+            )
 
         return data_structure

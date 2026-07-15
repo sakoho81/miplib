@@ -116,6 +116,27 @@ def noisy_blobs_3d(blobs_3d):
 
 
 @pytest.fixture
+def gaussian_field_pair_3d():
+    """Two 64x64x64 images of the same Gaussian-smoothed random field with
+    independent additive Gaussian noise — simulates two acquisitions of the
+    same object for two-image FSC.
+    """
+    from scipy.ndimage import gaussian_filter
+
+    rng = np.random.default_rng(42)
+    smooth = gaussian_filter(rng.standard_normal((64, 64, 64)), sigma=4.0).astype(
+        np.float64
+    )
+    im1 = Image(
+        smooth + 0.3 * rng.standard_normal((64, 64, 64)), spacing=(0.2, 0.1, 0.1)
+    )
+    im2 = Image(
+        smooth + 0.3 * rng.standard_normal((64, 64, 64)), spacing=(0.2, 0.1, 0.1)
+    )
+    return im1, im2
+
+
+@pytest.fixture
 def psf_gaussian_2d():
     """2D Gaussian PSF from FWHM (2 µm, 128×128, 4 µm FOV).
 

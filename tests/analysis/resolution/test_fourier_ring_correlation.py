@@ -341,8 +341,8 @@ def test_one_image_sectioned_fsc_returns_data_collection(noisy_blobs_3d):
     assert isinstance(result, FourierCorrelationDataCollection)
     assert len(result) > 0
     for _angle, dataset in result:
-        if dataset.resolution["resolution-point"] is not None:
-            assert np.isfinite(dataset.resolution["resolution"])
+        assert dataset.resolution["resolution-point"] is not None
+        assert np.isfinite(dataset.resolution["resolution"])
 
 
 def test_one_image_sectioned_fsc_disabling_hamming_still_works(noisy_blobs_3d):
@@ -353,11 +353,11 @@ def test_one_image_sectioned_fsc_disabling_hamming_still_works(noisy_blobs_3d):
     opts = FRCOptions(use_hamming=False)
     result = calculate_one_image_sectioned_fsc(noisy_blobs_3d, opts)
     for _angle, dataset in result:
-        if dataset.resolution["resolution-point"] is not None:
-            assert np.isfinite(dataset.resolution["resolution"])
+        assert dataset.resolution["resolution-point"] is not None
+        assert np.isfinite(dataset.resolution["resolution"])
 
 
-def test_two_image_sectioned_fsc_returns_data_collection(blobs_3d, noisy_blobs_3d):
+def test_two_image_sectioned_fsc_returns_data_collection(gaussian_field_pair_3d):
     from miplib.analysis.resolution.fourier_shell_correlation import (
         calculate_two_image_sectioned_fsc,
     )
@@ -365,9 +365,10 @@ def test_two_image_sectioned_fsc_returns_data_collection(blobs_3d, noisy_blobs_3
         FourierCorrelationDataCollection,
     )
 
-    result = calculate_two_image_sectioned_fsc(blobs_3d, noisy_blobs_3d)
+    im1, im2 = gaussian_field_pair_3d
+    result = calculate_two_image_sectioned_fsc(im1, im2)
     assert isinstance(result, FourierCorrelationDataCollection)
     assert len(result) > 0
     for _angle, dataset in result:
-        if dataset.resolution["resolution-point"] is not None:
-            assert np.isfinite(dataset.resolution["resolution"])
+        assert dataset.resolution["resolution-point"] is not None
+        assert np.isfinite(dataset.resolution["resolution"])
