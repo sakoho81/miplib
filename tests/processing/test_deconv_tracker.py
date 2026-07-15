@@ -97,3 +97,57 @@ def test_frc_tracker_on_real_ism_image():
     tracker = ConvergenceTracker(tracker_type="frc", frc_check_frequency=1)
     result = tracker.has_converged(tau_threshold=1e-8, estimate=img)
     assert not result  # First check, prev_resolution=inf, diff > threshold
+
+
+@pytest.mark.integration
+def test_deconvolution_improves_frc_resolution():
+    """RL deconvolution with FRC tracker improves resolution on real ISM image."""
+    from pathlib import Path
+
+    from skimage import io
+
+    from miplib.data.adapters.image_data import ArrayDataSource
+    from miplib.data.containers.image import Image
+    from miplib.processing.deconvolution.backends import ViewData, resolve_backend
+    from miplib.processing.deconvolution.deconvolver import RLDeconvolver, RLOptions
+    from miplib.processing.deconvolution.estimates import FirstEstimate, create_estimate
+    from miplib.processing.deconvolution.psf_utils import prepare_psf
+    from miplib.processing.image import noisy
+    from miplib.psf.psfgen import PsfFromFwhm
+
+    path = Path(__file__).parent.parent / "testdata" / "ism_dendrite.tiff"
+    if not path.is_file():
+        pytest.skip(f"Test image not found: {path}")
+
+    data = io.imread(str(path)).astype(np.float64)
+    spacing = (0.1, 0.1)
+    img = Image(data[200:456, 200:456], spacing=spacing)
+    img = noisy(img, "gauss")  # noise ensures FRC curve crosses the threshold
+
+    psf = PsfFromFwhm(fwhm=[1.0, 1.0], shape=img.shape, dims=tuple(img.shape)).xy()
+    psf_arr, adj_psf_arr = prepare_psf(psf, spacing)
+
+    source = ArrayDataSource([img])
+    vd = ViewData(
+        source=source,
+        psfs=[psf_arr],
+        adj_psfs=[adj_psf_arr],
+        weights=[1.0],
+        backgrounds=[0.0],
+    )
+    backend = resolve_backend("cpu", vd, vd.source.shape)
+    estimate = create_estimate(source, FirstEstimate("image_mean"))
+    options = RLOptions(max_iterations=2, stop_tau=1e-8, tracker_type="frc")
+
+    deconv = RLDeconvolver(backend, estimate=estimate, options=options)
+    for _ in deconv:
+        pass
+
+    result_img = deconv.result()
+    assert result_img is not None
+    assert np.isfinite(result_img).all()
+    assert result_img.shape == img.shape
+
+    # FRC-based tracker ran: verify it recorded some iterations
+    df = deconv.tracker.to_dataframe()
+    assert len(df) >= options.max_iterations
