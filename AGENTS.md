@@ -42,6 +42,7 @@ miplib/
 ## Branch & PR Discipline
 
 - **NEVER commit directly to `public`.** Always create a feature branch and open a PR.
+- **Never merge a PR.** The user handles merges.
 - Branch naming: `feature/<name>`, `refactor/<name>`, `fix/<name>`, `test/<name>`.
 
 - **Package manager**: `uv` — use `uv sync --group dev` to install all deps
