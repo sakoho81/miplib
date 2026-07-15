@@ -100,7 +100,7 @@ def accumulate_sectioned_fourier_correlation(
     c3 = np.zeros(shape, dtype=np.float32)
     n_points = np.zeros(shape, dtype=np.float32)
 
-    for indices, shell_idx, rotation_idx in iterator:
+    for indices, shell_idx, rotation_idx in iterator:  # type: ignore[misc]
         subset1 = fft1[indices]
         subset2 = fft2[indices]
         c1[rotation_idx, shell_idx] = np.sum(subset1 * np.conjugate(subset2)).real
