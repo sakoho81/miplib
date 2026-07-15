@@ -3,8 +3,8 @@ import math
 
 from psf import _psf, psf  # type: ignore[attr-defined]
 
+from miplib.analysis.resolution.common import FRCOptions
 from miplib.analysis.resolution.fourier_ring_correlation import (
-    FRCOptions,
     calculate_single_image_frc,
 )
 from miplib.data.containers.image import Image

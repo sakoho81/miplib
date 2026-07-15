@@ -16,7 +16,11 @@ from miplib.data.containers.image import Image
 from miplib.processing import fftutils, windowing
 
 from . import analysis as fsc_analysis
-from .fourier_ring_correlation import FRCOptions, _cutoff_correction
+from .common import (
+    FRCOptions,
+    _cutoff_correction,
+    accumulate_sectioned_fourier_correlation,
+)
 
 
 def calculate_fourier_plane_correlation(
@@ -76,8 +80,9 @@ def calculate_one_image_sectioned_fsc(
 
     image1, image2 = imops.checkerboard_split(image)
 
-    image1 = Image(windowing.apply_hamming_window(image1), image1.spacing)
-    image2 = Image(windowing.apply_hamming_window(image2), image2.spacing)
+    if options.use_hamming:
+        image1 = Image(windowing.apply_hamming_window(image1), image1.spacing)
+        image2 = Image(windowing.apply_hamming_window(image2), image2.spacing)
 
     iterator = iterators.AxialExcludeSectionedFourierShellIterator(
         image1.shape, options.d_bin, options.d_angle, options.d_extract_angle
@@ -111,8 +116,9 @@ def calculate_two_image_sectioned_fsc(
     if options is None:
         options = FRCOptions()
 
-    image1 = Image(windowing.apply_hamming_window(image1), image1.spacing)
-    image2 = Image(windowing.apply_hamming_window(image2), image2.spacing)
+    if options.use_hamming:
+        image1 = Image(windowing.apply_hamming_window(image1), image1.spacing)
+        image2 = Image(windowing.apply_hamming_window(image2), image2.spacing)
 
     iterator = iterators.AxialExcludeSectionedFourierShellIterator(
         image1.shape, options.d_bin, options.d_angle, options.d_extract_angle
@@ -165,30 +171,16 @@ class DirectionalFSC:
                  The return value is just for convenience.
         """
 
+        c1, c2, c3, points = accumulate_sectioned_fourier_correlation(
+            self.fft_image1, self.fft_image2, self.iterator
+        )
+
         data_structure = containers.FourierCorrelationDataCollection()
         radii, angles = self.iterator.steps
         freq_nyq = self.iterator.nyquist
-        shape = (angles.shape[0], radii.shape[0])
-        c1 = np.zeros(shape, dtype=np.float32)
-        c2 = np.zeros(shape, dtype=np.float32)
-        c3 = np.zeros(shape, dtype=np.float32)
-        points = np.zeros(shape, dtype=np.float32)
 
-        # Iterate through the sphere and calculate initial values
-        for ind_ring, shell_idx, rotation_idx in self.iterator:
-            subset1 = self.fft_image1[ind_ring]
-            subset2 = self.fft_image2[ind_ring]
-
-            c1[rotation_idx, shell_idx] = np.sum(subset1 * np.conjugate(subset2)).real
-            c2[rotation_idx, shell_idx] = np.sum(np.abs(subset1) ** 2)
-            c3[rotation_idx, shell_idx] = np.sum(np.abs(subset2) ** 2)
-
-            points[rotation_idx, shell_idx] = len(subset1)
-
-        # Finish up FRC calculation for every rotation angle and sav
-        # results to the data structure.
         for i in range(angles.size):
-            # Calculate FRC for every orientation
+            # Calculate FSC for every orientation
             spatial_freq = radii.astype(np.float32) / freq_nyq
             n_points = np.array(points[i])
             frc = ndarray.safe_divide(c1[i], np.sqrt(c2[i] * c3[i]))

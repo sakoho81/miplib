@@ -182,7 +182,7 @@ def main():
     )
     estimate = create_estimate(source, FirstEstimate(args.first_estimate))
 
-    from miplib.analysis.resolution.fourier_ring_correlation import FRCOptions
+    from miplib.analysis.resolution.common import FRCOptions
     from miplib.utils.dataclasses import options_from_dict
 
     frc_options = options_from_dict(

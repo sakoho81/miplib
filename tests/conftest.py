@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from skimage import data as skdata
 
-from miplib.analysis.resolution.fourier_ring_correlation import FRCOptions
+from miplib.analysis.resolution.common import FRCOptions
 from miplib.data.containers.image import Image
 from miplib.psf.psfgen import PsfFromFwhm
 

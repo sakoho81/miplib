@@ -8,6 +8,7 @@ import pandas
 
 import miplib.analysis.resolution.fourier_ring_correlation as frc
 import miplib.utils.string as strutils
+from miplib.analysis.resolution import common as frc_common
 from miplib.data.io import read as imread
 from miplib.utils.dataclasses import options_from_dict
 
@@ -36,7 +37,7 @@ def main():
     path = args.directory
 
     frc_options = options_from_dict(
-        frc.FRCOptions,
+        frc_common.FRCOptions,
         json.loads(args.frc_options) if args.frc_options else None,
     )
 
