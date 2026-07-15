@@ -16,10 +16,26 @@ from miplib.data.containers.image import Image
 from miplib.processing import fftutils, windowing
 
 from . import analysis as fsc_analysis
+from .fourier_ring_correlation import FRCOptions, _cutoff_correction
 
 
-def calculate_fourier_plane_correlation(image1, image2, args, z_correction=1):
-    steps = np.arange(0, 360, args.d_angle)
+def calculate_fourier_plane_correlation(
+    image1: Image,
+    image2: Image,
+    options: FRCOptions | None = None,
+    *,
+    z_correction: float = 1.0,
+):
+    """3D resolution via rotating Fourier plane correlation.
+
+    Reference implementation of the method from Nieuwenhuizen et al. (2013):
+    "Measuring image resolution in optical nanoscopy." Nat. Methods 10, 557–562.
+    Rotates a 2D plane through the 3D volume and computes FRC along the
+    rotation axis.
+    """
+    if options is None:
+        options = FRCOptions()
+    steps = np.arange(0, 360, options.d_angle)
     data = containers.FourierCorrelationDataCollection()
 
     for _idx, step in enumerate(steps):
@@ -45,26 +61,18 @@ def calculate_fourier_plane_correlation(image1, image2, args, z_correction=1):
 
         data[int(step)] = result
 
-    analyzer = fsc_analysis.FourierCorrelationAnalysis(data, image1.spacing[0], args)
+    analyzer = fsc_analysis.FourierCorrelationAnalysis(data, image1.spacing[0], options)
     return analyzer.execute(z_correction=z_correction)
 
 
-def calculate_one_image_sectioned_fsc(image, args, z_correction=1):
-    """A function to calculate one-image sectioned FSC. I assume here that prior to calling the function,
-    the image is going to be in a correct shape, resampled to isotropic spacing and zero padded. If the image
-    dimensions are wrong (not a cube) the function will return an error.
-
-    :param image: a 3D image, with isotropic spacing and cubic shape
-    :type image: Image
-    :param options: options for the FSC calculation
-    :type options: argparse options
-    :param z_correction: correction, for anisotropic sampling. It is the ratio of axial vs. lateral spacing, defaults to 1
-    :type z_correction: float, optional
-    :return: the resolution measurement results organized by rotation angle
-    :rtype: FourierCorrelationDataCollection object
-    """
-    assert isinstance(image, Image)
-    assert all(s == image.shape[0] for s in image.shape)
+def calculate_one_image_sectioned_fsc(
+    image: Image,
+    options: FRCOptions | None = None,
+    *,
+    z_correction: float = 1.0,
+):
+    if options is None:
+        options = FRCOptions()
 
     image1, image2 = imops.checkerboard_split(image)
 
@@ -72,44 +80,47 @@ def calculate_one_image_sectioned_fsc(image, args, z_correction=1):
     image2 = Image(windowing.apply_hamming_window(image2), image2.spacing)
 
     iterator = iterators.AxialExcludeSectionedFourierShellIterator(
-        image1.shape, args.d_bin, args.d_angle, args.d_extract_angle
+        image1.shape, options.d_bin, options.d_angle, options.d_extract_angle
     )
     fsc_task = DirectionalFSC(image1, image2, iterator)
 
     data = fsc_task.execute()
 
-    analyzer = fsc_analysis.FourierCorrelationAnalysis(data, image1.spacing[0], args)
+    analyzer = fsc_analysis.FourierCorrelationAnalysis(data, image1.spacing[0], options)
     result = analyzer.execute(z_correction=z_correction)
 
-    def func(x, a, b, c, d):
-        return a * np.exp(c * (x - b)) + d
-
-    params = [0.95988146, 0.97979108, 13.90441896, 0.55146136]
-
     for _angle, dataset in result:
-        point = dataset.resolution["resolution-point"][1]
+        point_data = dataset.resolution["resolution-point"]
+        if point_data is None:
+            continue
 
-        cut_off_correction = func(point, *params)
+        cut_off_correction = _cutoff_correction(point_data[1])
         dataset.resolution["spacing"] /= cut_off_correction
         dataset.resolution["resolution"] /= cut_off_correction
 
     return result
 
 
-def calculate_two_image_sectioned_fsc(image1, image2, args, z_correction=1):
-    assert isinstance(image1, Image)
-    assert isinstance(image2, Image)
+def calculate_two_image_sectioned_fsc(
+    image1: Image,
+    image2: Image,
+    options: FRCOptions | None = None,
+    *,
+    z_correction: float = 1.0,
+):
+    if options is None:
+        options = FRCOptions()
 
     image1 = Image(windowing.apply_hamming_window(image1), image1.spacing)
     image2 = Image(windowing.apply_hamming_window(image2), image2.spacing)
 
     iterator = iterators.AxialExcludeSectionedFourierShellIterator(
-        image1.shape, args.d_bin, args.d_angle, args.d_extract_angle
+        image1.shape, options.d_bin, options.d_angle, options.d_extract_angle
     )
     fsc_task = DirectionalFSC(image1, image2, iterator)
     data = fsc_task.execute()
 
-    analyzer = fsc_analysis.FourierCorrelationAnalysis(data, image1.spacing[0], args)
+    analyzer = fsc_analysis.FourierCorrelationAnalysis(data, image1.spacing[0], options)
     return analyzer.execute(z_correction=z_correction)
 
 

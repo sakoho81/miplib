@@ -1,5 +1,6 @@
 import math
 
+import numpy as np
 import numpy.testing as npt
 import pytest
 
@@ -80,3 +81,38 @@ def test_psf_rejects_non_list_fwhm():
     """Non-list FWHM raises TypeError."""
     with pytest.raises(TypeError, match="fwhm must be a list"):
         PsfFromFwhm(fwhm=(2.0, 2.0))  # type: ignore[arg-type]
+
+
+@pytest.mark.integration
+def test_frc_based_psf_on_real_ism_image():
+    """generate_frc_based_psf produces a valid PSF from an ISM dendrite image."""
+    from pathlib import Path
+
+    from skimage import io
+
+    from miplib.data.containers.image import Image
+    from miplib.psf.psfgen import generate_frc_based_psf
+
+    path = Path(__file__).parent.parent / "testdata" / "ism_dendrite.tiff"
+    if not path.is_file():
+        pytest.skip(f"Test image not found: {path}")
+
+    data = io.imread(str(path)).astype(np.float64)
+    img = Image(data, spacing=(0.1, 0.1))
+
+    psf = generate_frc_based_psf(img)
+    assert psf.ndim == 2
+    assert isinstance(psf, Image)
+    assert psf.shape[0] > 100  # reasonable PSF size
+    assert psf[psf.shape[0] // 2, psf.shape[1] // 2] == pytest.approx(1.0)
+    if not path.is_file():
+        pytest.skip(f"Test image not found: {path}")
+
+    data = io.imread(str(path)).astype(np.float64)
+    img = Image(data, spacing=(0.1, 0.1))
+
+    psf = generate_frc_based_psf(img)
+    assert psf.ndim == 2
+    assert isinstance(psf, Image)
+    assert psf.shape[0] > 100  # reasonable PSF size
+    assert psf[psf.shape[0] // 2, psf.shape[1] // 2] == pytest.approx(1.0)

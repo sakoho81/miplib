@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from skimage import data as skdata
 
+from miplib.analysis.resolution.fourier_ring_correlation import FRCOptions
 from miplib.data.containers.image import Image
 from miplib.psf.psfgen import PsfFromFwhm
 
@@ -114,3 +115,9 @@ def psf_gaussian_2d():
     Useful for deconvolution and resolution testing with known PSF parameters.
     """
     return PsfFromFwhm(fwhm=[2.0, 2.0], shape=(128, 128), dims=(4.0, 4.0)).xy()
+
+
+@pytest.fixture
+def frc_options():
+    """Default FRCOptions for FRC/FSC testing."""
+    return FRCOptions()

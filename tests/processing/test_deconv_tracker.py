@@ -59,18 +59,12 @@ def test_has_converged_ignores_estimate_in_tau1_mode():
     assert tracker.has_converged(0.2, estimate=None)
 
 
-@pytest.mark.xfail(
-    reason="FRC analysis code crashes when correlation never crosses the "
-    "resolution threshold (first_guess IndexError). Needs cleanup of the old "
-    "FRC analysis module."
-)
 def test_frc_tracker_does_not_crash():
-    """Smoke-test: FRC tracker survives a real image without crashing.
+    """Frc tracker survives when FRC curve never crosses the resolution threshold.
 
-    FRC convergence on synthetic test patterns may be unreliable until the
-    old FRC analysis code is cleaned up, but the tracker should at least
-    not raise when handed a real Image. Uses a real photo so the FRC
-    correlation has actual structure to work with.
+    Clean images produce checkerboard halves with correlated noise, so
+    the FRC correlation may never drop below the fixed threshold of 1/7.
+    The tracker must not crash — it should return False (not converged).
     """
     import skimage.data
 
@@ -81,4 +75,36 @@ def test_frc_tracker_does_not_crash():
     coins = skimage.data.coins().astype(np.float64)
     img = Image(coins, spacing=(1.0, 1.0))
     result = tracker.has_converged(tau_threshold=1e-8, estimate=img)
-    assert result in (True, False)
+    assert result is False  # Clean image FRC never crosses threshold
+
+
+@pytest.mark.integration
+def test_frc_tracker_on_real_ism_image():
+    """FRC tracker resolves and converges on the same image."""
+    from pathlib import Path
+
+    from skimage import io
+
+    from miplib.data.containers.image import Image
+
+    path = Path(__file__).parent.parent / "testdata" / "ism_dendrite.tiff"
+    if not path.is_file():
+        pytest.skip(f"Test image not found: {path}")
+
+    data = io.imread(str(path)).astype(np.float64)
+    img = Image(data, spacing=(0.1, 0.1))
+
+    tracker = ConvergenceTracker(
+        tracker_type="frc",
+        frc_check_frequency=1,
+        frc_stagnation_threshold=0.001,
+    )
+
+    # First call: resolution found, but prev_resolution=inf so not converged
+    converged = tracker.has_converged(tau_threshold=1e-8, estimate=img)
+    assert not converged
+    assert tracker._prev_resolution == pytest.approx(0.56, abs=0.1)
+
+    # Second call with same image: resolution unchanged → converged
+    converged = tracker.has_converged(tau_threshold=1e-8, estimate=img)
+    assert converged

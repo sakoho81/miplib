@@ -27,6 +27,7 @@ class RLOptions:
     max_iterations: int = 100
     stop_tau: float = 1e-4
     tracker_type: str = "tau1"
+    frc_options: object = None  # FRCOptions | None, lazy to avoid coupling
 
     def __post_init__(self):
         if not isinstance(self.fusion_mode, FusionMode):
@@ -63,6 +64,7 @@ class RLDeconvolver:
         self._shape = vd.source.shape
         self.tracker = ConvergenceTracker(
             tracker_type=self._options.tracker_type,
+            frc_options=self._options.frc_options,  # type: ignore[arg-type]
         )
         self._iteration: int = 0
         self._converged: bool = False

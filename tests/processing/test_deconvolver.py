@@ -310,3 +310,65 @@ def test_deconvolve_impulse_recovery():
     # produce a sharper recovery
     assert mse_deconv < mse_blurred * 0.7
     assert result.min() >= 0
+
+
+@pytest.mark.integration
+def test_deconvolution_pipeline_on_real_ism_image():
+    """RL deconv with FRC-estimated PSF improves resolution on real ISM image."""
+    from pathlib import Path
+
+    from skimage import io
+
+    from miplib.analysis.resolution.fourier_ring_correlation import (
+        FRCOptions,
+        calculate_single_image_frc,
+    )
+    from miplib.data.adapters.image_data import ArrayDataSource
+    from miplib.data.containers.image import Image
+    from miplib.processing.deconvolution.backends import ViewData, resolve_backend
+    from miplib.processing.deconvolution.deconvolver import RLDeconvolver, RLOptions
+    from miplib.processing.deconvolution.estimates import FirstEstimate, create_estimate
+    from miplib.processing.deconvolution.psf_utils import prepare_psf
+    from miplib.psf.psfgen import generate_frc_based_psf
+
+    path = Path(__file__).parent.parent / "testdata" / "ism_dendrite.tiff"
+    if not path.is_file():
+        pytest.skip(f"Test image not found: {path}")
+
+    data = io.imread(str(path)).astype(np.float64)
+    spacing = (0.1, 0.1)
+    img = Image(data[200:456, 200:456], spacing=spacing)
+
+    psf = generate_frc_based_psf(img)
+    assert psf.ndim == 2
+    assert psf[psf.shape[0] // 2, psf.shape[1] // 2] == pytest.approx(1.0)
+
+    psf_arr, adj_psf_arr = prepare_psf(psf, spacing)
+
+    source = ArrayDataSource([img])
+    vd = ViewData(
+        source=source,
+        psfs=[psf_arr],
+        adj_psfs=[adj_psf_arr],
+        weights=[1.0],
+        backgrounds=[0.0],
+    )
+    backend = resolve_backend("cpu", vd, vd.source.shape)
+    estimate = create_estimate(source, FirstEstimate.IMAGE)
+    options = RLOptions(max_iterations=5, stop_tau=1e-8, tracker_type="frc")
+
+    initial = calculate_single_image_frc(img, FRCOptions()).resolution["resolution"]
+
+    deconv = RLDeconvolver(backend, estimate=estimate, options=options)
+    for _ in deconv:
+        pass
+
+    result_img = deconv.result()
+    assert result_img.shape == img.shape
+    assert np.isfinite(result_img).all()
+
+    final = calculate_single_image_frc(result_img, FRCOptions()).resolution[
+        "resolution"
+    ]
+    assert final is not None, "FRC resolution not found on deconvolved image"
+    assert final < initial, f"FRC did not improve: {initial:.4f} → {final:.4f} µm"

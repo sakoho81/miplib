@@ -3,7 +3,10 @@ import math
 
 from psf import _psf, psf  # type: ignore[attr-defined]
 
-from miplib.analysis.resolution import fourier_ring_correlation as frc
+from miplib.analysis.resolution.fourier_ring_correlation import (
+    FRCOptions,
+    calculate_single_image_frc,
+)
 from miplib.data.containers.image import Image
 
 logger = logging.getLogger(__name__)
@@ -66,9 +69,14 @@ class PsfFromFwhm:
         return Image(data, spacing)
 
 
-def generate_frc_based_psf(image, args):
+def generate_frc_based_psf(
+    image: Image,
+    options: FRCOptions | None = None,
+) -> Image:
+    if options is None:
+        options = FRCOptions()
     fwhm = [
-        frc.calculate_single_image_frc(image, args).resolution["resolution"],
+        calculate_single_image_frc(image, options).resolution["resolution"],
     ] * 2
     psf_generator = PsfFromFwhm(fwhm)
 

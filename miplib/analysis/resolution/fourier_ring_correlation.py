@@ -1,17 +1,12 @@
-"""
-Sami Koho 01/2017
+from __future__ import annotations
 
-Image resolution measurement by Fourier Ring Correlation.
-
-"""
-
-from pathlib import Path
+from dataclasses import dataclass
 
 import numpy as np
 
-import miplib.data.io.read as imread
 import miplib.data.iterators.fourier_ring_iterators as iterators
 import miplib.processing.image as imops
+import miplib.processing.ndarray as arrayutils
 from miplib.data.containers.fourier_correlation_data import (
     FourierCorrelationData,
     FourierCorrelationDataCollection,
@@ -22,40 +17,155 @@ from miplib.processing import fftutils, windowing
 from . import analysis as fsc_analysis
 
 
-def calculate_single_image_frc(image, args, average=True, trim=True, z_correction=1):
-    """
-    A simple utility to calculate a regular FRC with a single image input
+def _cutoff_correction(x: float) -> float:
+    """Exponential cutoff correction from Koho et al. (2019).
 
-    :param image: the image as an Image object
-    :param args:  the parameters for the FRC calculation. See *miplib.ui.frc_options*
-                  for details
-    :return:      returns the FRC result as a FourierCorrelationData object
-
+    Koho, S. et al. Fourier ring correlation simplifies image restoration
+    in fluorescence microscopy. Nat. Commun. 10, 3103 (2019).
     """
-    assert isinstance(image, Image)
+    return 0.95988146 * np.exp(13.90441896 * (x - 0.97979108)) + 0.55146136
+
+
+@dataclass
+class FRCOptions:
+    d_bin: float = 1.0
+    use_hamming: bool = True
+    d_angle: float = 45.0
+    d_extract_angle: float = 5.0
+    frc_curve_fit_degree: int = 8
+    frc_curve_fit_type: fsc_analysis.FitType = fsc_analysis.FitType.SPLINE
+    resolution_threshold_criterion: fsc_analysis.ResolutionCriterion = (
+        fsc_analysis.ResolutionCriterion.FIXED
+    )
+    resolution_threshold_value: float = 1.0 / 7
+    resolution_snr_value: float = 0.25
+
+
+def namespace_to_frc_options(ns: object) -> FRCOptions:
+    """Convert an argparse.Namespace or any object to FRCOptions.
+
+    Extracts only the fields that match FRCOptions field names.
+    """
+    fit_type_raw = getattr(ns, "frc_curve_fit_type", "spline")
+    if isinstance(fit_type_raw, fsc_analysis.FitType):
+        fit_type = fit_type_raw
+    else:
+        fit_type = fsc_analysis.FitType(fit_type_raw)
+
+    criterion_raw = getattr(ns, "resolution_threshold_criterion", "fixed")
+    if isinstance(criterion_raw, fsc_analysis.ResolutionCriterion):
+        criterion = criterion_raw
+    else:
+        criterion = fsc_analysis.ResolutionCriterion(criterion_raw)
+
+    return FRCOptions(
+        d_bin=getattr(ns, "d_bin", 1.0),
+        use_hamming=getattr(ns, "use_hamming", True),
+        d_angle=getattr(ns, "d_angle", 45.0),
+        d_extract_angle=getattr(ns, "d_extract_angle", 5.0),
+        frc_curve_fit_degree=getattr(ns, "frc_curve_fit_degree", 8),
+        frc_curve_fit_type=fit_type,
+        resolution_threshold_criterion=criterion,
+        resolution_threshold_value=getattr(ns, "resolution_threshold_value", 1.0 / 7),
+        resolution_snr_value=getattr(ns, "resolution_snr_value", 0.25),
+    )
+
+
+def create_fourier_iterator(
+    shape: tuple[int, ...], d_bin: float = 1.0
+) -> iterators.FourierRingIterator:
+    """Create a Fourier iterator for the given image shape.
+
+    Currently supports 2D only. 3D (FourierShellIterator) is the next step.
+    """
+    if len(shape) == 2:
+        return iterators.FourierRingIterator(shape, d_bin)
+    raise ValueError(f"Unsupported dimensionality: {len(shape)}D")
+
+
+def accumulate_fourier_correlation(
+    fft1: np.ndarray,
+    fft2: np.ndarray,
+    iterator: iterators.FourierRingIterator,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Iterate over Fourier rings/shells and accumulate c1, c2, c3, n_points.
+
+    Args:
+        fft1: FFT of first image.
+        fft2: FFT of second image.
+        iterator: A Fourier ring/shell iterator yielding (indices, bin_idx) tuples.
+
+    Returns:
+        (c1, c2, c3, n_points) arrays, one per radial bin.
+    """
+    radii = iterator.radii
+    c1 = np.zeros(radii.shape, dtype=np.float32)
+    c2 = np.zeros(radii.shape, dtype=np.float32)
+    c3 = np.zeros(radii.shape, dtype=np.float32)
+    n_points = np.zeros(radii.shape, dtype=np.float32)
+
+    for indices, idx in iterator:
+        subset1 = fft1[indices]
+        subset2 = fft2[indices]
+        c1[idx] = np.sum(subset1 * np.conjugate(subset2)).real
+        c2[idx] = np.sum(np.abs(subset1) ** 2)
+        c3[idx] = np.sum(np.abs(subset2) ** 2)
+        n_points[idx] = len(subset1)
+
+    return c1, c2, c3, n_points
+
+
+def build_correlation_curve(
+    c1: np.ndarray,
+    c2: np.ndarray,
+    c3: np.ndarray,
+    radii: np.ndarray,
+    nyquist: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Compute the FRC curve from accumulated correlation values.
+
+    Args:
+        c1: Sum of F1 * conj(F2) per bin.
+        c2: Sum of |F1|^2 per bin.
+        c3: Sum of |F2|^2 per bin.
+        radii: Radial distances for each bin.
+        nyquist: Nyquist frequency for normalization.
+
+    Returns:
+        (spatial_freq, correlation) arrays.
+    """
+    spatial_freq = radii.astype(np.float32) / nyquist
+    frc = arrayutils.safe_divide(np.abs(c1), np.sqrt(c2 * c3))
+    return spatial_freq, frc
+
+
+def calculate_single_image_frc(
+    image: Image,
+    options: FRCOptions | None = None,
+    *,
+    average: bool = True,
+    z_correction: float = 1.0,
+) -> FourierCorrelationData:
+    if options is None:
+        options = FRCOptions()
 
     frc_data = FourierCorrelationDataCollection()
 
-    # Hamming Windowing
-    if not args.disable_hamming:
+    if options.use_hamming:
         spacing = image.spacing
         image = Image(windowing.apply_hamming_window(image), spacing)
 
-    # Split and make sure that the images are the same siz
     image1, image2 = imops.checkerboard_split(image)
-    # image1, image2 = imops.reverse_checkerboard_split(image)
     image1, image2 = imops.zero_pad_to_matching_shape(image1, image2)
 
-    # Run FRC
-    iterator = iterators.FourierRingIterator(image1.shape, args.d_bin)
+    iterator = iterators.FourierRingIterator(image1.shape, options.d_bin)
     frc_task = FRC(image1, image2, iterator)
     frc_data[0] = frc_task.execute()
 
     if average:
-        # Split and make sure that the images are the same size
         image1, image2 = imops.reverse_checkerboard_split(image)
         image1, image2 = imops.zero_pad_to_matching_shape(image1, image2)
-        iterator = iterators.FourierRingIterator(image1.shape, args.d_bin)
+        iterator = iterators.FourierRingIterator(image1.shape, options.d_bin)
         frc_task = FRC(image1, image2, iterator)
 
         frc_data[0].correlation["correlation"] *= 0.5
@@ -63,91 +173,70 @@ def calculate_single_image_frc(image, args, average=True, trim=True, z_correctio
             0.5 * frc_task.execute().correlation["correlation"]
         )
 
-    frc_data[0].correlation["frequency"].copy()
-
-    def func(x, a, b, c, d):
-        return a * np.exp(c * (x - b)) + d
-
-    params = [0.95988146, 0.97979108, 13.90441896, 0.55146136]
-
-    # Analyze results
     analyzer = fsc_analysis.FourierCorrelationAnalysis(
-        frc_data, image1.spacing[0], args
+        frc_data, image1.spacing[0], options
     )
 
     result = analyzer.execute(z_correction=z_correction)[0]
-    point = result.resolution["resolution-point"][1]
 
-    cut_off_correction = func(point, *params)
+    point_data = result.resolution["resolution-point"]
+    if point_data is None:
+        return result
+
+    cut_off_correction = _cutoff_correction(point_data[1])
     result.resolution["spacing"] /= cut_off_correction
     result.resolution["resolution"] /= cut_off_correction
 
     return result
 
 
-def calculate_two_image_frc(image1, image2, args, z_correction=1):
-    """
-    A simple utility to calculate a regular FRC with a two image input
-
-    :param image: the image as an Image object
-    :param args:  the parameters for the FRC calculation. See *miplib.ui.frc_options*
-                  for details
-    :return:      returns the FRC result as a FourierCorrelationData object
-    """
-    assert isinstance(image1, Image)
-    assert isinstance(image2, Image)
-
-    assert image1.shape == image2.shape
+def calculate_two_image_frc(
+    image1: Image,
+    image2: Image,
+    options: FRCOptions | None = None,
+    *,
+    z_correction: float = 1.0,
+) -> FourierCorrelationData:
+    if options is None:
+        options = FRCOptions()
 
     frc_data = FourierCorrelationDataCollection()
-
     spacing = image1.spacing
 
-    if not args.disable_hamming:
+    if options.use_hamming:
         image1 = Image(windowing.apply_hamming_window(image1), spacing)
         image2 = Image(windowing.apply_hamming_window(image2), spacing)
 
-    # Run FRC
-    iterator = iterators.FourierRingIterator(image1.shape, args.d_bin)
+    iterator = iterators.FourierRingIterator(image1.shape, options.d_bin)
     frc_task = FRC(image1, image2, iterator)
     frc_data[0] = frc_task.execute()
 
-    # Analyze results
     analyzer = fsc_analysis.FourierCorrelationAnalysis(
-        frc_data, image1.spacing[0], args
+        frc_data, image1.spacing[0], options
     )
 
     return analyzer.execute(z_correction=z_correction)[0]
 
 
 def calculate_single_image_sectioned_frc(
-    image, args, rotation=45, orthogonal=True, trim=True
+    image: Image,
+    rotation: float,
+    *,
+    options: FRCOptions | None = None,
+    orthogonal: bool = True,
 ):
-    """
-    A function utility to calculate a single image FRC on a Fourier ring section. The section
-    is defined by the section size d_angle (in args) and the section rotation.
-    :param image: the image as an Image object
-    :param args:  the parameters for the FRC calculation. See *miplib.ui.frc_options*
-                  for details
-    :param rotation: defines the orientation of the fourier ring section
-    :param orthogonal: if True, FRC is calculated from two sections, oriented at rotation
-    and rotation + 90 degrees
-    :return:      returns the FRC result as a FourierCorrelationData object
-
-    """
-    assert isinstance(image, Image)
+    if options is None:
+        options = FRCOptions()
 
     frc_data = FourierCorrelationDataCollection()
 
-    # Hamming Windowing
-    if not args.disable_hamming:
+    if options.use_hamming:
         spacing = image.spacing
         image = Image(windowing.apply_hamming_window(image), spacing)
 
-    # Run FRC
-    def frc_helper(image1, image2, args, rotation):
+    def frc_helper(image1, image2, rotation):
         iterator = iterators.SectionedFourierRingIterator(
-            image1.shape, args.d_bin, args.d_angle
+            image1.shape, options.d_bin, options.d_angle
         )
         iterator.angle = rotation
         frc_task = FRC(image1, image2, iterator)
@@ -159,72 +248,38 @@ def calculate_single_image_sectioned_frc(
     image1_r, image2_r = imops.reverse_checkerboard_split(image)
     image1_r, image2_r = imops.zero_pad_to_matching_shape(image1_r, image2_r)
 
-    pair_1 = frc_helper(image1, image2, args, rotation)
-    pair_2 = frc_helper(image1_r, image2_r, args, rotation)
+    pair_1 = frc_helper(image1, image2, rotation)
+    pair_2 = frc_helper(image1_r, image2_r, rotation)
 
-    pair_1.correlation["correlation"] * 0.5
+    pair_1.correlation["correlation"] *= 0.5
     pair_1.correlation["correlation"] += 0.5 * pair_2.correlation["correlation"]
 
     if orthogonal:
-        pair_1_o = frc_helper(image1, image2, args, rotation + 90)
-        pair_2_o = frc_helper(image1_r, image2_r, args, rotation + 90)
+        pair_1_o = frc_helper(image1, image2, rotation + 90)
+        pair_2_o = frc_helper(image1_r, image2_r, rotation + 90)
 
-        pair_1_o.correlation["correlation"] * 0.5
+        pair_1_o.correlation["correlation"] *= 0.5
         pair_1_o.correlation["correlation"] += 0.5 * pair_2_o.correlation["correlation"]
 
         pair_1.correlation["correlation"] += 0.5 * pair_1_o.correlation["correlation"]
 
     frc_data[0] = pair_1
 
-    frc_data[0].correlation["frequency"].copy()
-
-    def func(x, a, b, c, d):
-        return a * np.exp(c * (x - b)) + d
-
-    params = [0.95988146, 0.97979108, 13.90441896, 0.55146136]
-
-    # Analyze results
     analyzer = fsc_analysis.FourierCorrelationAnalysis(
-        frc_data, image1.spacing[0], args
+        frc_data, image1.spacing[0], options
     )
 
     result = analyzer.execute()[0]
-    point = result.resolution["resolution-point"][1]
 
-    log_correction = func(point, *params)
+    point_data = result.resolution["resolution-point"]
+    if point_data is None:
+        return result
+
+    log_correction = _cutoff_correction(point_data[1])
     result.resolution["spacing"] /= log_correction
     result.resolution["resolution"] /= log_correction
 
     return result
-
-
-def batch_evaluate_frc(path, options):
-    """
-    Batch calculate FRC resolution for files placed in a directory
-    :param options: options for the FRC
-    :parame path:   directory that contains the images to be analyzed
-    """
-    assert Path(path).is_dir()
-
-    measures = FourierCorrelationDataCollection()
-    image_names = []
-
-    for idx, real_path in enumerate(sorted(Path(path).iterdir())):
-        # Only process images. The bioformats reader can actually do many more file formats
-        # but I was a little lazy here, as we usually have tiffs.
-        if not real_path.is_file() or real_path.suffix not in (".tiff", ".tif"):
-            continue
-        # ImageJ files have particular TIFF tags that can be processed correctly
-        # with the options.imagej switch
-        image = imread.get_image(real_path)
-
-        # Only grayscale images are processed. If the input is an RGB image,
-        # a channel can be chosen for processing.
-        measures[idx] = calculate_single_image_frc(image, options)
-
-        image_names.append(real_path.name)
-
-    return measures, image_names
 
 
 class FRC:
@@ -264,29 +319,13 @@ class FRC:
         :return: Returns the FRC results.
 
         """
-        radii = self.iterator.radii
-        c1 = np.zeros(radii.shape, dtype=np.float32)
-        c2 = np.zeros(radii.shape, dtype=np.float32)
-        c3 = np.zeros(radii.shape, dtype=np.float32)
-        points = np.zeros(radii.shape, dtype=np.float32)
+        c1, c2, c3, n_points = accumulate_fourier_correlation(
+            self.fft_image1, self.fft_image2, self.iterator
+        )
 
-        for ind_ring, idx in self.iterator:
-            subset1 = self.fft_image1[ind_ring]
-            subset2 = self.fft_image2[ind_ring]
-            c1[idx] = np.sum(subset1 * np.conjugate(subset2)).real
-            c2[idx] = np.sum(np.abs(subset1) ** 2)
-            c3[idx] = np.sum(np.abs(subset2) ** 2)
-
-            points[idx] = len(subset1)
-
-        # Calculate FRC
-        spatial_freq = radii.astype(np.float32) / self.freq_nyq
-        n_points = np.array(points)
-
-        with np.errstate(divide="ignore", invalid="ignore"):
-            frc = np.abs(c1) / np.sqrt(c2 * c3)
-            frc[frc == np.inf] = 0.0
-            frc = np.nan_to_num(frc)
+        spatial_freq, frc = build_correlation_curve(
+            c1, c2, c3, self.iterator.radii, self.freq_nyq
+        )
 
         data_set = FourierCorrelationData()
         data_set.correlation["correlation"] = frc

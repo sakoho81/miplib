@@ -1,3 +1,6 @@
+import logging
+from enum import Enum
+
 import numpy as np
 import scipy.optimize as optimize
 from scipy.interpolate import UnivariateSpline, interp1d
@@ -9,26 +12,45 @@ from miplib.data.containers.fourier_correlation_data import (
     FourierCorrelationDataCollection,
 )
 
+logger = logging.getLogger(__name__)
 
-def fit_frc_curve(data_set, degree, fit_type="spline"):
-    """
-    Calculate a least squares curve fit to the FRC Data
-    :return: None. Will modify the frc argument in place
-    """
-    assert isinstance(data_set, FourierCorrelationData)
 
+class FitType(Enum):
+    """Curve-fitting method for FRC data."""
+
+    SMOOTH_SPLINE = "smooth-spline"
+    SPLINE = "spline"
+    POLYNOMIAL = "polynomial"
+
+
+class ResolutionCriterion(Enum):
+    """Threshold criterion for determining the resolution limit.
+
+    ONE_BIT: 1-bit information content criterion.
+    HALF_BIT: ½-bit information content criterion.
+    THREE_SIGMA: 3σ significance threshold.
+    FIXED: Fixed threshold value (e.g. 1/7).
+    SNR: SNR-based adaptive threshold.
+    """
+
+    ONE_BIT = "one-bit"
+    HALF_BIT = "half-bit"
+    THREE_SIGMA = "three-sigma"
+    FIXED = "fixed"
+    SNR = "snr"
+
+
+def fit_frc_curve(
+    data_set: FourierCorrelationData, degree: int, fit_type: FitType = FitType.SPLINE
+) -> UnivariateSpline | interp1d | np.poly1d:
     data = data_set.correlation["correlation"]
 
-    if fit_type == "smooth-spline":
+    if fit_type == FitType.SMOOTH_SPLINE:
         equation = UnivariateSpline(data_set.correlation["frequency"], data)
         equation.set_smoothing_factor(0.25)
-        # equation = interp1d(data_set.correlation["frequency"],
-        #                     data, kind='slinear')
-
-    elif fit_type == "spline":
+    elif fit_type == FitType.SPLINE:
         equation = interp1d(data_set.correlation["frequency"], data, kind="slinear")
-
-    elif fit_type == "polynomial":
+    elif fit_type == FitType.POLYNOMIAL:
         coeff = np.polyfit(
             data_set.correlation["frequency"],
             data,
@@ -37,10 +59,9 @@ def fit_frc_curve(data_set, degree, fit_type="spline"):
         )
         equation = np.poly1d(coeff)
     else:
-        raise AttributeError(fit_type)
+        raise ValueError(f"Unknown fit_type: {fit_type!r}")
 
     data_set.correlation["curve-fit"] = equation(data_set.correlation["frequency"])
-
     return equation
 
 
@@ -63,46 +84,37 @@ def calculate_snr_threshold_value(points_x_bin, snr):
     return arrayutils.safe_divide(nominator, denominator)
 
 
-def calculate_resolution_threshold_curve(data_set, criterion, threshold, snr):
-    """
-    Calculate the two sigma curve. The FRC should be run first, as the results of the two sigma
-    depend on the number of points on the fourier rings.
-
-    :return:  Adds the
-    """
-    assert isinstance(data_set, FourierCorrelationData)
-
+def calculate_resolution_threshold_curve(
+    data_set: FourierCorrelationData,
+    criterion: ResolutionCriterion,
+    threshold: float,
+    snr: float,
+) -> interp1d | None:
     points_x_bin = data_set.correlation["points-x-bin"]
 
     if points_x_bin[-1] == 0:
         points_x_bin[-1] = points_x_bin[-2]
 
-    if criterion == "one-bit":
+    if criterion == ResolutionCriterion.ONE_BIT:
         nominator = 0.5 + arrayutils.safe_divide(2.4142, np.sqrt(points_x_bin))
         denominator = 1.5 + arrayutils.safe_divide(1.4142, np.sqrt(points_x_bin))
         points = arrayutils.safe_divide(nominator, denominator)
-
-    elif criterion == "half-bit":
+    elif criterion == ResolutionCriterion.HALF_BIT:
         nominator = 0.2071 + arrayutils.safe_divide(1.9102, np.sqrt(points_x_bin))
         denominator = 1.2071 + arrayutils.safe_divide(0.9102, np.sqrt(points_x_bin))
         points = arrayutils.safe_divide(nominator, denominator)
-
-    elif criterion == "three-sigma":
+    elif criterion == ResolutionCriterion.THREE_SIGMA:
         points = arrayutils.safe_divide(
             np.full(points_x_bin.shape, 3.0), (np.sqrt(points_x_bin) + 3.0 - 1)
         )
-
-    elif criterion == "fixed":
+    elif criterion == ResolutionCriterion.FIXED:
         points = threshold * np.ones(len(data_set.correlation["points-x-bin"]))
-    elif criterion == "snr":
+    elif criterion == ResolutionCriterion.SNR:
         points = calculate_snr_threshold_value(points_x_bin, snr)
-
     else:
-        raise AttributeError()
+        raise ValueError(f"Unknown criterion: {criterion!r}")
 
-    if criterion != "fixed":
-        # coeff = np.polyfit(data_set.correlation["frequency"], points, 3)
-        # equation = np.poly1d(coeff)
+    if criterion != ResolutionCriterion.FIXED:
         equation = interp1d(data_set.correlation["frequency"], points, kind="slinear")
         curve = equation(data_set.correlation["frequency"])
     else:
@@ -113,73 +125,72 @@ def calculate_resolution_threshold_curve(data_set, criterion, threshold, snr):
     return equation
 
 
+def _first_guess(x: np.ndarray, y: np.ndarray, threshold: float) -> float | None:
+    """Return the frequency just before the FRC curve crosses the threshold.
+
+    Returns None if the curve never crosses the threshold.
+    """
+    candidates = np.where((y - threshold) <= 0)[0]
+    if len(candidates) == 0:
+        return None
+    idx = max(0, candidates[0] - 1)
+    return x[idx]
+
+
 class FourierCorrelationAnalysis:
-    def __init__(self, data, spacing, args):
-        assert isinstance(data, FourierCorrelationDataCollection)
+    def __init__(
+        self,
+        data: FourierCorrelationDataCollection,
+        spacing: float,
+        options: object,
+    ) -> None:
+        if not isinstance(data, FourierCorrelationDataCollection):
+            raise TypeError(
+                f"Expected FourierCorrelationDataCollection, got {type(data).__name__}"
+            )
 
         self.data_collection = data
-        self.args = args
+        self.options = options
         self.spacing = spacing
 
-    def execute(self, z_correction=1):
-        """
-        Calculate the spatial resolution as a cross-section of the FRC and Two-sigma curves.
+    def execute(self, z_correction: float = 1) -> FourierCorrelationDataCollection:
+        criterion = self.options.resolution_threshold_criterion  # type: ignore[attr-defined]
+        threshold = self.options.resolution_threshold_value  # type: ignore[attr-defined]
+        snr = self.options.resolution_snr_value  # type: ignore[attr-defined]
+        degree = self.options.frc_curve_fit_degree  # type: ignore[attr-defined]
+        fit_type = self.options.frc_curve_fit_type  # type: ignore[attr-defined]
 
-        :return: Returns the calculation results. They are also saved inside the class.
-                 The return value is just for convenience.
-        """
-
-        criterion = self.args.resolution_threshold_criterion
-        threshold = self.args.resolution_threshold_value
-        snr = self.args.resolution_snr_value
-        degree = self.args.frc_curve_fit_degree
-        fit_type = self.args.frc_curve_fit_type
-        verbose = self.args.verbose
-
-        def pdiff1(x):
+        def _pdiff1(x: float) -> float:
             return abs(frc_eq(x) - two_sigma_eq(x))
 
-        def pdiff2(x):
+        def _pdiff2(x: float) -> float:
             return abs(frc_eq(x) - threshold)
 
-        def first_guess(x, y, threshold):
-            # y_smooth = savgol_filter(y, 5, 2)
-            # return x[np.argmin(np.abs(y_smooth - threshold))]
-
-            difference = y - threshold
-
-            return x[np.where(difference <= 0)[0][0] - 1]
-            # return x[np.argmin(np.abs(y - threshold))]
-
         for key, data_set in self.data_collection:
-            if verbose:
-                print(f"Calculating resolution point for dataset {key}")
+            logger.debug("Calculating resolution point for dataset %s", key)
             frc_eq = fit_frc_curve(data_set, degree, fit_type)
             two_sigma_eq = calculate_resolution_threshold_curve(
                 data_set, criterion, threshold, snr
             )
 
-            """
-            Todo: Make the first quess adaptive. For example find the data point at which FRC
-            value is closest to the mean of the threshold
-            """
-
-            # Find intersection
-            fit_start = first_guess(
+            fit_start = _first_guess(
                 data_set.correlation["frequency"],
                 data_set.correlation["correlation"],
                 np.mean(data_set.resolution["threshold"]),
             )
-            if self.args.verbose:
-                print(f"Fit starts at {fit_start}")
-                disp = 1
-            else:
-                disp = 0
-            root = optimize.fmin(
-                pdiff2 if criterion == "fixed" else pdiff1, fit_start, disp=disp
-            )[0]
+            if fit_start is None:
+                logger.debug("No intersection found for dataset %s", key)
+                continue
+
+            logger.debug("Fit starts at %s", fit_start)
+
+            root = optimize.minimize_scalar(
+                _pdiff2 if criterion == ResolutionCriterion.FIXED else _pdiff1,
+                bounds=(0, 1),
+                method="bounded",
+            ).x
             data_set.resolution["resolution-point"] = (frc_eq(root), root)
-            data_set.resolution["criterion"] = criterion
+            data_set.resolution["criterion"] = criterion.value
 
             angle = converters.degrees_to_radians(int(key))
             z_correction_multiplier = 1 + (z_correction - 1) * np.abs(np.sin(angle))
@@ -189,20 +200,5 @@ class FourierCorrelationAnalysis:
             data_set.resolution["spacing"] = self.spacing * z_correction_multiplier
 
             self.data_collection[int(key)] = data_set
-
-            # # # Find intersection
-            # root, result = optimize.brentq(
-            #     pdiff2 if criterion == 'fixed' else pdiff1,
-            #     0.0, 1.0, xtol=tolerance, full_output=True)
-            #
-            # # Save result, if intersection was found
-            # if result.converged is True:
-            #     data_set.resolution["resolution-point"] = (frc_eq(root), root)
-            #     data_set.resolution["criterion"] = criterion
-            #     resolution = 2 * self.spacing / root
-            #     data_set.resolution["resolution"] = resolution
-            #     self.data_collection[int(key)] = data_set
-            # else:
-            #     print "Could not find an intersection for the curves for the dataset %s." % key
 
         return self.data_collection

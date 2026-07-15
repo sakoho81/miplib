@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import sys
 import time
@@ -134,6 +135,18 @@ def _build_parser() -> argparse.ArgumentParser:
         help="RL convergence epsilon (clipping floor).",
     )
     parser.add_argument("--verbose", action="store_true", help="Enable debug logging.")
+    parser.add_argument(
+        "--tracker-type",
+        choices=["tau1", "frc"],
+        default="tau1",
+        help="Convergence tracker: tau1 (default) or frc-based.",
+    )
+    parser.add_argument(
+        "--frc-options",
+        type=str,
+        default=None,
+        help="FRC options as JSON dict, used when --tracker-type=frc.",
+    )
     return parser
 
 
@@ -169,11 +182,21 @@ def main():
     )
     estimate = create_estimate(source, FirstEstimate(args.first_estimate))
 
+    from miplib.analysis.resolution.fourier_ring_correlation import FRCOptions
+    from miplib.utils.dataclasses import options_from_dict
+
+    frc_options = options_from_dict(
+        FRCOptions,
+        json.loads(args.frc_options) if args.frc_options else None,
+    )
+
     options = RLOptions(
         max_iterations=args.iterations,
         stop_tau=args.stop_tau,
         tv_lambda=args.tv_lambda,
         epsilon=args.epsilon,
+        tracker_type=args.tracker_type,
+        frc_options=frc_options,
     )
 
     print(
