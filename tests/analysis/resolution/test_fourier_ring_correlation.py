@@ -329,7 +329,7 @@ def test_real_ism_image_frc_resolution(frc_options):
 # ---------------------------------------------------------------------------
 
 
-def test_one_image_sectioned_fsc_returns_data_collection(noisy_blobs_3d):
+def test_one_image_sectioned_fsc_returns_data_collection(gaussian_field_pair_3d):
     from miplib.analysis.resolution.fourier_shell_correlation import (
         calculate_one_image_sectioned_fsc,
     )
@@ -337,7 +337,8 @@ def test_one_image_sectioned_fsc_returns_data_collection(noisy_blobs_3d):
         FourierCorrelationDataCollection,
     )
 
-    result = calculate_one_image_sectioned_fsc(noisy_blobs_3d)
+    im = gaussian_field_pair_3d[0]
+    result = calculate_one_image_sectioned_fsc(im)
     assert isinstance(result, FourierCorrelationDataCollection)
     assert len(result) > 0
     for _angle, dataset in result:
@@ -345,13 +346,14 @@ def test_one_image_sectioned_fsc_returns_data_collection(noisy_blobs_3d):
         assert np.isfinite(dataset.resolution["resolution"])
 
 
-def test_one_image_sectioned_fsc_disabling_hamming_still_works(noisy_blobs_3d):
+def test_one_image_sectioned_fsc_disabling_hamming_still_works(gaussian_field_pair_3d):
     from miplib.analysis.resolution.fourier_shell_correlation import (
         calculate_one_image_sectioned_fsc,
     )
 
     opts = FRCOptions(use_hamming=False)
-    result = calculate_one_image_sectioned_fsc(noisy_blobs_3d, opts)
+    im = gaussian_field_pair_3d[0]
+    result = calculate_one_image_sectioned_fsc(im, opts)
     for _angle, dataset in result:
         assert dataset.resolution["resolution-point"] is not None
         assert np.isfinite(dataset.resolution["resolution"])
