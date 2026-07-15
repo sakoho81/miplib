@@ -266,4 +266,4 @@ def test_real_ism_image_frc_resolution(frc_options):
     result = calculate_single_image_frc(im, frc_options)
     resolution = result.resolution["resolution"]
     assert np.isfinite(resolution)
-    assert 0.3 < resolution < 0.8, f"Expected ~0.5 µm, got {resolution:.3f} µm"
+    assert 0.534 < resolution < 0.590, f"Expected ~0.56 µm, got {resolution:.3f} µm"
