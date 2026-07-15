@@ -17,15 +17,26 @@ from miplib.processing import fftutils, windowing
 from . import analysis as fsc_analysis
 
 
+def _cutoff_correction(x: float) -> float:
+    """Exponential cutoff correction from Koho et al. (2019).
+
+    Koho, S. et al. Fourier ring correlation simplifies image restoration
+    in fluorescence microscopy. Nat. Commun. 10, 3103 (2019).
+    """
+    return 0.95988146 * np.exp(13.90441896 * (x - 0.97979108)) + 0.55146136
+
+
 @dataclass
 class FRCOptions:
     d_bin: float = 1.0
-    disable_hamming: bool = False
+    use_hamming: bool = True
     d_angle: float = 45.0
     d_extract_angle: float = 5.0
     frc_curve_fit_degree: int = 8
-    frc_curve_fit_type: str = "spline"
-    resolution_threshold_criterion: str = "fixed"
+    frc_curve_fit_type: fsc_analysis.FitType = fsc_analysis.FitType.SPLINE
+    resolution_threshold_criterion: fsc_analysis.ResolutionCriterion = (
+        fsc_analysis.ResolutionCriterion.FIXED
+    )
     resolution_threshold_value: float = 1.0 / 7
     resolution_snr_value: float = 0.25
 
@@ -34,18 +45,27 @@ def namespace_to_frc_options(ns: object) -> FRCOptions:
     """Convert an argparse.Namespace or any object to FRCOptions.
 
     Extracts only the fields that match FRCOptions field names.
-    This bridges the old CLI layer (argparse flags) to the new dataclass API.
     """
+    fit_type_raw = getattr(ns, "frc_curve_fit_type", "spline")
+    if isinstance(fit_type_raw, fsc_analysis.FitType):
+        fit_type = fit_type_raw
+    else:
+        fit_type = fsc_analysis.FitType(fit_type_raw)
+
+    criterion_raw = getattr(ns, "resolution_threshold_criterion", "fixed")
+    if isinstance(criterion_raw, fsc_analysis.ResolutionCriterion):
+        criterion = criterion_raw
+    else:
+        criterion = fsc_analysis.ResolutionCriterion(criterion_raw)
+
     return FRCOptions(
         d_bin=getattr(ns, "d_bin", 1.0),
-        disable_hamming=getattr(ns, "disable_hamming", False),
+        use_hamming=getattr(ns, "use_hamming", True),
         d_angle=getattr(ns, "d_angle", 45.0),
         d_extract_angle=getattr(ns, "d_extract_angle", 5.0),
         frc_curve_fit_degree=getattr(ns, "frc_curve_fit_degree", 8),
-        frc_curve_fit_type=getattr(ns, "frc_curve_fit_type", "spline"),
-        resolution_threshold_criterion=getattr(
-            ns, "resolution_threshold_criterion", "fixed"
-        ),
+        frc_curve_fit_type=fit_type,
+        resolution_threshold_criterion=criterion,
         resolution_threshold_value=getattr(ns, "resolution_threshold_value", 1.0 / 7),
         resolution_snr_value=getattr(ns, "resolution_snr_value", 0.25),
     )
@@ -131,7 +151,7 @@ def calculate_single_image_frc(
 
     frc_data = FourierCorrelationDataCollection()
 
-    if not options.disable_hamming:
+    if options.use_hamming:
         spacing = image.spacing
         image = Image(windowing.apply_hamming_window(image), spacing)
 
@@ -153,19 +173,17 @@ def calculate_single_image_frc(
             0.5 * frc_task.execute().correlation["correlation"]
         )
 
-    def func(x, a, b, c, d):
-        return a * np.exp(c * (x - b)) + d
-
-    params = [0.95988146, 0.97979108, 13.90441896, 0.55146136]
-
     analyzer = fsc_analysis.FourierCorrelationAnalysis(
         frc_data, image1.spacing[0], options
     )
 
     result = analyzer.execute(z_correction=z_correction)[0]
-    point = result.resolution["resolution-point"][1]
 
-    cut_off_correction = func(point, *params)
+    point_data = result.resolution["resolution-point"]
+    if point_data is None:
+        return result
+
+    cut_off_correction = _cutoff_correction(point_data[1])
     result.resolution["spacing"] /= cut_off_correction
     result.resolution["resolution"] /= cut_off_correction
 
@@ -185,7 +203,7 @@ def calculate_two_image_frc(
     frc_data = FourierCorrelationDataCollection()
     spacing = image1.spacing
 
-    if not options.disable_hamming:
+    if options.use_hamming:
         image1 = Image(windowing.apply_hamming_window(image1), spacing)
         image2 = Image(windowing.apply_hamming_window(image2), spacing)
 
@@ -202,7 +220,7 @@ def calculate_two_image_frc(
 
 def calculate_single_image_sectioned_frc(
     image: Image,
-    rotation: float = 45,
+    rotation: float,
     *,
     options: FRCOptions | None = None,
     orthogonal: bool = True,
@@ -212,7 +230,7 @@ def calculate_single_image_sectioned_frc(
 
     frc_data = FourierCorrelationDataCollection()
 
-    if not options.disable_hamming:
+    if options.use_hamming:
         spacing = image.spacing
         image = Image(windowing.apply_hamming_window(image), spacing)
 
@@ -247,19 +265,17 @@ def calculate_single_image_sectioned_frc(
 
     frc_data[0] = pair_1
 
-    def func(x, a, b, c, d):
-        return a * np.exp(c * (x - b)) + d
-
-    params = [0.95988146, 0.97979108, 13.90441896, 0.55146136]
-
     analyzer = fsc_analysis.FourierCorrelationAnalysis(
         frc_data, image1.spacing[0], options
     )
 
     result = analyzer.execute()[0]
-    point = result.resolution["resolution-point"][1]
 
-    log_correction = func(point, *params)
+    point_data = result.resolution["resolution-point"]
+    if point_data is None:
+        return result
+
+    log_correction = _cutoff_correction(point_data[1])
     result.resolution["spacing"] /= log_correction
     result.resolution["resolution"] /= log_correction
 

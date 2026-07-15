@@ -79,6 +79,9 @@ class ConvergenceTracker:
         options = FRCOptions()
         result = calculate_single_image_frc(estimate, options)
         resolution = result.resolution["resolution"]
+        if resolution is None:
+            return False
+        diff = abs(self._prev_resolution - resolution)
         diff = abs(self._prev_resolution - resolution)
         logger.debug(
             "FRC check: resolution=%.4f  prev=%.4f  diff=%.4f",

@@ -59,18 +59,12 @@ def test_has_converged_ignores_estimate_in_tau1_mode():
     assert tracker.has_converged(0.2, estimate=None)
 
 
-@pytest.mark.xfail(
-    reason="FRC analysis code crashes when correlation never crosses the "
-    "resolution threshold (first_guess IndexError). Needs cleanup of the old "
-    "FRC analysis module."
-)
 def test_frc_tracker_does_not_crash():
-    """Smoke-test: FRC tracker survives a real image without crashing.
+    """Frc tracker survives when FRC curve never crosses the resolution threshold.
 
-    FRC convergence on synthetic test patterns may be unreliable until the
-    old FRC analysis code is cleaned up, but the tracker should at least
-    not raise when handed a real Image. Uses a real photo so the FRC
-    correlation has actual structure to work with.
+    Clean images produce checkerboard halves with correlated noise, so
+    the FRC correlation may never drop below the fixed threshold of 1/7.
+    The tracker must not crash — it should return False (not converged).
     """
     import skimage.data
 
@@ -81,4 +75,4 @@ def test_frc_tracker_does_not_crash():
     coins = skimage.data.coins().astype(np.float64)
     img = Image(coins, spacing=(1.0, 1.0))
     result = tracker.has_converged(tau_threshold=1e-8, estimate=img)
-    assert result in (True, False)
+    assert result is False  # Clean image FRC never crosses threshold

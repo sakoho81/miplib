@@ -16,7 +16,7 @@ from miplib.data.containers.image import Image
 from miplib.processing import fftutils, windowing
 
 from . import analysis as fsc_analysis
-from .fourier_ring_correlation import FRCOptions
+from .fourier_ring_correlation import FRCOptions, _cutoff_correction
 
 
 def calculate_fourier_plane_correlation(
@@ -82,15 +82,12 @@ def calculate_one_image_sectioned_fsc(
     analyzer = fsc_analysis.FourierCorrelationAnalysis(data, image1.spacing[0], options)
     result = analyzer.execute(z_correction=z_correction)
 
-    def func(x, a, b, c, d):
-        return a * np.exp(c * (x - b)) + d
-
-    params = [0.95988146, 0.97979108, 13.90441896, 0.55146136]
-
     for _angle, dataset in result:
-        point = dataset.resolution["resolution-point"][1]
+        point_data = dataset.resolution["resolution-point"]
+        if point_data is None:
+            continue
 
-        cut_off_correction = func(point, *params)
+        cut_off_correction = _cutoff_correction(point_data[1])
         dataset.resolution["spacing"] /= cut_off_correction
         dataset.resolution["resolution"] /= cut_off_correction
 

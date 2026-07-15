@@ -4,8 +4,10 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 
+from miplib.analysis.resolution.analysis import FitType, ResolutionCriterion
 from miplib.analysis.resolution.fourier_ring_correlation import (
     FRCOptions,
+    _cutoff_correction,
     accumulate_fourier_correlation,
     build_correlation_curve,
     create_fourier_iterator,
@@ -20,10 +22,10 @@ from miplib.analysis.resolution.fourier_ring_correlation import (
 def test_frc_options_defaults():
     opts = FRCOptions()
     assert opts.d_bin == 1.0
-    assert opts.disable_hamming is False
+    assert opts.use_hamming is True
     assert opts.frc_curve_fit_degree == 8
-    assert opts.frc_curve_fit_type == "spline"
-    assert opts.resolution_threshold_criterion == "fixed"
+    assert opts.frc_curve_fit_type == FitType.SPLINE
+    assert opts.resolution_threshold_criterion == ResolutionCriterion.FIXED
     assert opts.resolution_threshold_value == pytest.approx(1.0 / 7)
     assert opts.resolution_snr_value == 0.25
     assert opts.d_angle == 45.0
@@ -31,9 +33,16 @@ def test_frc_options_defaults():
 
 
 def test_frc_options_explicit():
-    opts = FRCOptions(d_bin=2.0, disable_hamming=True)
+    opts = FRCOptions(
+        d_bin=2.0,
+        use_hamming=False,
+        frc_curve_fit_type=FitType.POLYNOMIAL,
+        resolution_threshold_criterion=ResolutionCriterion.HALF_BIT,
+    )
     assert opts.d_bin == 2.0
-    assert opts.disable_hamming is True
+    assert opts.use_hamming is False
+    assert opts.frc_curve_fit_type == FitType.POLYNOMIAL
+    assert opts.resolution_threshold_criterion == ResolutionCriterion.HALF_BIT
     assert opts.frc_curve_fit_degree == 8
 
 
@@ -51,7 +60,7 @@ def test_frc_options_d_bin(d_bin):
 def test_namespace_to_frc_options_full():
     ns = argparse.Namespace(
         d_bin=3.0,
-        disable_hamming=True,
+        use_hamming=False,
         frc_curve_fit_degree=12,
         frc_curve_fit_type="polynomial",
         resolution_threshold_criterion="half-bit",
@@ -62,10 +71,10 @@ def test_namespace_to_frc_options_full():
     )
     opts = namespace_to_frc_options(ns)
     assert opts.d_bin == 3.0
-    assert opts.disable_hamming is True
+    assert opts.use_hamming is False
     assert opts.frc_curve_fit_degree == 12
-    assert opts.frc_curve_fit_type == "polynomial"
-    assert opts.resolution_threshold_criterion == "half-bit"
+    assert opts.frc_curve_fit_type == FitType.POLYNOMIAL
+    assert opts.resolution_threshold_criterion == ResolutionCriterion.HALF_BIT
     assert opts.resolution_threshold_value == 0.5
     assert opts.resolution_snr_value == 0.5
     assert opts.d_angle == 90.0
@@ -76,7 +85,7 @@ def test_namespace_to_frc_options_partial():
     ns = argparse.Namespace(d_bin=5.0)
     opts = namespace_to_frc_options(ns)
     assert opts.d_bin == 5.0
-    assert opts.resolution_threshold_criterion == "fixed"
+    assert opts.resolution_threshold_criterion == ResolutionCriterion.FIXED
 
 
 def test_namespace_to_frc_options_unknown_attrs_ignored():
@@ -89,6 +98,17 @@ def test_namespace_to_frc_options_empty():
     ns = argparse.Namespace()
     opts = namespace_to_frc_options(ns)
     assert opts.d_bin == 1.0
+
+
+# ---------------------------------------------------------------------------
+# cutoff_correction
+# ---------------------------------------------------------------------------
+
+
+def test_cutoff_correction_returns_finite():
+    result = _cutoff_correction(0.5)
+    assert np.isfinite(result)
+    assert result > 0
 
 
 # ---------------------------------------------------------------------------
@@ -207,15 +227,16 @@ def test_correlation_curve_handles_inf():
 
 
 def test_single_image_frc_returns_valid_result(frc_options):
-    """Smoke test: running FRC on a camera image returns a valid resolution."""
     from skimage import data as skdata
 
     from miplib.analysis.resolution.fourier_ring_correlation import (
         calculate_single_image_frc,
     )
     from miplib.data.containers.image import Image
+    from miplib.processing.image import noisy
 
     im = Image(skdata.camera().astype(np.float64), spacing=(1.0, 1.0))
+    im = noisy(im, "gauss")  # independent noise so FRC curve decays
     result = calculate_single_image_frc(im, frc_options)
     resolution = result.resolution["resolution"]
     assert np.isfinite(resolution)

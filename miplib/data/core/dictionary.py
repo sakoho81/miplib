@@ -17,6 +17,12 @@ class FixedDictionary:
     def __getitem__(self, key: str) -> Any:
         return self._dictionary[key]
 
+    def __contains__(self, key: str) -> bool:
+        return key in self._dictionary
+
+    def __iter__(self):
+        return iter(self._dictionary)
+
     @property
     def keys(self) -> list[str]:
         return list(self._dictionary.keys())

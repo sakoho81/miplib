@@ -1,8 +1,10 @@
 import numpy as np
 import pytest
 
-from miplib.analysis.resolution.analysis import _first_guess
-from miplib.analysis.resolution.fourier_ring_correlation import FRCOptions
+from miplib.analysis.resolution.analysis import (
+    FitType,
+    _first_guess,
+)
 from miplib.data.containers.fourier_correlation_data import (
     FourierCorrelationData,
     FourierCorrelationDataCollection,
@@ -24,7 +26,7 @@ def test_first_guess_never_crosses():
     x = np.linspace(0, 1, 10)
     y = np.ones(10) * 0.9
     result = _first_guess(x, y, 0.35)
-    assert result == x[-1]
+    assert result is None
 
 
 def test_first_guess_crosses_at_first_bin():
@@ -51,7 +53,9 @@ def test_first_guess_at_threshold(threshold, expected_idx):
 
 
 def _make_analysis_options():
-    return FRCOptions(frc_curve_fit_type="polynomial")
+    from miplib.analysis.resolution.fourier_ring_correlation import FRCOptions
+
+    return FRCOptions(frc_curve_fit_type=FitType.POLYNOMIAL)
 
 
 def test_analysis_curve_never_crosses_threshold_does_not_crash():
@@ -68,7 +72,6 @@ def test_analysis_curve_never_crosses_threshold_does_not_crash():
     analyzer = FourierCorrelationAnalysis(data, 0.1, _make_analysis_options())
     result = analyzer.execute()
     assert result is not None
-    assert np.isfinite(result[0].resolution["resolution"])
 
 
 def test_analysis_normal_curve_returns_resolution():
