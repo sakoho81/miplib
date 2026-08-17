@@ -74,8 +74,10 @@ Download = "https://github.com/sakoho81/miplib/archive/v1.0.5.tar.gz"
 Repository = "https://github.com/sakoho81/miplib"
 
 [tool.setuptools]
-packages = ["miplib"]
 py-modules = []
+
+[tool.setuptools.packages.find]
+include = ["miplib*"]
 
 [tool.setuptools.package-data]
 miplib = ["**/*.so"]
