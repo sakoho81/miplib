@@ -16,10 +16,7 @@ from pathlib import Path
 from miplib.data.containers.image import Image
 from miplib.data.io import array_detector_data as detio
 from miplib.data.io.write import image as write_image
-from miplib.processing.deconvolution.backends import ViewData, resolve_backend
-from miplib.processing.deconvolution.deconvolver import RLDeconvolver, RLOptions
-from miplib.processing.deconvolution.estimates import FirstEstimate, create_estimate
-from miplib.processing.deconvolution.psf_utils import prepare_psf
+from miplib.processing.deconvolution import RLOptions, richardson_lucy_deconvolution
 from miplib.processing.deconvolution.wiener import wiener_deconvolution
 from miplib.processing.image import rescale_to_8_bit
 from miplib.processing.ism.reconstruction import find_image_shifts, shift_and_sum
@@ -62,26 +59,11 @@ def _get_psf(image: Image, args: argparse.Namespace) -> Image:
 
 def _run_rl_deconv(image: Image, psf: Image, args: argparse.Namespace) -> Image:
     """Run RL deconvolution on a single image."""
-    from miplib.data.adapters.image_data import ArrayDataSource
-
-    psf_arr, adj_psf_arr = prepare_psf(psf, image.spacing)
-    source = ArrayDataSource([image])
-    vd = ViewData(
-        source=source,
-        psfs=[psf_arr],
-        adj_psfs=[adj_psf_arr],
-        weights=[1.0],
-        backgrounds=[0.0],
-    )
-    backend = resolve_backend("cpu", vd, vd.source.shape)
-    estimate = create_estimate(source, strategy=FirstEstimate.IMAGE_MEAN)
-
     options = RLOptions(
         max_iterations=getattr(args, "max_iterations", 20),
         stop_tau=getattr(args, "stop_tau", 1e-4),
     )
-    deconv = RLDeconvolver(backend, estimate=estimate, options=options)
-    return deconv.run()
+    return richardson_lucy_deconvolution(image, psf, options=options)
 
 
 def _build_parser() -> argparse.ArgumentParser:
