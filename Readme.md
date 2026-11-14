@@ -99,6 +99,27 @@ My preferred tool for explorative tasks is Jupyter Notebook/Lab. Please look for
 
 There are also a number of command line scripts (entry points) in the bin/ directory that may be handy in different batch processing tasks. They are also a good place to start exploring the library.
 
+Richardson-Lucy deconvolution is available directly from Python:
+
+```python
+from miplib.processing.deconvolution import (
+    RLOptions,
+    richardson_lucy_deconvolution,
+    richardson_lucy_fusion,
+)
+
+result = richardson_lucy_deconvolution(
+    image, psf, options=RLOptions(max_iterations=50)
+)
+
+# Multi-view fusion: one PSF per view, optional weights and backgrounds
+fused = richardson_lucy_fusion(
+    [view1, view2], [psf1, psf2], options=RLOptions(max_iterations=50)
+)
+```
+
+`RLOptions` also selects the first estimate (`first_estimate`, `estimate_constant`), the fusion mode, block processing, and the convergence tracker.
+
 ## Contribute?
 
 *MIPLIB* was born as a combination of several previously separate libraries. The code and structure, although working, might (does) not in all places make sense. Any suggestions for improvements, new features etc. are welcome.
