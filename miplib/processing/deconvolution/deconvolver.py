@@ -28,13 +28,14 @@ class RLOptions:
     stop_tau: float = 1e-4
     tracker_type: str = "tau1"
     frc_options: object = None  # FRCOptions | None, lazy to avoid coupling
-    estimate_strategy: FirstEstimate = FirstEstimate.IMAGE_MEAN
+    first_estimate: FirstEstimate = FirstEstimate.IMAGE_MEAN
+    estimate_constant: float = 1.0
 
     def __post_init__(self):
         if not isinstance(self.fusion_mode, FusionMode):
             self.fusion_mode = FusionMode(self.fusion_mode)
-        if not isinstance(self.estimate_strategy, FirstEstimate):
-            self.estimate_strategy = FirstEstimate(self.estimate_strategy)
+        if not isinstance(self.first_estimate, FirstEstimate):
+            self.first_estimate = FirstEstimate(self.first_estimate)
         if self.n_blocks < 1:
             raise ValueError(f"n_blocks must be >= 1, got {self.n_blocks}")
         if self.epsilon < 0 or self.epsilon > 0.5:

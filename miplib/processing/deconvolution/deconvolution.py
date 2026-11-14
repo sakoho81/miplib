@@ -1,11 +1,21 @@
+"""High-level Richardson-Lucy deconvolution and multi-view fusion."""
+
 from __future__ import annotations
 
-from miplib.data.adapters.image_data import ArrayDataSource, DataSource
+from collections.abc import Callable
+from pathlib import Path
+from typing import TYPE_CHECKING
+
 from miplib.data.containers.image import Image
 from miplib.processing.deconvolution.backends import ViewData, resolve_backend
 from miplib.processing.deconvolution.deconvolver import RLDeconvolver, RLOptions
 from miplib.processing.deconvolution.estimates import create_estimate
 from miplib.processing.deconvolution.psf_utils import prepare_psfs
+
+if TYPE_CHECKING:
+    from miplib.data.adapters.image_data import DataSource
+
+IterationCallback = Callable[[RLDeconvolver], None]
 
 
 def richardson_lucy_fusion(
@@ -16,47 +26,45 @@ def richardson_lucy_fusion(
     weights: list[float] | None = None,
     backgrounds: list[float] | None = None,
     options: RLOptions | None = None,
+    estimate_path: str | Path | None = None,
+    on_iteration: IterationCallback | None = None,
 ) -> Image:
-    """Multi-view Richardson-Lucy deconvolution / fusion.
+    """Run multi-view Richardson-Lucy deconvolution.
 
-    Parameters
-    ----------
-    source : DataSource | list[Image]
-        One or more views of the same sample.  A list of Images is
-        wrapped in an ArrayDataSource automatically.
-    psfs : list[Image]
-        One PSF per view.
-    backend : {"cpu", "cuda"}
-        Computation backend.
-    weights : list[float] | None
-        View weights.  Defaults to ``[1.0, ...]``.
-    backgrounds : list[float] | None
-        Per-view background estimates.  Defaults to ``[0.0, ...]``.
-    options : RLOptions | None
-        Full algorithm options.  Uses ``RLOptions()`` defaults when
-        not given (100 iterations, IMAGE_MEAN first estimate, etc.).
-
-    Returns
-    -------
-    Image
-        Fused / deconvolved image.
+    ``source`` is a block-wise :class:`DataSource` or a list of
+    :class:`Image` views, one PSF per view. ``estimate_path`` backs the
+    estimate with a memory-mapped file. ``on_iteration`` is called with the
+    running :class:`RLDeconvolver` after each iteration.
     """
     if isinstance(source, list):
+        from miplib.data.adapters.image_data import ArrayDataSource
+
         source = ArrayDataSource(source)
 
-    n = source.n_views
-    if len(psfs) != n:
-        raise ValueError(f"Expected {n} PSF(s), got {len(psfs)}")
+    n_views = source.n_views
+    if len(psfs) != n_views:
+        raise ValueError(f"Expected {n_views} PSF(s), got {len(psfs)}")
 
     opts = options or RLOptions()
-    weights = weights or [1.0] * n
-    backgrounds = backgrounds or [0.0] * n
+    weights = weights or [1.0] * n_views
+    backgrounds = backgrounds or [0.0] * n_views
 
     norms, adjs = prepare_psfs(psfs, source.spacing)
-    vd = ViewData(source, norms, adjs, weights, backgrounds)
-    backend_inst = resolve_backend(backend, vd, source.shape)
-    estimate = create_estimate(source, strategy=opts.estimate_strategy)
-    return RLDeconvolver(backend_inst, estimate, options=opts).run()
+    view_data = ViewData(source, norms, adjs, weights, backgrounds)
+    backend_inst = resolve_backend(backend, view_data, source.shape)
+    estimate = create_estimate(
+        source,
+        opts.first_estimate,
+        constant=opts.estimate_constant,
+        path=estimate_path,
+    )
+
+    deconv = RLDeconvolver(backend_inst, estimate, options=opts)
+    if on_iteration is None:
+        return deconv.run()
+    for _ in deconv:
+        on_iteration(deconv)
+    return deconv.result()
 
 
 def richardson_lucy_deconvolution(
@@ -65,34 +73,17 @@ def richardson_lucy_deconvolution(
     *,
     backend: str = "cpu",
     options: RLOptions | None = None,
+    estimate_path: str | Path | None = None,
+    on_iteration: IterationCallback | None = None,
 ) -> Image:
-    """Single-image Richardson-Lucy deconvolution.
-
-    Thin wrapper around :func:`richardson_lucy_fusion` for the common
-    case of one image and one PSF.
-
-    Parameters
-    ----------
-    image : Image
-        Observed / blurred image.
-    psf : Image
-        Point-spread function.
-    backend : {"cpu", "cuda"}
-        Computation backend.
-    options : RLOptions | None
-        Full algorithm options.  Uses ``RLOptions()`` defaults when
-        not given (100 iterations, IMAGE_MEAN first estimate, etc.).
-
-    Returns
-    -------
-    Image
-        Deconvolved image.
-    """
+    """Deconvolve a single image with a single PSF."""
     return richardson_lucy_fusion(
         source=[image],
         psfs=[psf],
         backend=backend,
-        options=options,
         weights=[1.0],
         backgrounds=[0.0],
+        options=options,
+        estimate_path=estimate_path,
+        on_iteration=on_iteration,
     )

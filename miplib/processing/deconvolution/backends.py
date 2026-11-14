@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 import scipy.signal
 
-from miplib.data.adapters.image_data import DataSource
 from miplib.processing.deconvolution.types import FusionMode
 from miplib.processing.ndarray import nroot, safe_divide
 from miplib.processing.ops_ext import div_unit_grad, update_estimate_poisson
+
+if TYPE_CHECKING:
+    from miplib.data.adapters.image_data import DataSource
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +34,25 @@ class ViewData:
     adj_psfs: list[np.ndarray]
     weights: list[float]
     backgrounds: list[float]
+
+    def __post_init__(self) -> None:
+        n = len(self.psfs)
+        if n == 0:
+            raise ValueError("ViewData requires at least one PSF")
+        for name, values in (
+            ("adj_psfs", self.adj_psfs),
+            ("weights", self.weights),
+            ("backgrounds", self.backgrounds),
+        ):
+            if len(values) != n:
+                raise ValueError(
+                    f"ViewData.{name} must have one entry per PSF ({n}), "
+                    f"got {len(values)}"
+                )
+        if self.source.n_views != n:
+            raise ValueError(
+                f"source has {self.source.n_views} view(s) but {n} PSF(s) were given"
+            )
 
     @property
     def n_views(self) -> int:
