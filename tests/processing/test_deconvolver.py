@@ -323,12 +323,12 @@ def test_deconvolution_pipeline_on_real_ism_image():
     from miplib.analysis.resolution.fourier_ring_correlation import (
         calculate_single_image_frc,
     )
-    from miplib.data.adapters.image_data import ArrayDataSource
     from miplib.data.containers.image import Image
-    from miplib.processing.deconvolution.backends import ViewData, resolve_backend
-    from miplib.processing.deconvolution.deconvolver import RLDeconvolver, RLOptions
-    from miplib.processing.deconvolution.estimates import FirstEstimate, create_estimate
-    from miplib.processing.deconvolution.psf_utils import prepare_psf
+    from miplib.processing.deconvolution import (
+        FirstEstimate,
+        RLOptions,
+        richardson_lucy_deconvolution,
+    )
     from miplib.psf.psfgen import generate_frc_based_psf
 
     path = Path(__file__).parent.parent / "testdata" / "ism_dendrite.tiff"
@@ -343,27 +343,16 @@ def test_deconvolution_pipeline_on_real_ism_image():
     assert psf.ndim == 2
     assert psf[psf.shape[0] // 2, psf.shape[1] // 2] == pytest.approx(1.0)
 
-    psf_arr, adj_psf_arr = prepare_psf(psf, spacing)
-
-    source = ArrayDataSource([img])
-    vd = ViewData(
-        source=source,
-        psfs=[psf_arr],
-        adj_psfs=[adj_psf_arr],
-        weights=[1.0],
-        backgrounds=[0.0],
+    options = RLOptions(
+        max_iterations=5,
+        stop_tau=1e-8,
+        tracker_type="frc",
+        first_estimate=FirstEstimate.IMAGE,
     )
-    backend = resolve_backend("cpu", vd, vd.source.shape)
-    estimate = create_estimate(source, FirstEstimate.IMAGE)
-    options = RLOptions(max_iterations=5, stop_tau=1e-8, tracker_type="frc")
 
     initial = calculate_single_image_frc(img, FRCOptions()).resolution["resolution"]
 
-    deconv = RLDeconvolver(backend, estimate=estimate, options=options)
-    for _ in deconv:
-        pass
-
-    result_img = deconv.result()
+    result_img = richardson_lucy_deconvolution(img, psf, options=options)
     assert result_img.shape == img.shape
     assert np.isfinite(result_img).all()
 

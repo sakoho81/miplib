@@ -9,14 +9,14 @@ import sys
 import time
 from pathlib import Path
 
-from miplib.data.adapters.image_data import ArrayDataSource
 from miplib.data.containers.image import Image
 from miplib.data.io.read import get_image
 from miplib.data.io.write import image as write_image
-from miplib.processing.deconvolution.backends import ViewData, resolve_backend
-from miplib.processing.deconvolution.deconvolver import RLDeconvolver, RLOptions
-from miplib.processing.deconvolution.estimates import FirstEstimate, create_estimate
-from miplib.processing.deconvolution.psf_utils import prepare_psf
+from miplib.processing.deconvolution import (
+    FirstEstimate,
+    RLOptions,
+    richardson_lucy_deconvolution,
+)
 from miplib.psf.psfgen import PsfFromFwhm
 
 logger = logging.getLogger(__name__)
@@ -166,22 +166,6 @@ def main():
         list(args.fov) if args.fov else None,
     )
 
-    psf_arr, adj_psf_arr = prepare_psf(psf, image.spacing)
-
-    source = ArrayDataSource([image])
-    vd = ViewData(
-        source=source,
-        psfs=[psf_arr],
-        adj_psfs=[adj_psf_arr],
-        weights=[1.0],
-        backgrounds=[0.0],
-    )
-
-    backend = resolve_backend(
-        "cuda" if args.enable_cuda else "cpu", vd, vd.source.shape
-    )
-    estimate = create_estimate(source, FirstEstimate(args.first_estimate))
-
     from miplib.analysis.resolution.common import FRCOptions
     from miplib.utils.dataclasses import options_from_dict
 
@@ -197,7 +181,15 @@ def main():
         epsilon=args.epsilon,
         tracker_type=args.tracker_type,
         frc_options=frc_options,
+        first_estimate=FirstEstimate(args.first_estimate),
     )
+
+    def print_progress(deconv) -> None:
+        iteration = deconv.tracker.to_dataframe().shape[0]
+        if iteration % 10 == 0:
+            print(
+                f"  Iteration {iteration:4d}  tau1 = {deconv.tracker.current_tau1:.6f}"
+            )
 
     print(
         f"Deconvolving {args.image.name} "
@@ -206,18 +198,18 @@ def main():
     )
     begin = time.time()
 
-    deconv = RLDeconvolver(backend, estimate=estimate, options=options)
-    for _ in deconv:
-        iteration = deconv.tracker.to_dataframe().shape[0]
-        if iteration % 10 == 0:
-            print(
-                f"  Iteration {iteration:4d}  tau1 = {deconv.tracker.current_tau1:.6f}"
-            )
+    result = richardson_lucy_deconvolution(
+        image,
+        psf,
+        backend="cuda" if args.enable_cuda else "cpu",
+        options=options,
+        on_iteration=print_progress,
+    )
 
     elapsed = time.time() - begin
     print(f"Finished in {elapsed:.1f}s")
 
-    write_image(args.output, deconv.result())
+    write_image(args.output, result)
     print(f"Saved to {args.output}")
 
 

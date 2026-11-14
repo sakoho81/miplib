@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import numpy as np
 import numpy.testing as npt
 import pytest
@@ -64,6 +66,31 @@ class FakeOptions:
 def test_view_data_n_views():
     vd = _make_view_data(n_views=3)
     assert vd.n_views == 3
+
+
+@pytest.mark.parametrize("field", ["adj_psfs", "weights", "backgrounds"])
+def test_view_data_rejects_mismatched_list_lengths(field):
+    vd = _make_view_data(n_views=2)
+    with pytest.raises(ValueError, match=field):
+        replace(vd, **{field: getattr(vd, field)[:1]})
+
+
+def test_view_data_rejects_psf_view_count_mismatch():
+    vd = _make_view_data(n_views=2)
+    with pytest.raises(ValueError, match="2 view"):
+        replace(
+            vd,
+            psfs=vd.psfs[:1],
+            adj_psfs=vd.adj_psfs[:1],
+            weights=vd.weights[:1],
+            backgrounds=vd.backgrounds[:1],
+        )
+
+
+def test_view_data_requires_psfs():
+    vd = _make_view_data(n_views=1)
+    with pytest.raises(ValueError, match="at least one PSF"):
+        replace(vd, psfs=[], adj_psfs=[], weights=[], backgrounds=[])
 
 
 def _run_block(backend, vd, opts):

@@ -10,7 +10,7 @@ from miplib.data.containers.image import Image
 from miplib.processing.deconvolution.backends import CPUBackend, CUDABackend
 from miplib.processing.deconvolution.blocks import extract_padded_block, iter_blocks
 from miplib.processing.deconvolution.tracker import ConvergenceTracker
-from miplib.processing.deconvolution.types import FusionMode
+from miplib.processing.deconvolution.types import FirstEstimate, FusionMode
 
 logger = logging.getLogger(__name__)
 
@@ -28,10 +28,14 @@ class RLOptions:
     stop_tau: float = 1e-4
     tracker_type: str = "tau1"
     frc_options: object = None  # FRCOptions | None, lazy to avoid coupling
+    first_estimate: FirstEstimate = FirstEstimate.IMAGE_MEAN
+    estimate_constant: float = 1.0
 
     def __post_init__(self):
         if not isinstance(self.fusion_mode, FusionMode):
             self.fusion_mode = FusionMode(self.fusion_mode)
+        if not isinstance(self.first_estimate, FirstEstimate):
+            self.first_estimate = FirstEstimate(self.first_estimate)
         if self.n_blocks < 1:
             raise ValueError(f"n_blocks must be >= 1, got {self.n_blocks}")
         if self.epsilon < 0 or self.epsilon > 0.5:
